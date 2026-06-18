@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 复制 - 副本集与高可用性</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Replication-specific styles */
+        .replica-set-diagram {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+            padding: 2rem;
+            background: var(--light-color);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            position: relative;
+        }
+
+        .replica-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 160px;
+        }
+
+        .node-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            box-shadow: var(--shadow-lg);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 3px solid;
+        }
+
+        .node-circle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .node-circle.primary-node {
+            background: linear-gradient(135deg, #001E2B 0%, #00643B 100%);
+            color: #00ED64;
+            border-color: #00ED64;
+        }
+
+        .node-circle.secondary-node {
+            background: linear-gradient(135deg, #4CAF50 0%, #00643B 100%);
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .node-circle.arbiter-node {
+            background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+            color: #001E2B;
+            border-color: #FFC107;
+        }
+
+        .node-label {
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        .node-desc {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+            max-width: 160px;
+        }
+
+        .oplog-arrow {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            color: var(--primary-color);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .oplog-arrow .arrow-line {
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, #00ED64, #00643B);
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .oplog-arrow .arrow-line::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid #00643B;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+        }
+
+        .election-timeline {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 2rem 0;
+            gap: 0.3rem;
+        }
+
+        .timeline-bar {
+            width: 80%;
+            max-width: 500px;
+            height: 40px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: white;
+            position: relative;
+        }
+
+        .timeline-bar.down {
+            background: linear-gradient(90deg, #E34234, #C62828);
+        }
+
+        .timeline-bar.election {
+            background: linear-gradient(90deg, #FFC107, #FF9800);
+            color: #001E2B;
+        }
+
+        .timeline-bar.new-primary {
+            background: linear-gradient(90deg, #00643B, #00ED64);
+            color: white;
+        }
+
+        .timeline-label {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .datacenter-diagram {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .dc-box {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            min-width: 200px;
+            background: var(--light-color);
+            text-align: center;
+        }
+
+        .dc-box h4 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .dc-node {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            margin: 0.3rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .dc-node.primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .dc-node.secondary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .dc-node.arbiter {
+            background: #FFC107;
+            color: #001E2B;
+        }
+
+        .read-concern-flow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .concern-level {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .concern-badge {
+            min-width: 100px;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .concern-badge.local {
+            background: #FFF3CD;
+            color: #856404;
+            border: 2px solid #FFC107;
+        }
+
+        .concern-badge.available {
+            background: #E3F2FD;
+            color: #1565C0;
+            border: 2px solid #2196F3;
+        }
+
+        .concern-badge.majority {
+            background: #E8F5E9;
+            color: #1B5E20;
+            border: 2px solid #00643B;
+        }
+
+        .concern-desc {
+            font-size: 0.9rem;
+            color: #444;
+        }
+
+        .flow-control-bar {
+            background: var(--light-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .flow-control-bar h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .lag-meter {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .lag-bar {
+            flex: 1;
+            height: 12px;
+            background: #e9ecef;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .lag-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+
+        .lag-fill.ok {
+            background: linear-gradient(90deg, #00ED64, #00643B);
+            width: 20%;
+        }
+
+        .lag-fill.warn {
+            background: linear-gradient(90deg, #FFC107, #FF9800);
+            width: 55%;
+        }
+
+        .lag-fill.critical {
+            background: linear-gradient(90deg, #FF5722, #C62828);
+            width: 85%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 复制</h1>
+            <p class="subtitle">副本集、自动故障转移与高可用性</p>
+        </div>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main>
+        <div class="container">
+            <!-- Table of Contents -->
+<!-- 1. Replication Overview -->
+            <section class="concept-section" id="overview">
+                <h2>1. 复制概述</h2>
+                <p>复制（Replication）是 MongoDB 实现高可用性的核心机制，通过在多个服务器上维护数据的副本来提供冗余和故障恢复能力。MongoDB 使用<strong>副本集（Replica Set）</strong>来实现复制。</p>
+
+                <h3>复制的核心价值</h3>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <div class="icon">&#128200;</div>
+                        <h3>数据可用性</h3>
+                        <p>主节点故障时自动选举新主节点，保证服务持续可用，无需人工干预</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128218;</div>
+                        <h3>读扩展</h3>
+                        <p>将读操作分散到从节点，减轻主节点压力，提升整体吞吐量</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#127758;</div>
+                        <h3>数据局部性</h3>
+                        <p>将数据部署在靠近用户的位置，降低访问延迟，提升用户体验</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#127919;</div>
+                        <h3>专用目的节点</h3>
+                        <p>配置隐藏节点用于报表分析、延迟节点用于灾难恢复，各司其职</p>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>提示：</strong>生产环境中建议至少部署 3 个数据承载节点（或 2 个数据节点 + 1 个仲裁节点），以确保副本集在任何单节点故障时仍能保持多数派可用。
+                </div>
+            </section>
+
+            <!-- 2. Replica Set Architecture -->
+            <section class="concept-section" id="architecture">
+                <h2>2. 副本集架构</h2>
+                <p>副本集是一组维护相同数据集的 mongod 进程集合。其中包含一个主节点接收写操作，多个从节点复制主节点的操作日志（oplog）来同步数据。</p>
+
+                <div class="replica-set-diagram">
+                    <!-- Primary Node -->
+                    <div class="replica-node">
+                        <div class="node-circle primary-node">
+                            <span>Primary</span>
+                        </div>
+                        <div class="node-label">主节点</div>
+                        <div class="node-desc">接受所有写操作<br>记录 oplog</div>
+                    </div>
+
+                    <!-- Oplog Arrows -->
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem; align-items: center;">
+                        <div class="oplog-arrow">
+                            <span>oplog</span>
+                            <div class="arrow-line"></div>
+                        </div>
+                        <div class="oplog-arrow">
+                            <span>oplog</span>
+                            <div class="arrow-line"></div>
+                        </div>
+                    </div>
+
+                    <!-- Secondary Nodes -->
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                        <div class="replica-node">
+                            <div class="node-circle secondary-node">
+                                <span>Secondary</span>
+                            </div>
+                            <div class="node-label">从节点 1</div>
+                            <div class="node-desc">复制 oplog<br>可参与选举</div>
+                        </div>
+                        <div class="replica-node">
+                            <div class="node-circle secondary-node">
+                                <span>Secondary</span>
+                            </div>
+                            <div class="node-label">从节点 2</div>
+                            <div class="node-desc">复制 oplog<br>可参与选举</div>
+                        </div>
+                    </div>
+
+                    <!-- Arbiter -->
+                    <div class="replica-node">
+                        <div class="node-circle arbiter-node">
+                            <span>Arbiter</span>
+                        </div>
+                        <div class="node-label">仲裁节点</div>
+                        <div class="node-desc">仅投票<br>不存储数据</div>
+                    </div>
+                </div>
+
+                <h3>副本集成员间通信</h3>
+                <ul>
+                    <li><strong>心跳检测：</strong>成员之间每 2 秒互相发送心跳包，用于检测节点存活状态</li>
+                    <li><strong>oplog 复制：</strong>从节点从主节点的 <code>local.oplog.rs</code> 集合拉取操作日志并重放</li>
+                    <li><strong>选举协议：</strong>基于 Raft 共识算法变体，确保最多一个主节点存在</li>
+                </ul>
+
+                <div class="info">
+                    <strong>oplog 说明：</strong>操作日志（oplog）是一个特殊的固定大小集合（capped collection），记录所有修改数据库数据的操作。所有从节点通过拉取和重放 oplog 来保持与主节点的数据一致。
+                </div>
+            </section>
+
+            <!-- 3. Primary Node -->
+            <section class="concept-section" id="primary">
+                <h2>3. 主节点 (Primary)</h2>
+                <p>主节点是副本集中唯一可以接受写操作的成员。所有的写操作必须指向主节点，主节点将这些操作记录到 oplog 中，从节点通过复制 oplog 来同步数据。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-layer">
+                        <div class="arch-box" style="border-color: #2196F3; background: #E3F2FD; color: #1565C0; min-width: 200px;">
+                            <strong>客户端应用</strong><br>写操作
+                        </div>
+                    </div>
+                    <div class="arch-connector">&#11015; 写请求</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary" style="min-width: 260px;">
+                            <strong>Primary (主节点)</strong><br>
+                            <span style="font-size: 0.85rem;">接受所有写操作 &bull; 生成 oplog &bull; 确认 w:"majority" 写入</span>
+                        </div>
+                    </div>
+                    <div class="arch-connector">&#11015; oplog 分发</div>
+                    <div class="arch-layer">
+                        <div class="arch-box secondary">Secondary 1</div>
+                        <div class="arch-box secondary">Secondary 2</div>
+                    </div>
+                </div>
+
+                <h3>主节点的关键特性</h3>
+                <ul>
+                    <li><strong>唯一写入点：</strong>副本集中同一时刻只能有一个主节点接受写操作</li>
+                    <li><strong>oplog 生成：</strong>主节点将所有写操作记录到 <code>local.oplog.rs</code> 中</li>
+                    <li><strong>多数派确认：</strong>只有主节点可以确认 <code>w:"majority"</code> 写入关注级别</li>
+                    <li><strong>选举产生：</strong>主节点通过选举协议产生，非固定指定</li>
+                </ul>
+
+                <div class="warning">
+                    <strong>重要：</strong>如果一个副本集的主节点不可用，副本集将通过自动选举产生新的主节点。在选举完成之前，副本集无法接受写操作。
+                </div>
+            </section>
+
+            <!-- 4. Secondary Nodes -->
+            <section class="concept-section" id="secondary">
+                <h2>4. 从节点 (Secondary)</h2>
+                <p>从节点维护主节点数据的副本。从节点通过异步方式从主节点的 oplog 中复制操作并在本地重放，从而保持数据同步。</p>
+
+                <h3>从节点的核心能力</h3>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <div class="icon">&#128260;</div>
+                        <h3>异步复制</h3>
+                        <p>从主节点的 oplog 异步拉取操作日志，在本地重放以同步数据</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#127923;</div>
+                        <h3>参与选举</h3>
+                        <p>可被选举为新的主节点（取决于 priority 配置），实现自动故障转移</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128214;</div>
+                        <h3>读操作</h3>
+                        <p>通过配置读偏好（Read Preference），客户端可从从节点读取数据</p>
+                    </div>
+                </div>
+
+                <h3>复制流程详解</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">
+                        <strong>1. 主节点写入</strong><br>
+                        客户端向主节点发起写操作
+                    </div>
+                    <div class="flow-arrow">&#11015;</div>
+                    <div class="flow-step">
+                        <strong>2. 记录 oplog</strong><br>
+                        主节点将操作记录到 <code>local.oplog.rs</code>
+                    </div>
+                    <div class="flow-arrow">&#11015;</div>
+                    <div class="flow-step">
+                        <strong>3. 拉取 oplog</strong><br>
+                        从节点长轮询主节点的 oplog 获取新操作
+                    </div>
+                    <div class="flow-arrow">&#11015;</div>
+                    <div class="flow-step">
+                        <strong>4. 重放操作</strong><br>
+                        从节点在本地重放 oplog 中的操作，应用数据变更
+                    </div>
+                    <div class="flow-arrow">&#11015;</div>
+                    <div class="flow-step">
+                        <strong>5. 确认完成</strong><br>
+                        从节点向主节点确认已应用操作（用于 majority 写关注）
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>注意：</strong>从节点的复制是异步的，这意味着从节点的数据可能略微滞后于主节点。如果读操作需要强一致性，应使用默认的读偏好 <code>primary</code>。
+                </div>
+            </section>
+
+            <!-- 5. Arbiter -->
+            <section class="concept-section" id="arbiter">
+                <h2>5. 仲裁节点 (Arbiter)</h2>
+                <p>仲裁节点是副本集中的特殊成员，它不存储数据，仅参与选举投票。仲裁节点的存在是为了在偶数个数据节点的情况下打破投票僵局，确保副本集能够顺利完成选举。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-layer">
+                        <div class="arch-box primary" style="min-width: 160px;">Primary<br><span style="font-size:0.8rem;">数据 + 投票</span></div>
+                        <div class="arch-box secondary" style="min-width: 160px;">Secondary<br><span style="font-size:0.8rem;">数据 + 投票</span></div>
+                        <div class="arch-box arbiter" style="min-width: 160px;">Arbiter<br><span style="font-size:0.8rem;">仅投票，无数据</span></div>
+                    </div>
+                </div>
+
+                <h3>仲裁节点的特性</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>仲裁节点</th>
+                            <th>数据节点</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>存储数据</td>
+                            <td><span style="color: var(--danger-color); font-weight: bold;">否</span></td>
+                            <td><span style="color: var(--success-color); font-weight: bold;">是</span></td>
+                        </tr>
+                        <tr>
+                            <td>参与选举投票</td>
+                            <td><span style="color: var(--success-color); font-weight: bold;">是</span></td>
+                            <td><span style="color: var(--success-color); font-weight: bold;">是</span></td>
+                        </tr>
+                        <tr>
+                            <td>可成为主节点</td>
+                            <td><span style="color: var(--danger-color); font-weight: bold;">否</span></td>
+                            <td><span style="color: var(--success-color); font-weight: bold;">是</span> (priority &gt; 0)</td>
+                        </tr>
+                        <tr>
+                            <td>可成为从节点</td>
+                            <td><span style="color: var(--danger-color); font-weight: bold;">否</span></td>
+                            <td><span style="color: var(--success-color); font-weight: bold;">是</span></td>
+                        </tr>
+                        <tr>
+                            <td>资源消耗</td>
+                            <td>极低</td>
+                            <td>与数据量成正比</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="warning">
+                    <strong>重要限制：</strong>仲裁节点是一个永久角色——它永远不会成为主节点或从节点。一个副本集最多只能有一个仲裁节点。不要将仲裁节点部署在与主节点相同的机器上，否则该机器故障会导致两票丢失，副本集可能失去多数派。
+                </div>
+            </section>
+
+            <!-- 6. Automatic Failover -->
+            <section class="concept-section" id="failover">
+                <h2>6. 自动故障转移</h2>
+                <p>当主节点不可用时，副本集会自动触发选举，从剩余的从节点中选出一个新的主节点，整个过程无需人工干预。</p>
+
+                <h3>故障转移时间线</h3>
+                <div class="election-timeline">
+                    <div class="timeline-label">主节点故障发生</div>
+                    <div class="timeline-bar down">主节点不可用 (t=0s)</div>
+                    <div class="timeline-label">&#11015; 等待 electionTimeoutMillis</div>
+                    <div class="timeline-bar election">选举过程 (~10s)</div>
+                    <div class="timeline-label">&#11015; 新主节点就绪</div>
+                    <div class="timeline-bar new-primary">新主节点上线 (~12s)</div>
+                </div>
+
+                <h3>关键参数</h3>
+                <div class="kv-pair">
+                    <span class="kv-key">electionTimeoutMillis</span>
+                    <span class="kv-value">心跳超时时间，默认 <code>10000ms</code>（10秒）。从节点在超过此时间未收到主节点心跳后触发选举。</span>
+                </div>
+                <div class="kv-pair">
+                    <span class="kv-key">平均选举时间</span>
+                    <span class="kv-value">约 12 秒（包含心跳超时 + 选举协商）。MongoDB 5.0+ 引入镜像读取以加速选举。</span>
+                </div>
+
+                <h3>可重试写入</h3>
+                <p>MongoDB 驱动支持<strong>可重试写入（Retryable Writes）</strong>，当写操作因主节点故障而失败时，驱动会自动在新主节点选举完成后重试该操作，对应用透明。</p>
+
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <div class="icon">&#128257;</div>
+                        <h3>镜像读取 (Mirror Reads)</h3>
+                        <p>MongoDB 5.0+ 在选举前将部分读取请求镜像发送给从节点，帮助从节点提前预热缓存，加速选举后的读取性能</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128260;</div>
+                        <h3>可重试写入</h3>
+                        <p>驱动自动在故障转移后重试写操作，应用无需额外处理选举期间的短暂不可用</p>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>最佳实践：</strong>设置 <code>electionTimeoutMillis</code> 时需权衡：值太小可能导致网络抖动引起不必要的选举；值太大则故障恢复时间过长。建议保持默认值或根据网络环境适当调整。
+                </div>
+            </section>
+
+            <!-- 7. Async Replication -->
+            <section class="concept-section" id="async-replication">
+                <h2>7. 异步复制详解</h2>
+                <p>MongoDB 的复制是异步的——从节点以异步方式从主节点的 oplog 中拉取操作日志并在本地重放。这种设计在保证可用性的同时允许一定的复制延迟。</p>
+
+                <h3>复制延迟监控</h3>
+                <p>复制延迟（Replication Lag）是从节点数据落后于主节点的程度，是副本集健康度的关键指标。</p>
+
+                <div class="flow-control-bar">
+                    <h4>延迟仪表盘示意</h4>
+                    <div class="lag-meter">
+                        <span style="font-size: 0.8rem; min-width: 80px;">正常 (&lt;1s)</span>
+                        <div class="lag-bar"><div class="lag-fill ok"></div></div>
+                    </div>
+                    <div class="lag-meter">
+                        <span style="font-size: 0.8rem; min-width: 80px;">警告 (1-10s)</span>
+                        <div class="lag-bar"><div class="lag-fill warn"></div></div>
+                    </div>
+                    <div class="lag-meter">
+                        <span style="font-size: 0.8rem; min-width: 80px;">严重 (&gt;10s)</span>
+                        <div class="lag-bar"><div class="lag-fill critical"></div></div>
+                    </div>
+                </div>
+
+                <h3>流控制机制</h3>
+                <p>流控制（Flow Control）是 MongoDB 4.2+ 引入的机制，当复制延迟超过阈值时自动限制主节点的写入速率，防止延迟进一步扩大。</p>
+
+                <div class="kv-pair">
+                    <span class="kv-key">flowControlTargetLagSeconds</span>
+                    <span class="kv-value">目标延迟阈值，默认 <code>10</code> 秒。当实际延迟超过此值时，主节点开始限制写入速率。</span>
+                </div>
+                <div class="kv-pair">
+                    <span class="kv-key">flowControlThresholdMs</span>
+                    <span class="kv-value">流控制采样间隔，默认 <code>1000ms</code>。MongoDB 定期采样延迟并决定是否启用流控制。</span>
+                </div>
+
+                <div class="warning">
+                    <strong>注意：</strong>如果从节点的延迟持续增长且流控制无法有效抑制，应检查：网络带宽、磁盘 I/O、从节点硬件配置以及是否有长时间运行的查询阻塞了 oplog 应用。
+                </div>
+
+                <h3>监控命令</h3>
+                <pre><code>// 查看副本集状态，包含各从节点延迟
+rs.status()
+
+// 查看复制延迟（秒）
+rs.printSecondaryReplicationInfo()
+
+// 查看当前 oplog 窗口大小
+use local
+db.oplog.rs.stats()</code></pre>
+            </section>
+
+            <!-- 8. Read Preference -->
+            <section class="concept-section" id="read-preference">
+                <h2>8. 读偏好 (Read Preference)</h2>
+                <p>读偏好决定了客户端将读操作路由到副本集的哪个成员。默认情况下，所有读操作都指向主节点以保证强一致性，但可以通过配置读偏好来实现读扩展和降低延迟。</p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>模式</th>
+                            <th>说明</th>
+                            <th>适用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>primary</code></td>
+                            <td>只从主节点读取</td>
+                            <td>默认模式，强一致性需求，对数据时效性要求严格</td>
+                        </tr>
+                        <tr>
+                            <td><code>primaryPreferred</code></td>
+                            <td>优先从主节点读取，主不可用时回退到从节点</td>
+                            <td>需要一致性但可容忍主节点故障时的降级读取</td>
+                        </tr>
+                        <tr>
+                            <td><code>secondary</code></td>
+                            <td>只从从节点读取</td>
+                            <td>报表/分析场景，分担主节点负载，可接受最终一致性</td>
+                        </tr>
+                        <tr>
+                            <td><code>secondaryPreferred</code></td>
+                            <td>优先从从节点读取，无从节点可用时回退到主节点</td>
+                            <td>读扩展场景，主节点作为最后回退选项</td>
+                        </tr>
+                        <tr>
+                            <td><code>nearest</code></td>
+                            <td>从网络延迟最低的节点读取（无论主从）</td>
+                            <td>低延迟读取需求，多数据中心部署场景</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>读偏好选择决策流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">需要强一致性吗？</div>
+                    <div class="flow-arrow">&#11015; 是</div>
+                    <div class="flow-step"><code>primary</code> 或 <code>primaryPreferred</code></div>
+                </div>
+                <div class="flow-diagram" style="margin-top: 0.5rem;">
+                    <div class="flow-step">需要读扩展吗？</div>
+                    <div class="flow-arrow">&#11015; 是</div>
+                    <div class="flow-step"><code>secondary</code> 或 <code>secondaryPreferred</code></div>
+                </div>
+                <div class="flow-diagram" style="margin-top: 0.5rem;">
+                    <div class="flow-step">需要最低延迟吗？</div>
+                    <div class="flow-arrow">&#11015; 是</div>
+                    <div class="flow-step"><code>nearest</code></div>
+                </div>
+
+                <div class="info">
+                    <strong>提示：</strong>读偏好可与 <code>maxStalenessSeconds</code> 配合使用，限制从节点的最大延迟。还可与 <code>tag sets</code> 配合，将读操作路由到特定标签的节点（如按数据中心、硬件类型等分类）。
+                </div>
+            </section>
+
+            <!-- 9. Special Secondary Types -->
+            <section class="concept-section" id="special-secondaries">
+                <h2>9. 特殊从节点类型</h2>
+                <p>从节点可以通过配置不同的属性，承担不同的专用角色，满足特定业务需求。</p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>类型</th>
+                            <th>priority</th>
+                            <th>hidden</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>优先级0节点</strong><br><span style="font-size:0.85rem;">(Priority 0)</span></td>
+                            <td><code>0</code></td>
+                            <td>no</td>
+                            <td>永远不会成为主节点，但数据完整可用，适合部署在异地数据中心或用于读扩展</td>
+                        </tr>
+                        <tr>
+                            <td><strong>隐藏节点</strong><br><span style="font-size:0.85rem;">(Hidden)</span></td>
+                            <td><code>0</code></td>
+                            <td>yes</td>
+                            <td>对客户端不可见（不会出现在 <code>isMaster()</code> 结果中），用于专用任务如报表、备份</td>
+                        </tr>
+                        <tr>
+                            <td><strong>延迟节点</strong><br><span style="font-size:0.85rem;">(Delayed)</span></td>
+                            <td><code>0</code></td>
+                            <td>yes</td>
+                            <td>延迟应用 oplog（如 3600 秒），提供历史数据快照，用于灾难恢复和人为误操作回退</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>配置示例</h3>
+                <pre><code>// 优先级0节点（异地数据中心，不参与选举）
+var cfg = rs.conf();
+cfg.members[2].priority = 0;
+rs.reconfig(cfg);
+
+// 隐藏节点（专用报表，对客户端不可见）
+var cfg = rs.conf();
+cfg.members[3].priority = 0;
+cfg.members[3].hidden = true;
+rs.reconfig(cfg);
+
+// 延迟节点（延迟1小时应用oplog，灾难恢复）
+var cfg = rs.conf();
+cfg.members[4].priority = 0;
+cfg.members[4].hidden = true;
+cfg.members[4].slaveDelay = 3600;  // 秒
+rs.reconfig(cfg);</code></pre>
+
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <div class="icon">&#128274;</div>
+                        <h3>优先级0节点</h3>
+                        <p>数据完整，可读，不参与选举成为主节点，适合异地灾备</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128373;</div>
+                        <h3>隐藏节点</h3>
+                        <p>客户端感知不到，不影响应用连接逻辑，专用于后台分析任务</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#9202;</div>
+                        <h3>延迟节点</h3>
+                        <p>数据保留在历史时间点，人为误删数据时可从延迟节点恢复</p>
+                    </div>
+                </div>
+
+                <div class="danger">
+                    <strong>警告：</strong>延迟节点必须是隐藏节点且优先级为0，因为它的数据是延迟的，不能被选举为主节点，也不应被客户端直接读取（除非显式配置读偏好）。
+                </div>
+            </section>
+
+            <!-- 10. Data Visibility and Read Concern -->
+            <section class="concept-section" id="data-visibility">
+                <h2>10. 数据可见性与读关注</h2>
+                <p>读关注（Read Concern）级别控制从副本集读取数据时的一致性和隔离级别。不同级别在一致性和性能之间做出不同权衡。</p>
+
+                <div class="read-concern-flow">
+                    <div class="concern-level">
+                        <div class="concern-badge local"><code>"local"</code></div>
+                        <div class="concern-desc">返回实例最新数据，可能包含未被多数派确认的写入。默认读关注级别。</div>
+                    </div>
+                    <div class="concern-level">
+                        <div class="concern-badge available"><code>"available"</code></div>
+                        <div class="concern-desc">返回实例最新数据（与 local 相似），但不保证因果一致性。适用于分片集群读取 orphans 数据的场景。</div>
+                    </div>
+                    <div class="concern-level">
+                        <div class="concern-badge majority"><code>"majority"</code></div>
+                        <div class="concern-desc">返回已被副本集多数派确认的数据，保证不会被回滚。最强一致性保证。</div>
+                    </div>
+                </div>
+
+                <h3>读关注与读偏好的交互</h3>
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>读偏好</th>
+                            <th>"local"</th>
+                            <th>"available"</th>
+                            <th>"majority"</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>primary</code></td>
+                            <td>主节点最新数据</td>
+                            <td>主节点最新数据</td>
+                            <td>多数派确认数据</td>
+                        </tr>
+                        <tr>
+                            <td><code>secondary</code></td>
+                            <td>从节点最新数据（可能被回滚）</td>
+                            <td>从节点最新数据（无因果保证）</td>
+                            <td>多数派确认数据</td>
+                        </tr>
+                        <tr>
+                            <td><code>nearest</code></td>
+                            <td>最近节点最新数据</td>
+                            <td>最近节点最新数据</td>
+                            <td>多数派确认数据</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>副本集中的事务</h3>
+                <p>MongoDB 4.0+ 支持副本集上的多文档事务（分片集群事务从 4.2 开始支持）。事务提供了更强的数据一致性保证：</p>
+                <ul>
+                    <li>事务内的操作具有原子性：要么全部提交，要么全部回滚</li>
+                    <li>事务默认使用 <code>"majority"</code> 读关注，确保读取多数派确认的数据</li>
+                    <li>事务支持快照隔离，事务开始时看到的数据一致性快照在整个事务期间保持不变</li>
+                    <li>事务的写关注可以配置为 <code>w:"majority"</code>，确保事务提交在多数派节点持久化</li>
+                </ul>
+
+                <pre><code>// 副本集事务示例
+const session = db.getMongo().startSession();
+session.startTransaction({
+    readConcern: { level: "majority" },
+    writeConcern: { w: "majority" }
+});
+
+try {
+    const accounts = session.getDatabase("bank").accounts;
+    accounts.updateOne({ _id: 1 }, { $inc: { balance: -100 } });
+    accounts.updateOne({ _id: 2 }, { $inc: { balance: 100 } });
+    session.commitTransaction();
+} catch (e) {
+    session.abortTransaction();
+    throw e;
+} finally {
+    session.endSession();
+}</code></pre>
+
+                <div class="warning">
+                    <strong>注意：</strong><code>"local"</code> 和 <code>"available"</code> 读关注可能返回尚未被多数派确认的数据。如果主节点在写操作被多数派确认前崩溃，这些数据可能被回滚。对数据一致性有严格要求的场景应使用 <code>"majority"</code>。
+                </div>
+            </section>
+
+            <!-- 11. Multi-Data Center Deployment -->
+            <section class="concept-section" id="multi-dc">
+                <h2>11. 多数据中心部署</h2>
+                <p>将副本集成员分布到多个数据中心，可以提高容灾能力和数据局部性。MongoDB 支持跨数据中心的副本集部署，包括同地域多可用区和跨地域部署。</p>
+
+                <div class="datacenter-diagram">
+                    <div class="dc-box">
+                        <h4>数据中心 A (主)</h4>
+                        <div class="dc-node primary">Primary</div>
+                        <div class="dc-node secondary">Secondary</div>
+                        <div style="font-size: 0.8rem; color: #666; margin-top: 0.5rem;">2 票</div>
+                    </div>
+                    <div class="dc-box">
+                        <h4>数据中心 B (从)</h4>
+                        <div class="dc-node secondary">Secondary</div>
+                        <div class="dc-node secondary">Secondary</div>
+                        <div style="font-size: 0.8rem; color: #666; margin-top: 0.5rem;">2 票</div>
+                    </div>
+                    <div class="dc-box">
+                        <h4>数据中心 C (仲裁)</h4>
+                        <div class="dc-node arbiter">Arbiter</div>
+                        <div style="font-size: 0.8rem; color: #666; margin-top: 0.5rem;">1 票</div>
+                    </div>
+                </div>
+
+                <h3>部署策略</h3>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <div class="icon">&#127959;</div>
+                        <h3>对称部署</h3>
+                        <p>每个数据中心部署相同数量的节点，任一数据中心故障不影响多数派</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#127757;</div>
+                        <h3>主从部署</h3>
+                        <p>主数据中心部署多数节点，从数据中心部署少数节点+仲裁节点</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128272;</div>
+                        <h3>优先级控制</h3>
+                        <p>通过设置不同数据中心的节点优先级，控制主节点的选举倾向</p>
+                    </div>
+                </div>
+
+                <h3>多数据中心部署要点</h3>
+                <ul>
+                    <li><strong>多数派保证：</strong>确保任一数据中心故障后，剩余节点仍能构成多数派（大于总票数的一半）</li>
+                    <li><strong>仲裁节点放置：</strong>将仲裁节点部署在第三个数据中心，用于打破平局</li>
+                    <li><strong>网络延迟：</strong>跨数据中心复制会增加延迟，影响写性能和选举速度</li>
+                    <li><strong>读偏好标签：</strong>使用 tag sets 将读操作路由到最近的节点，降低访问延迟</li>
+                </ul>
+
+                <div class="danger">
+                    <strong>关键原则：</strong>确保多数派节点不在同一个数据中心内。如果多数派节点集中在同一数据中心，该数据中心故障将导致整个副本集失去写能力。建议采用 3+2+1 或 2+2+1 的分布模式。
+                </div>
+
+                <pre><code>// 配置跨数据中心节点的优先级
+var cfg = rs.conf();
+// 数据中心A的节点优先级高，优先成为主节点
+cfg.members[0].priority = 2;  // DC-A
+cfg.members[1].priority = 2;  // DC-A
+// 数据中心B的节点优先级低，通常不成为主节点
+cfg.members[2].priority = 1;  // DC-B
+cfg.members[3].priority = 1;  // DC-B
+// 数据中心C仅仲裁
+cfg.members[4].arbiterOnly = true;  // DC-C
+rs.reconfig(cfg);</code></pre>
+            </section>
+
+            <!-- Summary -->
+            <section class="concept-section">
+                <h2>知识要点回顾</h2>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <div class="icon">&#128203;</div>
+                        <h3>副本集架构</h3>
+                        <p>一个 Primary + 多个 Secondary + 可选 Arbiter，通过 oplog 实现异步复制</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128257;</div>
+                        <h3>自动故障转移</h3>
+                        <p>默认 10 秒超时触发选举，约 12 秒完成转移，驱动支持可重试写入</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128218;</div>
+                        <h3>读偏好策略</h3>
+                        <p>5 种模式平衡一致性与性能，配合 tag sets 和 maxStalenessSeconds 精细控制</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128274;</div>
+                        <h3>特殊节点</h3>
+                        <p>优先级0、隐藏节点、延迟节点各司其职，满足灾备、分析、恢复等需求</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#128065;</div>
+                        <h3>数据可见性</h3>
+                        <p>local/available 可能读到未提交数据，majority 保证多数派确认，事务提供原子性</p>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">&#127959;</div>
+                        <h3>多数据中心</h3>
+                        <p>合理分布多数派节点，利用优先级和标签优化选举和读取策略</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="sharding.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：分片 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>MongoDB Concepts 学习指南 &copy; 2024</p>
+            <p>参考文档：<a href="https://www.mongodb.com/docs/manual/replication/" target="_blank">MongoDB Replication 官方文档</a></p>
+        </div>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

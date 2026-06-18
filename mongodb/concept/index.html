@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 核心概念学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css?v=5">
+    <script src="navigation.js"></script>
+    <style>
+        .mongo-logo {
+            width: 48px;
+            height: 48px;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        .quick-reference-full {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem 1rem;
+            margin: 0 auto 2rem;
+            max-width: 100%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .quick-reference-full h2 {
+            color: #00643B;
+            margin-bottom: 0.8rem;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #00643B;
+            padding-bottom: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="mongo-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/>
+                    <path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/>
+                    <circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/>
+                </svg>
+                MongoDB 核心概念学习指南
+            </h1>
+            <p class="subtitle">全面掌握 MongoDB 的核心概念和架构，从开发者的角度快速掌握所有知识点</p>
+        </div>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main>
+        <div class="container">
+            <div class="learning-path">
+                <h2>📚 学习路径</h2>
+                <p>MongoDB 是一个面向文档的 NoSQL 数据库，以灵活的数据模型、水平扩展能力和丰富的查询功能著称。以下是推荐的学习顺序：</p>
+
+                <div class="path-diagram">
+                    <div class="path-item active">
+                        <span class="step">1</span>
+                        <h3>概述</h3>
+                        <p>了解 MongoDB 的基本概念、特性和应用场景</p>
+                        <a href="overview.html" class="btn">开始学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">2</span>
+                        <h3>文档</h3>
+                        <p>深入理解 BSON 文档模型和数据表示</p>
+                        <a href="document.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">3</span>
+                        <h3>数据库与集合</h3>
+                        <p>掌握数据库和集合的组织与管理</p>
+                        <a href="databases-collections.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">4</span>
+                        <h3>CRUD 操作</h3>
+                        <p>学习文档的创建、读取、更新和删除</p>
+                        <a href="crud.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">5</span>
+                        <h3>索引</h3>
+                        <p>理解索引类型、策略和查询优化</p>
+                        <a href="indexes.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">6</span>
+                        <h3>数据建模</h3>
+                        <p>掌握模式设计和嵌套与引用策略</p>
+                        <a href="data-modeling.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">7</span>
+                        <h3>聚合操作</h3>
+                        <p>学习聚合管道和数据处理框架</p>
+                        <a href="aggregation.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">8</span>
+                        <h3>事务</h3>
+                        <p>理解多文档 ACID 事务和一致性保证</p>
+                        <a href="transactions.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">9</span>
+                        <h3>复制</h3>
+                        <p>深入理解副本集架构和自动故障转移</p>
+                        <a href="replication.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">10</span>
+                        <h3>分片</h3>
+                        <p>掌握水平分片架构和数据分布策略</p>
+                        <a href="sharding.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">11</span>
+                        <h3>变更流</h3>
+                        <p>学习实时数据变更监听机制</p>
+                        <a href="change-streams.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">12</span>
+                        <h3>性能</h3>
+                        <p>掌握查询优化和性能调优技巧</p>
+                        <a href="performance.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">13</span>
+                        <h3>安全</h3>
+                        <p>理解认证、授权和加密机制</p>
+                        <a href="security.html" class="btn">继续学习 →</a>
+                    </div>
+
+                    <div class="arrow">↓</div>
+
+                    <div class="path-item">
+                        <span class="step">14</span>
+                        <h3>时间序列</h3>
+                        <p>学习时间序列集合和时序数据处理</p>
+                        <a href="timeseries.html" class="btn">继续学习 →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="tips">
+                <h2>💡 学习建议</h2>
+                <ul>
+                    <li><strong>循序渐进</strong>：按照学习路径的顺序进行学习，每个概念都建立在前一个概念的基础上</li>
+                    <li><strong>动手实践</strong>：在学习每个概念后，使用 mongosh 进行实际操作加深理解</li>
+                    <li><strong>理解数据模型</strong>：MongoDB 的文档模型与传统关系型数据库差异较大，务必深入理解</li>
+                    <li><strong>关注查询优化</strong>：索引和聚合是 MongoDB 性能的关键，花时间掌握这两个核心主题</li>
+                    <li><strong>实践场景</strong>：思考每个概念在实际应用场景中的作用，如高可用、水平扩展等</li>
+                    <li><strong>版本关注</strong>：注意 MongoDB 不同版本之间的差异和新特性，特别是事务和分片的演进</li>
+                </ul>
+            </div>
+
+            <div class="glossary">
+                <h2>📖 核心术语速查</h2>
+                <table class="glossary-table">
+                    <thead>
+                        <tr><th>术语</th><th>中文</th><th>简要说明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>BSON</td><td>二进制 JSON</td><td>MongoDB 的数据存储格式，扩展了 JSON 支持更多数据类型</td></tr>
+                        <tr><td>Document</td><td>文档</td><td>MongoDB 中数据的基本单元，类似关系型数据库的行</td></tr>
+                        <tr><td>Collection</td><td>集合</td><td>文档的容器，类似关系型数据库的表</td></tr>
+                        <tr><td>Replica Set</td><td>副本集</td><td>一组维护相同数据集的 mongod 实例，提供高可用性</td></tr>
+                        <tr><td>Shard</td><td>分片</td><td>存储数据子集的副本集，用于水平扩展</td></tr>
+                        <tr><td>Shard Key</td><td>分片键</td><td>决定文档分布到哪个分片的字段或字段组合</td></tr>
+                        <tr><td>Index</td><td>索引</td><td>提高查询效率的特殊数据结构</td></tr>
+                        <tr><td>Aggregation Pipeline</td><td>聚合管道</td><td>数据处理管道框架，通过阶段变换文档</td></tr>
+                        <tr><td>Oplog</td><td>操作日志</td><td>记录所有写操作的特殊固定大小集合，用于复制</td></tr>
+                        <tr><td>Read Concern</td><td>读关注</td><td>控制读操作的一致性和隔离级别</td></tr>
+                        <tr><td>Write Concern</td><td>写关注</td><td>控制写操作的确认级别和持久性保证</td></tr>
+                        <tr><td>Read Preference</td><td>读取偏好</td><td>决定读操作路由到副本集的哪个成员</td></tr>
+                        <tr><td>Capped Collection</td><td>固定大小集合</td><td>固定大小的集合，按插入顺序自动覆盖旧文档</td></tr>
+                        <tr><td>Replication Lag</td><td>复制延迟</td><td>次节点数据落后主节点的时间差</td></tr>
+                        <tr><td>Chunk</td><td>数据段</td><td>分片中数据划分和迁移的最小单元</td></tr>
+                        <tr><td>Config Server</td><td>配置服务器</td><td>存储分片集群元数据的特殊副本集</td></tr>
+                        <tr><td>mongos</td><td>查询路由器</td><td>分片集群的入口，负责将查询路由到正确的分片</td></tr>
+                        <tr><td>CRUD</td><td>增删改查</td><td>Create、Read、Update、Delete 四种基本数据操作</td></tr>
+                        <tr><td>Change Stream</td><td>变更流</td><td>基于 oplog 的实时数据变更通知机制</td></tr>
+                        <tr><td>TTL Index</td><td>TTL 索引</td><td>自动删除过期文档的特殊索引</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="cheat-sheet">
+                <h2>🎯 mongosh 常用命令</h2>
+                <table class="cmd-table">
+                    <thead>
+                        <tr><th>功能</th><th>命令</th><th>说明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>查看数据库</td><td><code>show dbs</code></td><td>列出所有数据库</td></tr>
+                        <tr><td>切换数据库</td><td><code>use &lt;db&gt;</code></td><td>切换到指定数据库</td></tr>
+                        <tr><td>查看集合</td><td><code>show collections</code></td><td>列出当前数据库的所有集合</td></tr>
+                        <tr><td>插入文档</td><td><code>db.coll.insertOne({...})</code></td><td>向集合中插入一个文档</td></tr>
+                        <tr><td>查询文档</td><td><code>db.coll.find({...})</code></td><td>按条件查询集合中的文档</td></tr>
+                        <tr><td>更新文档</td><td><code>db.coll.updateOne({...}, {$set: {...}})</code></td><td>更新匹配条件的单个文档</td></tr>
+                        <tr><td>删除文档</td><td><code>db.coll.deleteOne({...})</code></td><td>删除匹配条件的单个文档</td></tr>
+                        <tr><td>创建索引</td><td><code>db.coll.createIndex({field: 1})</code></td><td>在指定字段上创建索引</td></tr>
+                        <tr><td>查看索引</td><td><code>db.coll.getIndexes()</code></td><td>列出集合的所有索引</td></tr>
+                        <tr><td>聚合查询</td><td><code>db.coll.aggregate([...])</code></td><td>执行聚合管道操作</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 MongoDB 核心概念学习指南 | 基于 <a href="https://www.mongodb.com/docs/" target="_blank">MongoDB 官方文档</a>整理</p>
+        </div>
+    </footer>
+
+    <script>
+        // 学习进度追踪
+        const visitedPages = new Set();
+        const currentPath = window.location.pathname.split('/').pop();
+        if (!visitedPages.has(currentPath)) {
+            visitedPages.add(currentPath);
+            localStorage.setItem('mongo-learning-progress', JSON.stringify([...visitedPages]));
+        }
+
+        // 标记已访问的页面
+        const progress = JSON.parse(localStorage.getItem('mongo-learning-progress') || '[]');
+        const pathItems = document.querySelectorAll('.path-item');
+        const pageMap = {
+            'index.html': 0, 'overview.html': 0,
+            'document.html': 1,
+            'databases-collections.html': 2,
+            'crud.html': 3,
+            'indexes.html': 4,
+            'data-modeling.html': 5,
+            'aggregation.html': 6,
+            'transactions.html': 7,
+            'replication.html': 8,
+            'sharding.html': 9,
+            'change-streams.html': 10,
+            'performance.html': 11,
+            'security.html': 12,
+            'time-series.html': 13
+        };
+
+        progress.forEach(page => {
+            const index = pageMap[page];
+            if (index !== undefined && pathItems[index]) {
+                pathItems[index].classList.add('visited');
+            }
+        });
+    </script>
+</body>
+</html>

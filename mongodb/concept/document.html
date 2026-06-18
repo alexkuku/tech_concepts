@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 文档 (Document) - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 文档</h1>
+        <p class="subtitle">BSON 格式、字段规则、点号表示法与数据类型</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main>
+        <div class="container">
+            <!-- 目录 -->
+<!-- 1. BSON 格式 -->
+            <section class="concept-section" id="bson-format">
+                <h2>1. BSON 格式</h2>
+                <p>BSON（Binary JSON）是 MongoDB 中文档的二进制表示格式。它基于 JSON 规范，但在 JSON 基础上扩展了更多的数据类型支持。</p>
+
+                <h3>BSON 与 JSON 的关键区别</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>JSON</th>
+                            <th>BSON</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>格式</td>
+                            <td>文本格式</td>
+                            <td>二进制格式</td>
+                        </tr>
+                        <tr>
+                            <td>数据类型</td>
+                            <td>6 种（string, number, boolean, null, array, object）</td>
+                            <td>20+ 种（含 Date, ObjectId, Int32, Int64, Decimal128 等）</td>
+                        </tr>
+                        <tr>
+                            <td>解析效率</td>
+                            <td>需逐字符解析</td>
+                            <td>带长度前缀，可快速跳过</td>
+                        </tr>
+                        <tr>
+                            <td>字段顺序</td>
+                            <td>规范未保证（但多数实现保留）</td>
+                            <td>保证字段顺序</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>文档基本结构</h3>
+                <p>MongoDB 文档由字段和值对组成，基本结构如下：</p>
+                <pre><code>{
+  field1: value1,
+  field2: value2,
+  field3: value3,
+  ...
+}</code></pre>
+
+                <div class="note">
+                    <strong>提示：</strong>字段的值可以是任何 BSON 类型，包括嵌入文档、数组以及文档数组。这种灵活的结构使 MongoDB 能够自然地表示层级数据。
+                </div>
+            </section>
+
+            <!-- 2. 示例文档 -->
+            <section class="concept-section" id="example-document">
+                <h2>2. 示例文档（含类型标注）</h2>
+                <p>以下示例展示了一个包含多种 BSON 类型的典型 MongoDB 文档：</p>
+                <pre><code>var mydoc = {
+  _id: ObjectId("5099803df3f4948bd2f98391"),     // ObjectId 类型
+  name: {                                        // 嵌入文档
+    first: "Alan",
+    last: "Turing"
+  },
+  birth: new Date('Jun 23, 1912'),               // Date 类型
+  death: new Date('Jun 07, 1954'),               // Date 类型
+  contribs: [                                    // 字符串数组
+    "Turing machine",
+    "Turing test",
+    "Turingery"
+  ],
+  views: Long(1250000)                           // Int64 类型
+}</code></pre>
+
+                <h3>类型标注说明</h3>
+                <div class="kv-pair">
+                    <span class="kv-key">_id</span>
+                    <span class="kv-value">ObjectId 类型 -- 12 字节唯一标识符</span>
+                    <span class="kv-key">name</span>
+                    <span class="kv-value">嵌入文档 -- 包含 first 和 last 子字段</span>
+                    <span class="kv-key">birth / death</span>
+                    <span class="kv-value">Date 类型 -- UTC 毫秒级时间戳</span>
+                    <span class="kv-key">contribs</span>
+                    <span class="kv-value">数组 -- 包含多个字符串元素</span>
+                    <span class="kv-key">views</span>
+                    <span class="kv-value">Int64 (Long) 类型 -- 64 位整数</span>
+                </div>
+            </section>
+
+            <!-- 3. 字段名称规则 -->
+            <section class="concept-section" id="field-name-rules">
+                <h2>3. 字段名称规则</h2>
+
+                <h3>_id 字段</h3>
+                <p><code>_id</code> 是保留字段，用作文档的主键。它必须在整个集合中唯一，且不可变（一旦插入不可更改）。</p>
+
+                <h3>字段名称限制</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>规则</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>空字符限制</td>
+                            <td>字段名称不能包含空字符（<code>\0</code>，即 null 字符）</td>
+                        </tr>
+                        <tr>
+                            <td>美元符号 ($)</td>
+                            <td>从 MongoDB 5.0 开始，字段名称可以包含 <code>$</code> 和 <code>.</code>，但有一定限制。在早期版本中，顶级字段名不能以 <code>$</code> 开头</td>
+                        </tr>
+                        <tr>
+                            <td>点号 (.)</td>
+                            <td>从 MongoDB 5.0 开始，允许在字段名中使用 <code>.</code>，但查询时需注意与点号表示法的冲突</td>
+                        </tr>
+                        <tr>
+                            <td>唯一性</td>
+                            <td>同一文档中字段名称必须唯一，不允许重复字段名</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>重复字段检测</h3>
+                <p>MongoDB 在正常操作中不会主动检测重复字段名，但提供了以下方法进行验证：</p>
+                <ul>
+                    <li><strong>validate 命令</strong>（MongoDB 6.1+）：使用 <code>db.collection.validate()</code> 可检测文档中的重复字段名</li>
+                    <li><strong>$objectToArray</strong>：使用聚合操作符 <code>$objectToArray</code> 将文档转为键值对数组，可间接检测是否存在重复键</li>
+                </ul>
+
+                <div class="warning">
+                    <strong>警告：</strong>重复字段名可能导致不可预测的行为。虽然 MongoDB 不会阻止写入含有重复字段的文档（通过外部驱动或工具），但在读取时只会返回其中一个值，且具体返回哪个值是不确定的。
+                </div>
+            </section>
+
+            <!-- 4. 点号表示法 -->
+            <section class="concept-section" id="dot-notation">
+                <h2>4. 点号表示法</h2>
+                <p>点号表示法（Dot Notation）是 MongoDB 中访问嵌入文档字段和数组元素的核心语法。</p>
+
+                <h3>访问数组元素</h3>
+                <p>使用 <code>"&lt;array&gt;.&lt;index&gt;"</code> 语法访问数组中的特定元素，索引从 <strong>0</strong> 开始：</p>
+                <pre><code>// 访问 contribs 数组的第一个元素
+"contribs.0"    // 返回 "Turing machine"
+
+// 访问 contribs 数组的第二个元素
+"contribs.1"    // 返回 "Turing test"</code></pre>
+
+                <h3>访问嵌入文档字段</h3>
+                <p>使用 <code>"&lt;embedded doc&gt;.&lt;field&gt;"</code> 语法访问嵌入文档中的字段：</p>
+                <pre><code>// 访问 name 嵌入文档中的 first 字段
+"name.first"   // 返回 "Alan"
+
+// 访问 name 嵌入文档中的 last 字段
+"name.last"    // 返回 "Turing"</code></pre>
+
+                <div class="note">
+                    <strong>提示：</strong>在查询和更新操作中，点号表示法必须用引号包裹。例如 <code>{"name.first": "Alan"}</code> 是正确的，而 <code>{name.first: "Alan"}</code> 会导致语法错误。
+                </div>
+
+                <div class="relation-diagram">
+                    <h3>点号表示法访问路径</h3>
+                    <div class="diagram-container">
+                        <div class="diagram-box primary">文档根</div>
+                        <span class="diagram-arrow">.</span>
+                        <div class="diagram-box">name</div>
+                        <span class="diagram-arrow">.</span>
+                        <div class="diagram-box secondary">first</div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <div class="diagram-container">
+                            <div class="diagram-box primary">文档根</div>
+                            <span class="diagram-arrow">.</span>
+                            <div class="diagram-box">contribs</div>
+                            <span class="diagram-arrow">.</span>
+                            <div class="diagram-box accent">0</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. 文档限制 -->
+            <section class="concept-section" id="document-limits">
+                <h2>5. 文档限制</h2>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>限制项</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>最大文档大小</td>
+                            <td><strong>16 MB</strong>（包括所有嵌入文档和数组）。超过此限制需使用 GridFS</td>
+                        </tr>
+                        <tr>
+                            <td>字段顺序</td>
+                            <td>BSON 文档保证字段写入顺序（与 JavaScript 对象不同）。比较文档时字段顺序有意义</td>
+                        </tr>
+                        <tr>
+                            <td>_id 位置</td>
+                            <td><code>_id</code> 字段始终是文档的第一个字段</td>
+                        </tr>
+                        <tr>
+                            <td>投影中的字段顺序</td>
+                            <td>查询引擎在投影操作中可能会重新排列字段顺序，不保证与原始文档一致</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info">
+                    <strong>注意：</strong>字段顺序在比较操作中很重要。例如 <code>{a: 1, b: 2}</code> 与 <code>{b: 2, a: 1}</code> 在 BSON 比较中是不同的文档。这不同于 JavaScript 中对象属性顺序不保证的约定。
+                </div>
+            </section>
+
+            <!-- 6. _id 字段规范 -->
+            <section class="concept-section" id="id-field">
+                <h2>6. _id 字段规范</h2>
+
+                <h3>基本规则</h3>
+                <ul>
+                    <li>标准集合中 <code>_id</code> 字段是<strong>必需的</strong></li>
+                    <li>如果在插入文档时未指定 <code>_id</code>，MongoDB 会自动生成一个 <code>ObjectId</code></li>
+                    <li>集合创建时默认为 <code>_id</code> 建立唯一索引</li>
+                    <li><code>_id</code> 可以是除<strong>数组</strong>和<strong>正则表达式</strong>之外的任何 BSON 类型</li>
+                </ul>
+
+                <h3>常见 _id 生成策略</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>策略</th>
+                            <th>类型</th>
+                            <th>说明</th>
+                            <th>适用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>默认 ObjectId</td>
+                            <td>ObjectId</td>
+                            <td>12 字节，包含时间戳、机器标识、进程 ID 和计数器</td>
+                            <td>通用场景，无需手动管理</td>
+                        </tr>
+                        <tr>
+                            <td>自然唯一键</td>
+                            <td>字符串 / 数字</td>
+                            <td>使用业务中天然唯一的字段（如用户名、邮箱）</td>
+                            <td>有明确业务唯一标识的场景</td>
+                        </tr>
+                        <tr>
+                            <td>自增序号</td>
+                            <td>Int32 / Int64</td>
+                            <td>使用计数器集合实现自增 ID</td>
+                            <td>需要简洁递增 ID 的场景</td>
+                        </tr>
+                        <tr>
+                            <td>UUID</td>
+                            <td>BSON BinData (子类型 4)</td>
+                            <td>标准 128 位 UUID，存储为 BinData</td>
+                            <td>分布式系统、跨系统唯一标识</td>
+                        </tr>
+                        <tr>
+                            <td>驱动工具 UUID</td>
+                            <td>取决于驱动</td>
+                            <td>各语言驱动提供 UUID 工具类，可能使用不同 BinData 子类型</td>
+                            <td>跨语言系统需注意子类型兼容性</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>ObjectId 结构</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step" style="min-width: 240px;">
+                        <strong>4 字节</strong><br>时间戳 (Timestamp)
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step" style="min-width: 180px;">
+                        <strong>5 字节</strong><br>随机值 (Random)
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step" style="min-width: 180px;">
+                        <strong>3 字节</strong><br>递增计数器 (Counter)
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <strong>注意：</strong>使用 UUID 作为 _id 时，不同语言驱动可能将 UUID 存储为不同的 BinData 子类型（子类型 3 或 4）。跨语言系统需确保统一子类型，否则查询可能不匹配。
+                </div>
+            </section>
+
+            <!-- 7. 文档结构用途 -->
+            <section class="concept-section" id="document-structure-uses">
+                <h2>7. 文档结构用途</h2>
+                <p>在 MongoDB 中，"文档"不仅仅用于存储数据记录，还广泛应用于其他操作中：</p>
+
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <div class="icon">{ }</div>
+                        <h3>查询过滤文档</h3>
+                        <p>用于 <code>find()</code>、<code>update()</code>、<code>delete()</code> 等操作的条件匹配</p>
+                        <pre><code style="font-size:0.75rem;">db.users.find({
+  age: { $gte: 18 },
+  status: "active"
+})</code></pre>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">$</div>
+                        <h3>更新规范文档</h3>
+                        <p>使用更新操作符（如 <code>$set</code>、<code>$inc</code>）指定修改内容</p>
+                        <pre><code style="font-size:0.75rem;">db.users.update(
+  { _id: 1 },
+  { $set: { status: "active" },
+    $inc: { loginCount: 1 } }
+)</code></pre>
+                    </div>
+                    <div class="concept-card">
+                        <div class="icon">1</div>
+                        <h3>索引规范文档</h3>
+                        <p>定义索引键和排序方向（1 为升序，-1 为降序）</p>
+                        <pre><code style="font-size:0.75rem;">db.users.createIndex({
+  name: 1,
+  age: -1
+})</code></pre>
+                    </div>
+                </div>
+
+                <table class="comparison-table" style="margin-top: 2rem;">
+                    <thead>
+                        <tr>
+                            <th>文档用途</th>
+                            <th>结构特点</th>
+                            <th>典型操作符</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>查询过滤</td>
+                            <td>字段名 = 查询条件，支持条件操作符</td>
+                            <td><code>$eq</code>, <code>$gt</code>, <code>$in</code>, <code>$and</code>, <code>$or</code></td>
+                        </tr>
+                        <tr>
+                            <td>更新规范</td>
+                            <td>字段名 = 更新操作符，操作符决定修改方式</td>
+                            <td><code>$set</code>, <code>$inc</code>, <code>$push</code>, <code>$unset</code></td>
+                        </tr>
+                        <tr>
+                            <td>索引规范</td>
+                            <td>字段名 = 排序方向（1/-1），支持复合索引</td>
+                            <td><code>1</code>（升序）, <code>-1</code>（降序）, <code>"2d"</code>, <code>"2dsphere"</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 8. BSON 数据类型 -->
+            <section class="concept-section" id="bson-types">
+                <h2>8. BSON 数据类型</h2>
+                <p>BSON 支持丰富的数据类型，每种类型都有对应的编号（用于 <code>$type</code> 操作符）和别名：</p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>类型</th>
+                            <th>编号</th>
+                            <th>别名</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Double</td>
+                            <td>1</td>
+                            <td><code>"double"</code></td>
+                            <td>64 位双精度浮点数</td>
+                        </tr>
+                        <tr>
+                            <td>String</td>
+                            <td>2</td>
+                            <td><code>"string"</code></td>
+                            <td>UTF-8 编码字符串</td>
+                        </tr>
+                        <tr>
+                            <td>Object</td>
+                            <td>3</td>
+                            <td><code>"object"</code></td>
+                            <td>嵌入文档</td>
+                        </tr>
+                        <tr>
+                            <td>Array</td>
+                            <td>4</td>
+                            <td><code>"array"</code></td>
+                            <td>值列表，可包含多种类型</td>
+                        </tr>
+                        <tr>
+                            <td>BinData</td>
+                            <td>5</td>
+                            <td><code>"binData"</code></td>
+                            <td>二进制数据，含子类型标识</td>
+                        </tr>
+                        <tr>
+                            <td>ObjectId</td>
+                            <td>7</td>
+                            <td><code>"objectId"</code></td>
+                            <td>12 字节唯一文档标识符</td>
+                        </tr>
+                        <tr>
+                            <td>Boolean</td>
+                            <td>8</td>
+                            <td><code>"bool"</code></td>
+                            <td>true 或 false</td>
+                        </tr>
+                        <tr>
+                            <td>Date</td>
+                            <td>9</td>
+                            <td><code>"date"</code></td>
+                            <td>UTC 毫秒级时间戳</td>
+                        </tr>
+                        <tr>
+                            <td>Null</td>
+                            <td>10</td>
+                            <td><code>"null"</code></td>
+                            <td>空值</td>
+                        </tr>
+                        <tr>
+                            <td>Regex</td>
+                            <td>11</td>
+                            <td><code>"regex"</code></td>
+                            <td>正则表达式，含选项标志</td>
+                        </tr>
+                        <tr>
+                            <td>Int32</td>
+                            <td>16</td>
+                            <td><code>"int"</code></td>
+                            <td>32 位有符号整数</td>
+                        </tr>
+                        <tr>
+                            <td>Timestamp</td>
+                            <td>17</td>
+                            <td><code>"timestamp"</code></td>
+                            <td>内部时间戳类型（用于复制）</td>
+                        </tr>
+                        <tr>
+                            <td>Int64</td>
+                            <td>18</td>
+                            <td><code>"long"</code></td>
+                            <td>64 位有符号整数</td>
+                        </tr>
+                        <tr>
+                            <td>Decimal128</td>
+                            <td>19</td>
+                            <td><code>"decimal"</code></td>
+                            <td>128 位十进制浮点数（精确数值计算）</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note">
+                    <strong>提示：</strong>可使用 <code>$type</code> 操作符按类型查询文档，例如 <code>{ age: { $type: "int" } }</code> 查询 age 字段为 Int32 类型的文档。编号 6（未定义）和 12 到 15 为已废弃或内部类型，不在上表中列出。
+                </div>
+            </section>
+
+            <!-- 9. 文档结构图 -->
+            <section class="concept-section" id="document-structure-diagram">
+                <h2>9. 文档结构图</h2>
+                <p>以下图示展示了一个 MongoDB 文档的嵌套结构，包括嵌入文档和数组：</p>
+
+                <div class="relation-diagram">
+                    <h3>文档结构示例</h3>
+
+                    <!-- 顶层文档 -->
+                    <div class="diagram-container" style="flex-direction: column; align-items: center;">
+                        <div class="diagram-box primary" style="min-width: 320px;">
+                            文档 (Document)
+                        </div>
+
+                        <span class="diagram-arrow" style="font-size: 1.5rem;">&#8595;</span>
+
+                        <!-- 字段行 -->
+                        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 1.2rem; width: 100%;">
+                            <!-- _id 字段 -->
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div class="diagram-box" style="min-width: 120px; border-color: #9C27B0; background: #F3E5F5; color: #6A1B9A;">
+                                    _id
+                                </div>
+                                <span style="color: #999; font-size: 0.85rem;">ObjectId</span>
+                            </div>
+
+                            <!-- name 字段（嵌入文档） -->
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div class="diagram-box secondary" style="min-width: 120px;">
+                                    name
+                                </div>
+                                <span class="diagram-arrow" style="font-size: 1.2rem;">&#8595;</span>
+                                <div style="display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center;">
+                                    <div class="diagram-box" style="min-width: 80px; font-size: 0.85rem; border-color: #4CAF50; background: #E8F5E9; color: #2E7D32;">
+                                        first
+                                    </div>
+                                    <div class="diagram-box" style="min-width: 80px; font-size: 0.85rem; border-color: #4CAF50; background: #E8F5E9; color: #2E7D32;">
+                                        last
+                                    </div>
+                                </div>
+                                <span style="color: #999; font-size: 0.85rem; margin-top: 0.3rem;">嵌入文档</span>
+                            </div>
+
+                            <!-- birth/death 字段 -->
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div class="diagram-box" style="min-width: 120px; border-color: #FF9800; background: #FFF3E0; color: #E65100;">
+                                    birth / death
+                                </div>
+                                <span style="color: #999; font-size: 0.85rem;">Date</span>
+                            </div>
+
+                            <!-- contribs 字段（数组） -->
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div class="diagram-box accent" style="min-width: 120px;">
+                                    contribs
+                                </div>
+                                <span class="diagram-arrow" style="font-size: 1.2rem;">&#8595;</span>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;">
+                                    <div class="diagram-box" style="min-width: 50px; font-size: 0.8rem; padding: 0.5rem 0.8rem; border-color: #FFC107; background: #FFF8E1; color: #F57F17;">
+                                        [0]
+                                    </div>
+                                    <div class="diagram-box" style="min-width: 50px; font-size: 0.8rem; padding: 0.5rem 0.8rem; border-color: #FFC107; background: #FFF8E1; color: #F57F17;">
+                                        [1]
+                                    </div>
+                                    <div class="diagram-box" style="min-width: 50px; font-size: 0.8rem; padding: 0.5rem 0.8rem; border-color: #FFC107; background: #FFF8E1; color: #F57F17;">
+                                        [2]
+                                    </div>
+                                </div>
+                                <span style="color: #999; font-size: 0.85rem; margin-top: 0.3rem;">数组 (String[])</span>
+                            </div>
+
+                            <!-- views 字段 -->
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div class="diagram-box" style="min-width: 120px; border-color: #2196F3; background: #E3F2FD; color: #1565C0;">
+                                    views
+                                </div>
+                                <span style="color: #999; font-size: 0.85rem;">Int64 (Long)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>嵌套访问路径总结</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">
+                        <strong>文档根</strong><br>mydoc
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step">
+                        <strong>嵌入文档</strong><br>mydoc.name
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step">
+                        <strong>子字段</strong><br>mydoc.name.first
+                    </div>
+                </div>
+                <div class="flow-diagram" style="margin-top: 1rem;">
+                    <div class="flow-step">
+                        <strong>文档根</strong><br>mydoc
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step">
+                        <strong>数组</strong><br>mydoc.contribs
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step">
+                        <strong>元素索引</strong><br>mydoc.contribs.0
+                    </div>
+                </div>
+            </section>
+        </div>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="databases-collections.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：数据库与集合 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>基于 <a href="https://www.mongodb.com/docs/manual/core/document/" target="_blank">MongoDB 官方文档</a> 整理 | MongoDB Concepts</p>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

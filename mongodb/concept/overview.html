@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 概述 - MongoDB 概念学习</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Overview page specific styles */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .feature-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .feature-item .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .feature-item h4 {
+            color: var(--secondary-color);
+            margin-bottom: 0.3rem;
+            font-size: 1rem;
+        }
+
+        .feature-item p {
+            color: #666;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        .topology-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .topology-tab {
+            padding: 0.6rem 1.5rem;
+            border: 2px solid var(--border-color);
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .topology-tab:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .topology-tab.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .topology-panel {
+            display: none;
+        }
+
+        .topology-panel.active {
+            display: block;
+        }
+
+        .topology-label {
+            text-align: center;
+            font-weight: 600;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .topology-desc {
+            text-align: center;
+            color: #666;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .connection-methods {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .connection-method {
+            background: linear-gradient(135deg, #f0f7f4 0%, #e8f4f0 100%);
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            padding: 1.2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .connection-method:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .connection-method h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.3rem;
+        }
+
+        .connection-method p {
+            color: #666;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        .key-features-diagram {
+            position: relative;
+            padding: 1rem 0;
+        }
+
+        .key-features-diagram .diagram-box {
+            margin: 0.5rem;
+        }
+
+        .features-center {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .features-ring {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .features-ring .diagram-box {
+            min-width: 140px;
+        }
+
+        .connection-string-display {
+            background: #001E2B;
+            color: #00ED64;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.6;
+            word-break: break-all;
+        }
+
+        .connection-string-display .highlight {
+            color: #FFC107;
+        }
+
+        .connection-string-display .comment {
+            color: #888;
+        }
+
+        .encoding-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .encoding-table th,
+        .encoding-table td {
+            padding: 0.8rem;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .encoding-table th {
+            background: var(--light-color);
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .encoding-table code {
+            background: #001E2B;
+            color: #00ED64;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 概述</h1>
+            <p class="subtitle">面向现代应用的文档数据库</p>
+        </div>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main>
+        <div class="container">
+            <!-- Table of Contents -->
+<!-- Section 1: What is MongoDB -->
+            <section class="concept-section" id="what-is-mongodb">
+                <h2>什么是 MongoDB</h2>
+                <p>
+                    MongoDB 是一款面向现代应用的文档数据库，以灵活的 JSON 类文档（BSON）形式存储数据。
+                    与传统关系数据库不同，MongoDB 无需 ORM 映射，文档模型天然契合应用代码中的对象结构，
+                    使开发更加高效直观。
+                </p>
+
+                <h3>灵活模式，无需 ORM</h3>
+                <p>
+                    MongoDB 的文档模型允许不同文档拥有不同的字段结构，无需预先定义固定的表模式。
+                    这种灵活性使得应用迭代更加快速，尤其在需求频繁变更的场景下优势明显。
+                    数据以字段-值对（field-value pairs）形式存储，嵌入式文档和数组可直接在一条记录中表达层级关系，
+                    大幅减少联表查询（JOIN）的需求。
+                </p>
+
+                <h3>核心能力</h3>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <span class="feature-icon">🔄</span>
+                        <h4>OLTP 事务处理</h4>
+                        <p>高性能在线事务处理，支持多文档 ACID 事务</p>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📊</span>
+                        <h4>数据聚合</h4>
+                        <p>强大的聚合管道，支持复杂的数据转换与分析</p>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🔍</span>
+                        <h4>全文搜索</h4>
+                        <p>内置全文搜索功能，支持文本索引与查询</p>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🧮</span>
+                        <h4>向量搜索</h4>
+                        <p>原生向量搜索，驱动 AI 与语义检索场景</p>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🌍</span>
+                        <h4>地理空间搜索</h4>
+                        <p>支持地理空间索引与查询，处理位置数据</p>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📈</span>
+                        <h4>时间序列</h4>
+                        <p>优化的时间序列集合，高效存储与时序查询</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Core Architecture Components -->
+            <section class="concept-section" id="core-architecture">
+                <h2>核心架构组件</h2>
+
+                <h3>1. 文档数据库（Document Database）</h3>
+                <p>
+                    MongoDB 以文档作为基本数据单元。每条记录是一组字段-值对的集合，以 BSON
+                    （Binary JSON）格式存储。文档中可以包含嵌入式文档和数组，从而以自然的方式表达
+                    层级数据关系，显著减少联表操作的需求。
+                </p>
+
+                <div class="note">
+                    <strong>提示：</strong>BSON 是 JSON 的二进制扩展格式，支持更多数据类型（如 Date、BinData、Decimal128 等），
+                    同时提供更高效的遍历和解析性能。
+                </div>
+
+                <h3>2. 事务（Transactions）</h3>
+                <p>
+                    MongoDB 支持多文档 ACID 事务，确保跨多个文档和集合的操作具有原子性、一致性、隔离性和持久性。
+                    在分片集群中，MongoDB 还支持分布式事务，可跨多个分片执行事务操作，保障全局数据一致性。
+                </p>
+
+                <div class="info">
+                    <strong>说明：</strong>单文档操作天然具有原子性。只有在需要跨多个文档或集合保持一致性时，
+                    才需要显式使用多文档事务。
+                </div>
+
+                <h3>3. 高可用（High Availability）</h3>
+                <p>
+                    MongoDB 通过副本集（Replica Set）实现高可用性。副本集由一组维护相同数据集的
+                    mongod 实例组成，包含一个主节点（Primary）和多个从节点（Secondary）。当主节点发生故障时，
+                    系统自动进行故障转移（Automatic Failover），选举新的主节点，确保服务连续不中断。
+                    数据冗余通过复制机制实现，从节点持续同步主节点的数据。
+                </p>
+
+                <h3>4. 水平扩展（Horizontal Scaling）</h3>
+                <p>
+                    MongoDB 通过分片（Sharding）实现水平扩展，将数据分布到多个服务器（分片）上。
+                    分片集群自动进行数据分布，根据分片键将数据均衡地分散到各分片上。
+                    此外，区域分片（Zone Sharding）允许将数据定向到特定分片，满足数据本地化或合规性需求。
+                </p>
+
+                <div class="warning">
+                    <strong>注意：</strong>选择合适的分片键至关重要。分片键一旦确定便不可修改，
+                    不当的分片键可能导致数据倾斜或性能瓶颈。
+                </div>
+            </section>
+
+            <!-- Section 3: Architecture Diagram -->
+            <section class="concept-section" id="architecture-diagram">
+                <h2>架构拓扑图</h2>
+                <p>
+                    MongoDB 支持三种部署拓扑，适用于不同的业务场景和规模需求。通过以下标签切换查看各拓扑的结构。
+                </p>
+
+                <div class="topology-tabs">
+                    <button class="topology-tab active" onclick="switchTopology('standalone')">独立实例</button>
+                    <button class="topology-tab" onclick="switchTopology('replicaset')">副本集</button>
+                    <button class="topology-tab" onclick="switchTopology('sharded')">分片集群</button>
+                </div>
+
+                <!-- Standalone -->
+                <div class="topology-panel active" id="topology-standalone">
+                    <div class="arch-diagram">
+                        <p class="topology-label">独立实例（Standalone）</p>
+                        <p class="topology-desc">单 mongod 进程，适用于开发和测试环境</p>
+                        <div class="arch-layer">
+                            <div class="arch-box app">客户端应用</div>
+                        </div>
+                        <div class="arch-connector">↓ 连接</div>
+                        <div class="arch-layer">
+                            <div class="arch-box primary" style="min-width: 220px;">
+                                mongod<br>
+                                <small style="font-weight: 400;">单实例数据库进程</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="note">
+                        <strong>适用场景：</strong>本地开发、功能测试、学习评估。生产环境不建议使用独立实例，因为缺乏冗余和故障转移能力。
+                    </div>
+                </div>
+
+                <!-- Replica Set -->
+                <div class="topology-panel" id="topology-replicaset">
+                    <div class="arch-diagram">
+                        <p class="topology-label">副本集（Replica Set）</p>
+                        <p class="topology-desc">主从复制 + 自动故障转移，保障高可用</p>
+                        <div class="arch-layer">
+                            <div class="arch-box app">客户端应用</div>
+                        </div>
+                        <div class="arch-connector">↓ 读写分离</div>
+                        <div class="arch-layer">
+                            <div class="arch-box primary">
+                                Primary<br>
+                                <small style="font-weight: 400;">接收所有写操作</small>
+                            </div>
+                        </div>
+                        <div class="arch-connector">↓ oplog 复制</div>
+                        <div class="arch-layer">
+                            <div class="arch-box secondary">
+                                Secondary<br>
+                                <small style="font-weight: 400;">复制数据 / 可读</small>
+                            </div>
+                            <div class="arch-box secondary">
+                                Secondary<br>
+                                <small style="font-weight: 400;">复制数据 / 可读</small>
+                            </div>
+                            <div class="arch-box arbiter">
+                                Arbiter<br>
+                                <small style="font-weight: 400;">仅参与选举投票</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="note">
+                        <strong>选举机制：</strong>当 Primary 不可用时，Remaining 成员通过 Raft 共识协议发起选举，
+                        在约 10 秒内自动选出新的 Primary，确保服务连续性。 Arbiter 不存储数据，仅在一偶数节点场景中打破投票平局。
+                    </div>
+                </div>
+
+                <!-- Sharded Cluster -->
+                <div class="topology-panel" id="topology-sharded">
+                    <div class="arch-diagram">
+                        <p class="topology-label">分片集群（Sharded Cluster）</p>
+                        <p class="topology-desc">水平扩展架构，支持海量数据与高吞吐</p>
+                        <div class="arch-layer">
+                            <div class="arch-box app">客户端应用</div>
+                        </div>
+                        <div class="arch-connector">↓ 发送请求</div>
+                        <div class="arch-layer">
+                            <div class="arch-box mongos">
+                                mongos<br>
+                                <small style="font-weight: 400;">查询路由器</small>
+                            </div>
+                            <div class="arch-box mongos">
+                                mongos<br>
+                                <small style="font-weight: 400;">查询路由器</small>
+                            </div>
+                        </div>
+                        <div class="arch-connector">↙ 路由数据 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↘ 读取元数据</div>
+                        <div class="arch-layer">
+                            <div class="arch-box shard">
+                                Shard 1<br>
+                                <small style="font-weight: 400;">副本集</small>
+                            </div>
+                            <div class="arch-box shard">
+                                Shard 2<br>
+                                <small style="font-weight: 400;">副本集</small>
+                            </div>
+                            <div class="arch-box shard">
+                                Shard N<br>
+                                <small style="font-weight: 400;">副本集</small>
+                            </div>
+                            <div class="arch-box config">
+                                Config Server<br>
+                                <small style="font-weight: 400;">分片元数据与配置</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="note">
+                        <strong>组件协作：</strong>mongos 接收客户端请求后，从 Config Server 读取集群元数据（分片键范围、分片列表等），然后将请求路由到正确的 Shard；每个 Shard 本身是一个副本集，兼具数据分片和高可用的双重保障。
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Comparison Table -->
+            <section class="concept-section" id="comparison">
+                <h2>MongoDB 与关系数据库对比</h2>
+                <p>
+                    下表列出了 MongoDB 核心概念与传统关系数据库的对应关系，帮助有 RDBMS 背景的开发者快速理解 MongoDB 的数据模型。
+                </p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>MongoDB</th>
+                            <th>关系数据库</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>文档（Document）</td>
+                            <td>行（Row）</td>
+                        </tr>
+                        <tr>
+                            <td>集合（Collection）</td>
+                            <td>表（Table）</td>
+                        </tr>
+                        <tr>
+                            <td>字段（Field）</td>
+                            <td>列（Column）</td>
+                        </tr>
+                        <tr>
+                            <td>嵌入式文档（Embedded Document）</td>
+                            <td>连接（JOIN）</td>
+                        </tr>
+                        <tr>
+                            <td>_id</td>
+                            <td>主键（Primary Key）</td>
+                        </tr>
+                        <tr>
+                            <td>灵活模式</td>
+                            <td>固定模式</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info">
+                    <strong>核心差异：</strong>关系数据库要求预定义模式（Schema），所有行必须遵守相同的列结构；
+                    而 MongoDB 的灵活模式允许同一集合中的文档拥有不同的字段，非常适合敏捷开发和快速迭代。
+                </div>
+            </section>
+
+            <!-- Section 5: Connection -->
+            <section class="concept-section" id="connection">
+                <h2>连接 MongoDB</h2>
+
+                <h3>连接字符串格式</h3>
+                <p>
+                    MongoDB 使用连接字符串（Connection String）指定连接参数。标准格式如下：
+                </p>
+
+                <div class="connection-string-display">
+                    <span class="comment">/* 标准连接字符串 */</span><br>
+                    mongodb://<span class="highlight">user</span>:<span class="highlight">password</span>@<span class="highlight">host1</span>:<span class="highlight">port1</span>,<span class="highlight">host2</span>:<span class="highlight">port2</span>/<span class="highlight">database</span>?<span class="highlight">options</span><br><br>
+                    <span class="comment">/* SRV 连接字符串（推荐） */</span><br>
+                    mongodb+srv://<span class="highlight">user</span>:<span class="highlight">password</span>@<span class="highlight">cluster.example.com</span>/<span class="highlight">database</span>?<span class="highlight">options</span>
+                </div>
+
+                <p>各组成部分说明：</p>
+                <ul>
+                    <li><code>mongodb://</code> — 标准协议前缀，指定主机和端口</li>
+                    <li><code>mongodb+srv://</code> — SRV 协议前缀，通过 DNS SRV 记录自动发现集群节点（推荐）</li>
+                    <li><code>user:password</code> — 认证凭据</li>
+                    <li><code>host:port</code> — 数据库实例地址，可指定多个实现高可用</li>
+                    <li><code>database</code> — 连接时默认使用的数据库，也是认证数据库（未指定 authSource 时）</li>
+                    <li><code>options</code> — 连接选项参数，如 <code>authSource</code>、<code>replicaSet</code>、<code>readPreference</code> 等</li>
+                </ul>
+
+                <h3>特殊字符的百分号编码</h3>
+                <p>
+                    当用户名或密码中包含特殊字符时，必须使用百分号编码（Percent Encoding）进行转义，
+                    否则连接字符串解析将出现错误。
+                </p>
+
+                <table class="encoding-table">
+                    <thead>
+                        <tr>
+                            <th>特殊字符</th>
+                            <th>编码值</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>@</td>
+                            <td><code>%40</code></td>
+                            <td>密码 <code>p@ss</code> 写为 <code>p%40ss</code></td>
+                        </tr>
+                        <tr>
+                            <td>:</td>
+                            <td><code>%3A</code></td>
+                            <td>密码 <code>p:ss</code> 写为 <code>p%3Ass</code></td>
+                        </tr>
+                        <tr>
+                            <td>/</td>
+                            <td><code>%2F</code></td>
+                            <td>密码 <code>p/ss</code> 写为 <code>p%2Fss</code></td>
+                        </tr>
+                        <tr>
+                            <td>%</td>
+                            <td><code>%25</code></td>
+                            <td>密码 <code>p%ss</code> 写为 <code>p%25ss</code></td>
+                        </tr>
+                        <tr>
+                            <td>+</td>
+                            <td><code>%2B</code></td>
+                            <td>密码 <code>p+ss</code> 写为 <code>p%2Bss</code></td>
+                        </tr>
+                        <tr>
+                            <td>空格</td>
+                            <td><code>%20</code></td>
+                            <td>密码 <code>p ss</code> 写为 <code>p%20ss</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="warning">
+                    <strong>重要：</strong>如果密码中包含 <code>@</code>、<code>:</code>、<code>%</code> 等字符而未进行编码，
+                    MongoDB 会将其误认为连接字符串的分隔符，导致连接失败或认证错误。
+                </div>
+
+                <h3>连接方式</h3>
+                <p>可以通过以下方式连接 MongoDB：</p>
+
+                <div class="connection-methods">
+                    <div class="connection-method">
+                        <h4>驱动程序（Drivers）</h4>
+                        <p>官方支持 Node.js、Python、Java、Go、C#、PHP 等十余种语言的驱动</p>
+                    </div>
+                    <div class="connection-method">
+                        <h4>MongoDB Compass</h4>
+                        <p>官方图形化管理工具，可视化查询、分析与优化</p>
+                    </div>
+                    <div class="connection-method">
+                        <h4>mongosh</h4>
+                        <p>新一代命令行 Shell，基于 Node.js，支持语法高亮与自动补全</p>
+                    </div>
+                    <div class="connection-method">
+                        <h4>VS Code 扩展</h4>
+                        <p>MongoDB for VS Code 插件，在编辑器内直接操作数据库</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 6: Key Features Diagram -->
+            <section class="concept-section" id="key-features">
+                <h2>核心特性关系图</h2>
+                <p>
+                    以下关系图展示了 MongoDB 各核心特性之间的关联。文档模型是 MongoDB 的基础，
+                    其他特性均构建在文档模型之上，相互协作形成完整的数据库能力体系。
+                </p>
+
+                <div class="key-features-diagram">
+                    <!-- Center: Documents -->
+                    <div class="features-center">
+                        <div class="diagram-box primary" style="min-width: 200px; font-size: 1.2rem;">
+                            文档（Document）
+                        </div>
+                    </div>
+
+                    <div class="arch-connector">构建基础</div>
+
+                    <!-- Ring: Collections -->
+                    <div style="display: flex; justify-content: center; margin-bottom: 1rem;">
+                        <div class="diagram-box" style="min-width: 200px; border-color: #2196F3; color: #1565C0;">
+                            集合（Collection）
+                        </div>
+                    </div>
+
+                    <div class="arch-connector">承载于集合之上</div>
+
+                    <!-- Outer Ring: Features -->
+                    <div class="features-ring">
+                        <div class="diagram-box secondary" style="border-color: #4CAF50;">
+                            索引（Indexes）
+                        </div>
+                        <div class="diagram-box secondary" style="border-color: #FF9800; background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%); color: #E65100;">
+                            聚合（Aggregation）
+                        </div>
+                        <div class="diagram-box secondary" style="border-color: #9C27B0; background: linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%); color: #6A1B9A;">
+                            复制（Replication）
+                        </div>
+                        <div class="diagram-box secondary" style="border-color: #F44336; background: linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%); color: #C62828;">
+                            分片（Sharding）
+                        </div>
+                        <div class="diagram-box secondary" style="border-color: #00BCD4; background: linear-gradient(135deg, #E0F7FA 0%, #B2EBF2 100%); color: #00838F;">
+                            事务（Transactions）
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>关联说明：</strong>
+                    <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                        <li><strong>文档 → 集合：</strong>文档存储在集合中，集合是文档的逻辑容器</li>
+                        <li><strong>集合 → 索引：</strong>索引建立在集合上，加速文档查找</li>
+                        <li><strong>集合 → 聚合：</strong>聚合管道对集合中的文档进行变换与分析</li>
+                        <li><strong>集合 → 复制：</strong>复制机制确保集合数据在多个节点间冗余</li>
+                        <li><strong>集合 → 分片：</strong>分片将集合数据分布到多个分片上实现水平扩展</li>
+                        <li><strong>事务 → 复制/分片：</strong>事务在副本集和分片集群中保障跨文档操作的 ACID 特性</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="document.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：文档 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>MongoDB 概念学习 &copy; 2026 | 基于 <a href="https://www.mongodb.com/docs/" target="_blank">MongoDB 官方文档</a> 整理</p>
+        </div>
+    </footer>
+
+    <script>
+        // Topology tab switching
+        function switchTopology(type) {
+            // Update tabs
+            document.querySelectorAll('.topology-tab').forEach(function(tab) {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update panels
+            document.querySelectorAll('.topology-panel').forEach(function(panel) {
+                panel.classList.remove('active');
+            });
+            document.getElementById('topology-' + type).classList.add('active');
+        }
+    </script>
+    <script src="navigation.js"></script>
+</body>
+</html>

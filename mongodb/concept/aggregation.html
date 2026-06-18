@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 聚合操作 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Pipeline Diagram Styles */
+        .pipeline-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+            padding: 1.5rem;
+            background: var(--light-color);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+        }
+
+        .pipeline-flow .stage-box {
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 0.8rem 1.2rem;
+            font-weight: 600;
+            color: var(--dark-color);
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            text-align: center;
+            min-width: 90px;
+        }
+
+        .pipeline-flow .stage-box:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .pipeline-flow .stage-box.source {
+            background: linear-gradient(135deg, #001E2B 0%, #00643B 100%);
+            color: white;
+            border-color: #00643B;
+        }
+
+        .pipeline-flow .stage-box.result {
+            background: linear-gradient(135deg, #00ED64 0%, #00643B 100%);
+            color: white;
+            border-color: #00ED64;
+        }
+
+        .pipeline-flow .flow-arrow {
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* Expression Category Styles */
+        .expression-category {
+            background: var(--light-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .expression-category h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .expression-category .expr-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .expression-category .expr-tag {
+            background: white;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 0.3rem 0.8rem;
+            border-radius: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .expression-category .expr-tag:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* Lookup Detail Styles */
+        .lookup-section {
+            background: var(--light-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .lookup-section h4 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        /* Performance Tip Box */
+        .perf-tip {
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 1.2rem 1.5rem;
+            margin: 1rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .perf-tip .tip-icon {
+            font-size: 1.5rem;
+            color: var(--success-color);
+            flex-shrink: 0;
+            margin-top: 0.1rem;
+        }
+
+        .perf-tip .tip-content {
+            flex: 1;
+        }
+
+        .perf-tip .tip-content strong {
+            color: var(--primary-color);
+        }
+
+        /* Single-purpose methods */
+        .method-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.2rem 1.5rem;
+            margin: 1rem 0;
+            box-shadow: var(--shadow);
+        }
+
+        .method-card h4 {
+            color: var(--secondary-color);
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .method-card p {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Stage table row highlight */
+        .stages-table td:first-child {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stages-table td:last-child {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: var(--secondary-color);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 聚合操作</h1>
+        <p class="subtitle">强大的数据处理与转换管道</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main class="container">
+        <!-- Table of Contents -->
+<!-- 1. Aggregation Overview -->
+        <section class="concept-section" id="overview">
+            <h2>聚合概述</h2>
+            <p>
+                聚合操作处理多个文档并返回计算后的结果。聚合操作将来自多个文档的值组合在一起，
+                对分组数据执行各种运算，并返回单个结果。MongoDB 提供了两种执行聚合的方式：
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="icon">&#9881;</div>
+                    <h3>聚合管道 <span class="badge badge-primary">推荐</span></h3>
+                    <p>
+                        基于管道的数据处理范式，将文档通过多个阶段（Stage）依次处理，
+                        每个阶段的输出作为下一个阶段的输入，功能强大且灵活。
+                    </p>
+                </div>
+                <div class="concept-card">
+                    <div class="icon">&#9733;</div>
+                    <h3>单用途聚合方法</h3>
+                    <p>
+                        提供简单的聚合操作，如文档计数（count）、去重（distinct）等，
+                        适用于简单的聚合需求，缺乏聚合管道的灵活性和功能。
+                    </p>
+                </div>
+            </div>
+
+            <div class="note">
+                <strong>推荐做法：</strong>聚合管道是 MongoDB 中执行聚合的首选方法，
+                它提供了比单用途聚合更丰富的功能和更好的性能控制能力。
+            </div>
+        </section>
+
+        <!-- 2. Aggregation Pipeline -->
+        <section class="concept-section" id="pipeline">
+            <h2>聚合管道</h2>
+            <p>
+                聚合管道由多个阶段（Stage）组成，每个阶段对文档流进行一种操作转换。
+                文档依次通过管道中的每个阶段，前一个阶段的输出作为后一个阶段的输入，
+                最终产生聚合结果。
+            </p>
+
+            <h3>管道流程图</h3>
+            <div class="pipeline-flow">
+                <div class="stage-box source">Collection</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$match</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$group</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$sort</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$limit</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box result">Result</div>
+            </div>
+
+            <p>
+                上图展示了一个典型的聚合管道流程：从集合中读取文档，
+                经过 <code>$match</code> 过滤、<code>$group</code> 分组、<code>$sort</code> 排序、
+                <code>$limit</code> 限制数量，最终输出结果。
+            </p>
+
+            <h3>管道工作原理</h3>
+            <ul>
+                <li>管道接收一个文档流作为输入</li>
+                <li>每个阶段对文档执行一种操作，生成新的文档流</li>
+                <li>阶段之间顺序执行，前阶段的输出是后阶段的输入</li>
+                <li>同一阶段可以出现多次（如多个 <code>$match</code> 或 <code>$group</code>）</li>
+                <li>管道可以通过 <code>$facet</code> 实现多分支并行处理</li>
+            </ul>
+
+            <div class="info">
+                <strong>理解要点：</strong>管道中的每个阶段都会对文档流进行转换，
+                这意味着文档在经过每个阶段后可能会被过滤、重塑、分组或组合。
+                合理的阶段顺序对性能至关重要。
+            </div>
+        </section>
+
+        <!-- 3. Common Pipeline Stages -->
+        <section class="concept-section" id="stages">
+            <h2>常用管道阶段</h2>
+            <p>
+                以下是聚合管道中最常用的阶段操作，每个阶段对文档执行特定的转换操作：
+            </p>
+
+            <table class="comparison-table stages-table">
+                <thead>
+                    <tr>
+                        <th>阶段</th>
+                        <th>说明</th>
+                        <th>示例</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>$match</td>
+                        <td>过滤文档，只传递匹配条件的文档到下一阶段</td>
+                        <td>{"$match": {status: "A"}}</td>
+                    </tr>
+                    <tr>
+                        <td>$group</td>
+                        <td>按指定字段分组并对每组执行聚合计算</td>
+                        <td>{"$group": {_id: "$city", total: {"$sum": 1}}}</td>
+                    </tr>
+                    <tr>
+                        <td>$sort</td>
+                        <td>对文档按指定字段排序</td>
+                        <td>{"$sort": {total: -1}}</td>
+                    </tr>
+                    <tr>
+                        <td>$limit</td>
+                        <td>限制传递到下一阶段的文档数量</td>
+                        <td>{"$limit": 5}</td>
+                    </tr>
+                    <tr>
+                        <td>$skip</td>
+                        <td>跳过指定数量的文档</td>
+                        <td>{"$skip": 10}</td>
+                    </tr>
+                    <tr>
+                        <td>$project</td>
+                        <td>投影/重塑文档结构，包含、排除或重命名字段</td>
+                        <td>{"$project": {name: 1, _id: 0}}</td>
+                    </tr>
+                    <tr>
+                        <td>$unwind</td>
+                        <td>将数组字段展开为多个文档，每个数组元素生成一个文档</td>
+                        <td>{"$unwind": "$tags"}</td>
+                    </tr>
+                    <tr>
+                        <td>$lookup</td>
+                        <td>左外连接，从另一个集合中关联文档</td>
+                        <td>{"$lookup": {from: "orders", ...}}</td>
+                    </tr>
+                    <tr>
+                        <td>$addFields / $set</td>
+                        <td>向文档添加新字段或覆盖现有字段的值</td>
+                        <td>{"$addFields": {total: {"$add": ["$a","$b"]}}}</td>
+                    </tr>
+                    <tr>
+                        <td>$count</td>
+                        <td>计算当前文档数量并返回计数字段</td>
+                        <td>{"$count": "totalCount"}</td>
+                    </tr>
+                    <tr>
+                        <td>$facet</td>
+                        <td>在同一输入文档集上运行多个子管道，实现多维度聚合</td>
+                        <td>Multiple sub-pipelines</td>
+                    </tr>
+                    <tr>
+                        <td>$bucket</td>
+                        <td>按指定边界将文档分桶分类</td>
+                        <td>Auto bucket by boundaries</td>
+                    </tr>
+                    <tr>
+                        <td>$out</td>
+                        <td>将管道结果写入指定集合（替换已有内容）</td>
+                        <td>Output to new collection</td>
+                    </tr>
+                    <tr>
+                        <td>$merge</td>
+                        <td>将管道结果合并到已有集合（可更新或插入）</td>
+                        <td>Merge/update existing collection</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="warning">
+                <strong>注意：</strong><code>$out</code> 和 <code>$merge</code> 必须是管道的最后一个阶段。
+                <code>$out</code> 会完全替换目标集合的内容，而 <code>$merge</code> 则可以增量更新目标集合。
+            </div>
+        </section>
+
+        <!-- 4. Complete Pipeline Example -->
+        <section class="concept-section" id="example">
+            <h2>完整管道示例</h2>
+            <p>
+                以下示例展示如何使用聚合管道查找电影数据库中作品数量最多的前 3 位导演：
+            </p>
+
+            <h3>需求分析</h3>
+            <ol>
+                <li>过滤掉没有导演信息的电影</li>
+                <li>将 directors 数组展开（每部电影可能有多个导演）</li>
+                <li>按导演分组并计算每人的电影数量</li>
+                <li>按电影数量降序排序</li>
+                <li>取前 3 名</li>
+            </ol>
+
+            <h3>聚合管道代码</h3>
+            <pre><code>db.movies.aggregate([
+  // 阶段1: 过滤 - 只保留有导演字段的文档
+  { $match: { directors: { $exists: true, $ne: null } } },
+
+  // 阶段2: 展开 - 将 directors 数组拆分为多个文档
+  { $unwind: "$directors" },
+
+  // 阶段3: 分组 - 按导演分组，计算每组的电影数量
+  { $group: {
+      _id: "$directors",
+      movieCount: { $sum: 1 }
+  }},
+
+  // 阶段4: 排序 - 按电影数量降序排列
+  { $sort: { movieCount: -1 } },
+
+  // 阶段5: 限制 - 只取前 3 名
+  { $limit: 3 }
+])</code></pre>
+
+            <h3>管道执行流程图</h3>
+            <div class="pipeline-flow pipeline-diagram">
+                <div class="stage-box source">movies 集合</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$match<br><small>过滤无效文档</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$unwind<br><small>展开导演数组</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$group<br><small>按导演分组计数</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$sort<br><small>降序排列</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box">$limit<br><small>取前3名</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box result">结果集</div>
+            </div>
+
+            <h3>预期输出</h3>
+            <pre><code>{ "_id" : "Steven Spielberg", "movieCount" : 32 }
+{ "_id" : "Martin Scorsese", "movieCount" : 28 }
+{ "_id" : "Clint Eastwood", "movieCount" : 25 }</code></pre>
+        </section>
+
+        <!-- 5. Aggregation Expressions -->
+        <section class="concept-section" id="expressions">
+            <h2>聚合表达式</h2>
+            <p>
+                聚合操作支持丰富的表达式，用于在管道阶段中对字段进行计算、比较和转换。
+                以下是按类别分组的主要表达式：
+            </p>
+
+            <div class="expression-category">
+                <h4>累加器表达式（Accumulators）</h4>
+                <p>主要用于 <code>$group</code> 阶段，对分组内的值进行汇总计算：</p>
+                <div class="expr-list">
+                    <span class="expr-tag">$sum</span>
+                    <span class="expr-tag">$avg</span>
+                    <span class="expr-tag">$min</span>
+                    <span class="expr-tag">$max</span>
+                    <span class="expr-tag">$push</span>
+                    <span class="expr-tag">$addToSet</span>
+                    <span class="expr-tag">$first</span>
+                    <span class="expr-tag">$last</span>
+                </div>
+            </div>
+
+            <div class="expression-category">
+                <h4>比较表达式（Comparison）</h4>
+                <p>比较两个值并返回布尔结果：</p>
+                <div class="expr-list">
+                    <span class="expr-tag">$eq</span>
+                    <span class="expr-tag">$gt</span>
+                    <span class="expr-tag">$lt</span>
+                    <span class="expr-tag">$gte</span>
+                    <span class="expr-tag">$lte</span>
+                    <span class="expr-tag">$ne</span>
+                </div>
+            </div>
+
+            <div class="expression-category">
+                <h4>算术表达式（Arithmetic）</h4>
+                <p>执行数值计算操作：</p>
+                <div class="expr-list">
+                    <span class="expr-tag">$add</span>
+                    <span class="expr-tag">$subtract</span>
+                    <span class="expr-tag">$multiply</span>
+                    <span class="expr-tag">$divide</span>
+                    <span class="expr-tag">$mod</span>
+                </div>
+            </div>
+
+            <div class="expression-category">
+                <h4>字符串表达式（String）</h4>
+                <p>对字符串进行操作和转换：</p>
+                <div class="expr-list">
+                    <span class="expr-tag">$concat</span>
+                    <span class="expr-tag">$substr</span>
+                    <span class="expr-tag">$toLower</span>
+                    <span class="expr-tag">$toUpper</span>
+                    <span class="expr-tag">$split</span>
+                </div>
+            </div>
+
+            <div class="expression-category">
+                <h4>日期表达式（Date）</h4>
+                <p>从日期字段中提取时间组成部分：</p>
+                <div class="expr-list">
+                    <span class="expr-tag">$year</span>
+                    <span class="expr-tag">$month</span>
+                    <span class="expr-tag">$dayOfMonth</span>
+                    <span class="expr-tag">$hour</span>
+                    <span class="expr-tag">$minute</span>
+                    <span class="expr-tag">$second</span>
+                </div>
+            </div>
+
+            <div class="expression-category">
+                <h4>条件表达式（Conditional）</h4>
+                <p>根据条件返回不同的值：</p>
+                <div class="expr-list">
+                    <span class="expr-tag">$cond</span>
+                    <span class="expr-tag">$ifNull</span>
+                    <span class="expr-tag">$switch</span>
+                </div>
+            </div>
+
+            <h3>表达式使用示例</h3>
+            <pre><code>// $cond - 条件表达式
+{ $project: {
+    level: {
+      $cond: { if: { $gte: ["$score", 80] }, then: "优秀", else: "继续努力" }
+    }
+}}
+
+// $ifNull - 空值替换
+{ $project: {
+    displayName: { $ifNull: ["$nickname", "$realName"] }
+}}
+
+// $switch - 多条件分支
+{ $project: {
+    grade: {
+      $switch: {
+        branches: [
+          { case: { $gte: ["$score", 90] }, then: "A" },
+          { case: { $gte: ["$score", 80] }, then: "B" },
+          { case: { $gte: ["$score", 70] }, then: "C" }
+        ],
+        default: "D"
+      }
+    }
+}}</code></pre>
+        </section>
+
+        <!-- 6. $lookup Join Details -->
+        <section class="concept-section" id="lookup">
+            <h2>$lookup 连接操作</h2>
+            <p>
+                <code>$lookup</code> 是聚合管道中实现左外连接（Left Outer Join）的阶段，
+                用于从另一个集合中关联文档。MongoDB 提供了两种 <code>$lookup</code> 语法：
+                基本连接和管道连接。
+            </p>
+
+            <div class="lookup-section">
+                <h4>基本连接（Equality Match）</h4>
+                <p>最简单的连接方式，通过指定字段值进行等值匹配：</p>
+                <pre><code>{
+  $lookup: {
+    from: "orders",           // 被连接的集合
+    localField: "userId",     // 当前集合的连接字段
+    foreignField: "_id",      // 目标集合的连接字段
+    as: "userOrders"          // 输出数组字段名
+  }
+}</code></pre>
+                <p>执行流程：对当前集合中每个文档，从 <code>from</code> 集合中查找
+                <code>foreignField</code> 等于 <code>localField</code> 的所有文档，
+                结果以数组形式放入 <code>as</code> 指定的字段。</p>
+            </div>
+
+            <div class="lookup-section">
+                <h4>管道连接（Pipeline Lookup）</h4>
+                <p>支持更复杂的连接条件，可在 <code>$lookup</code> 内部使用子管道：</p>
+                <pre><code>{
+  $lookup: {
+    from: "orders",
+    let: { userId: "$_id", status: "$status" },  // 定义变量
+    pipeline: [
+      { $match:
+        { $expr:
+          { $and: [
+            { $eq: ["$userId", "$$userId"] },     // 引用外部变量
+            { $eq: ["$status", "$$status"] }
+          ]}
+        }
+      },
+      { $project: { orderId: 1, amount: 1, _id: 0 } }
+    ],
+    as: "matchingOrders"
+  }
+}</code></pre>
+            </div>
+
+            <div class="lookup-section">
+                <h4>非关联子查询（Uncorrelated Subquery）</h4>
+                <p>子管道不引用外部文档的变量，对每个输入文档执行相同的查询：</p>
+                <pre><code>{
+  $lookup: {
+    from: "products",
+    pipeline: [
+      { $match: { category: "electronics" } },
+      { $sort: { price: -1 } },
+      { $limit: 5 }
+    ],
+    as: "topElectronics"
+  }
+}</code></pre>
+                <div class="note">
+                    <strong>提示：</strong>非关联子查询的结果对所有输入文档都相同，
+                    MongoDB 5.1+ 会自动优化为只执行一次子查询。
+                </div>
+            </div>
+
+            <div class="lookup-section">
+                <h4>关联子查询（Correlated Subquery）</h4>
+                <p>子管道通过 <code>let</code> 和 <code>$expr</code> 引用外部文档的字段，
+                对每个输入文档执行不同的查询：</p>
+                <pre><code>{
+  $lookup: {
+    from: "comments",
+    let: { postId: "$_id" },
+    pipeline: [
+      { $match:
+        { $expr: { $eq: ["$postId", "$$postId"] } }
+      },
+      { $sort: { createdAt: -1 } },
+      { $limit: 3 }
+    ],
+    as: "recentComments"
+  }
+}</code></pre>
+            </div>
+
+            <div class="warning">
+                <strong>性能注意：</strong>关联子查询会对每个输入文档单独执行子管道，
+                当输入文档数量较大时可能产生性能问题。建议在子管道中尽早使用
+                <code>$match</code> 并确保相关字段有索引。
+            </div>
+        </section>
+
+        <!-- 7. Single-purpose Aggregation -->
+        <section class="concept-section" id="single-purpose">
+            <h2>单用途聚合方法</h2>
+            <p>
+                MongoDB 提供了一些简单的聚合方法，适用于不需要复杂管道的常见聚合场景。
+                这些方法语法简洁，但功能有限。
+            </p>
+
+            <div class="method-card">
+                <h4>db.collection.estimatedDocumentCount()</h4>
+                <p>返回集合的近似文档数量，基于集合的元数据快速返回结果。</p>
+                <pre><code>// 获取 users 集合的近似文档数
+db.users.estimatedDocumentCount()</code></pre>
+                <div class="note">
+                    <strong>适用场景：</strong>不需要精确计数时使用，速度极快。
+                    不适用于分片集群或有孤立文档的集合。
+                </div>
+            </div>
+
+            <div class="method-card">
+                <h4>db.collection.countDocuments(query)</h4>
+                <p>返回匹配查询条件的文档精确数量，内部使用聚合管道实现。</p>
+                <pre><code>// 统计状态为 active 的用户数
+db.users.countDocuments({ status: "active" })
+
+// 统计所有文档
+db.users.countDocuments({})</code></pre>
+            </div>
+
+            <div class="method-card">
+                <h4>db.collection.distinct(field, query)</h4>
+                <p>返回指定字段的所有去重值，可配合查询条件使用。</p>
+                <pre><code>// 获取所有不同的城市
+db.users.distinct("city")
+
+// 获取活跃用户的不同城市
+db.users.distinct("city", { status: "active" })</code></pre>
+            </div>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>方法</th>
+                        <th>精确度</th>
+                        <th>速度</th>
+                        <th>支持查询条件</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>estimatedDocumentCount()</td>
+                        <td>近似</td>
+                        <td>极快</td>
+                        <td>不支持</td>
+                    </tr>
+                    <tr>
+                        <td>countDocuments()</td>
+                        <td>精确</td>
+                        <td>较慢</td>
+                        <td>支持</td>
+                    </tr>
+                    <tr>
+                        <td>distinct()</td>
+                        <td>精确</td>
+                        <td>中等</td>
+                        <td>支持</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 8. Performance Tips -->
+        <section class="concept-section" id="performance">
+            <h2>性能优化建议</h2>
+            <p>
+                合理设计聚合管道对性能至关重要。以下是一些经过验证的最佳实践：
+            </p>
+
+            <div class="perf-tip">
+                <span class="tip-icon">&#10003;</span>
+                <div class="tip-content">
+                    <strong>尽早使用 $match 过滤数据</strong><br>
+                    将 <code>$match</code> 放在管道的前面可以尽早减少文档数量，
+                    降低后续阶段的处理开销。如果 <code>$match</code> 是管道的第一个阶段，
+                    MongoDB 可以利用索引来加速查询。
+                </div>
+            </div>
+
+            <div class="perf-tip">
+                <span class="tip-icon">&#10003;</span>
+                <div class="tip-content">
+                    <strong>在 $match 上使用索引</strong><br>
+                    确保 <code>$match</code> 阶段使用的查询字段已建立索引。
+                    管道开头的 <code>$match</code> 可以利用索引扫描来快速过滤文档，
+                    避免全集合扫描。
+                </div>
+            </div>
+
+            <div class="perf-tip">
+                <span class="tip-icon">&#10003;</span>
+                <div class="tip-content">
+                    <strong>使用 $project 减少文档大小</strong><br>
+                    在数据密集的管道中，使用 <code>$project</code> 或 <code>$unset</code>
+                    尽早移除不需要的字段，减少传递到后续阶段的文档大小，
+                    降低内存占用和网络传输开销。
+                </div>
+            </div>
+
+            <div class="perf-tip">
+                <span class="tip-icon">&#10003;</span>
+                <div class="tip-content">
+                    <strong>使用 $facet 实现多维度聚合</strong><br>
+                    <code>$facet</code> 允许在同一输入文档集上并行运行多个子管道，
+                    适合需要同时获取多个维度聚合结果的场景（如同时获取按分类、按时间、
+                    按地区的统计结果），避免多次执行管道。
+                </div>
+            </div>
+
+            <h3>管道优化顺序建议</h3>
+            <div class="pipeline-flow pipeline-diagram">
+                <div class="stage-box" style="background:#E8F5E9;border-color:#00643B;">$match<br><small>优先过滤</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box" style="background:#E8F5E9;border-color:#00643B;">$project / $unset<br><small>精简字段</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box" style="background:#FFF3E0;border-color:#FF9800;">$unwind<br><small>展开数组</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box" style="background:#FFF3E0;border-color:#FF9800;">$group<br><small>分组聚合</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box" style="background:#E3F2FD;border-color:#2196F3;">$sort<br><small>排序</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="stage-box" style="background:#E3F2FD;border-color:#2196F3;">$limit / $skip<br><small>分页限制</small></div>
+            </div>
+
+            <h3>常见性能陷阱</h3>
+            <div class="danger">
+                <strong>避免以下做法：</strong>
+                <ul style="margin-top:0.5rem; margin-left:1rem;">
+                    <li>将 <code>$sort</code> 放在 <code>$match</code> 之前 -- 会对全部文档排序而非仅过滤后的文档</li>
+                    <li>在 <code>$group</code> 之前缺少 <code>$match</code> -- 会导致对大量无用数据进行分组计算</li>
+                    <li>不加限制地使用 <code>$unwind</code> -- 大数组展开会生成海量中间文档</li>
+                    <li>忽略 100MB 内存限制 -- 大数据量管道需使用 <code>allowDiskUse: true</code></li>
+                </ul>
+            </div>
+        </section>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="transactions.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：事务 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>MongoDB 概念详解 | 基于 <a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/" target="_blank">MongoDB 官方文档</a></p>
+        <p>&copy; 2024 MongoDB Concepts</p>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

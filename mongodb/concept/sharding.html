@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 分片 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Sharded Cluster Architecture Diagram */
+        .sharding-arch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .sharding-layer {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            width: 100%;
+            position: relative;
+        }
+
+        .sharding-layer-label {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--secondary-color);
+            writing-mode: vertical-lr;
+            letter-spacing: 2px;
+            padding: 0.5rem;
+            background: rgba(0,30,43,0.05);
+            border-radius: 4px;
+        }
+
+        .sharding-connector-row {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            width: 100%;
+            padding: 0.3rem 0;
+            position: relative;
+        }
+
+        .sharding-connector-row svg {
+            width: 100%;
+            max-width: 900px;
+            height: 50px;
+        }
+
+        .shard-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+        }
+
+        .shard-group-label {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #00643B;
+            margin-bottom: 0.2rem;
+        }
+
+        .replica-set-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .rs-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .rs-primary {
+            background: #C8E6C9;
+            color: #1B5E20;
+            border: 1px solid #4CAF50;
+        }
+
+        .rs-secondary {
+            background: #E8F5E9;
+            color: #2E7D32;
+            border: 1px solid #81C784;
+        }
+
+        /* Chunk range diagram */
+        .chunk-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .chunk-item {
+            border: 2px solid var(--primary-color);
+            border-radius: 6px;
+            padding: 0.8rem 1rem;
+            text-align: center;
+            min-width: 140px;
+            background: white;
+            position: relative;
+        }
+
+        .chunk-item .chunk-label {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 0.85rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .chunk-item .chunk-range {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .chunk-arrow {
+            color: var(--primary-color);
+            font-size: 1rem;
+            padding: 0 0.3rem;
+        }
+
+        /* Zone diagram */
+        .zone-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .zone-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .zone-box {
+            border: 2px dashed;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            min-width: 160px;
+        }
+
+        .zone-box.zone-asia {
+            border-color: #E34234;
+            background: #FFEBEE;
+            color: #C62828;
+        }
+
+        .zone-box.zone-europe {
+            border-color: #2196F3;
+            background: #E3F2FD;
+            color: #1565C0;
+        }
+
+        .zone-box.zone-americas {
+            border-color: #FF9800;
+            background: #FFF3E0;
+            color: #E65100;
+        }
+
+        .zone-box .zone-name {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .zone-box .zone-detail {
+            font-size: 0.85rem;
+            opacity: 0.85;
+        }
+
+        /* Targeted vs Broadcast diagram */
+        .query-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .query-flow {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .query-flow-label {
+            font-weight: 700;
+            min-width: 100px;
+            text-align: right;
+        }
+
+        .query-flow-label.targeted {
+            color: var(--primary-color);
+        }
+
+        .query-flow-label.broadcast {
+            color: var(--danger-color);
+        }
+
+        .query-arrow-right {
+            font-size: 1.2rem;
+            color: #999;
+        }
+
+        /* Shard key selection tips */
+        .shardkey-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .shardkey-card {
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .shardkey-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow);
+        }
+
+        .shardkey-card .card-title {
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .shardkey-card .card-desc {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .shardkey-card.good {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .shardkey-card.bad {
+            border-left: 4px solid var(--danger-color);
+        }
+
+        /* DDL Restrictions table enhancement */
+        .ddl-version-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .ddl-version-badge.v8 {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+
+        .ddl-version-badge.v83 {
+            background: #E3F2FD;
+            color: #1565C0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 分片</h1>
+        <p class="subtitle">Sharding - 水平扩展与数据分布</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main>
+        <div class="container">
+
+            <!-- Table of Contents -->
+<!-- 1. Sharding Overview -->
+            <section class="concept-section" id="overview">
+                <h2>1. 分片概述</h2>
+                <p>
+                    分片（Sharding）是 MongoDB 将数据水平分布到多台机器上的方法。当单台服务器的资源（CPU、内存、磁盘I/O）无法满足吞吐量或数据量需求时，分片允许通过增加机器来扩展数据库容量。
+                </p>
+
+                <h3>垂直扩展 vs 水平扩展</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>方式</th>
+                            <th>说明</th>
+                            <th>优缺点</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>垂直扩展</strong></td>
+                            <td>增加单机配置（CPU、内存、SSD等）</td>
+                            <td>简单直接，但存在硬件上限，成本递增</td>
+                        </tr>
+                        <tr>
+                            <td><strong>水平扩展</strong></td>
+                            <td>增加机器数量，将数据分散存储</td>
+                            <td>无理论上限，但系统架构更复杂</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note">
+                    <strong>何时使用分片？</strong> 当数据集或吞吐量超过单机容量，且复制集无法提供足够的写入扩展能力时，应考虑分片。分片不应用于早期的"小规模"部署。
+                </div>
+            </section>
+
+            <!-- 2. Sharded Cluster Architecture -->
+            <section class="concept-section" id="architecture">
+                <h2>2. 分片集群架构</h2>
+                <p>
+                    分片集群由三种核心组件构成，协同工作以提供透明的数据分布与路由服务。以下为典型的集群架构图：
+                </p>
+
+                <div class="arch-diagram">
+                    <!-- Layer 1: Application -->
+                    <div class="sharding-layer" style="margin-bottom:0;">
+                        <div style="position:relative; width:100%; display:flex; justify-content:center;">
+                            <div class="arch-box app" style="min-width:260px;">
+                                <div style="font-size:1.1rem;">客户端应用程序</div>
+                                <div style="font-size:0.75rem; opacity:0.8;">通过 mongos 连接集群</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow: App -> mongos -->
+                    <div style="text-align:center; padding:0.4rem 0; color:#999; font-size:0.9rem;">
+                        <svg width="100%" height="50" viewBox="0 0 900 50" preserveAspectRatio="xMidYMid meet" style="max-width:900px; display:block; margin:0 auto;">
+                            <defs>
+                                <marker id="arrow-down-orange" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                                    <path d="M0,0 L8,4 L0,8 Z" fill="#FF9800"/>
+                                </marker>
+                            </defs>
+                            <line x1="450" y1="2" x2="450" y2="48" stroke="#FF9800" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrow-down-orange)"/>
+                        </svg>
+                    </div>
+
+                    <!-- Layer 2: mongos -->
+                    <div class="sharding-layer">
+                        <div style="position:relative; width:100%; display:flex; justify-content:center; gap:1.5rem; flex-wrap:wrap;">
+                            <div class="arch-box mongos" style="min-width:200px;">
+                                <div style="font-size:1rem;">mongos</div>
+                                <div style="font-size:0.75rem; opacity:0.8;">查询路由 #1</div>
+                            </div>
+                            <div class="arch-box mongos" style="min-width:200px;">
+                                <div style="font-size:1rem;">mongos</div>
+                                <div style="font-size:0.75rem; opacity:0.8;">查询路由 #2</div>
+                            </div>
+                            <div class="arch-box mongos" style="min-width:200px;">
+                                <div style="font-size:1rem;">mongos</div>
+                                <div style="font-size:0.75rem; opacity:0.8;">查询路由 #3</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow: mongos -> Config Servers -->
+                    <div style="text-align:center; padding:0.4rem 0; color:#999; font-size:0.9rem;">
+                        <svg width="100%" height="50" viewBox="0 0 900 50" preserveAspectRatio="xMidYMid meet" style="max-width:900px; display:block; margin:0 auto;">
+                            <defs>
+                                <marker id="arrow-down-purple" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                                    <path d="M0,0 L8,4 L0,8 Z" fill="#9C27B0"/>
+                                </marker>
+                            </defs>
+                            <text x="40" y="28" fill="#9C27B0" font-size="11" font-weight="600">元数据读写</text>
+                            <line x1="130" y1="25" x2="430" y2="25" stroke="#9C27B0" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrow-down-purple)"/>
+                        </svg>
+                    </div>
+
+                    <!-- Layer 3: Config Servers -->
+                    <div class="sharding-layer">
+                        <div style="position:relative; width:100%; display:flex; justify-content:center;">
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div style="font-weight:700; font-size:0.85rem; color:#6A1B9A; margin-bottom:0.4rem;">配置服务器副本集 (CSRS)</div>
+                                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; justify-content:center;">
+                                    <div class="arch-box config" style="min-width:130px;">
+                                        <div style="font-size:0.9rem;">Config Primary</div>
+                                        <span class="rs-badge rs-primary">P</span>
+                                    </div>
+                                    <div class="arch-box config" style="min-width:130px;">
+                                        <div style="font-size:0.9rem;">Config Secondary</div>
+                                        <span class="rs-badge rs-secondary">S</span>
+                                    </div>
+                                    <div class="arch-box config" style="min-width:130px;">
+                                        <div style="font-size:0.9rem;">Config Secondary</div>
+                                        <span class="rs-badge rs-secondary">S</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow: mongos -> Shards -->
+                    <div style="text-align:center; padding:0.4rem 0; color:#999; font-size:0.9rem;">
+                        <svg width="100%" height="55" viewBox="0 0 900 55" preserveAspectRatio="xMidYMid meet" style="max-width:900px; display:block; margin:0 auto;">
+                            <defs>
+                                <marker id="arrow-down-green" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                                    <path d="M0,0 L8,4 L0,8 Z" fill="#00643B"/>
+                                </marker>
+                            </defs>
+                            <text x="40" y="18" fill="#00643B" font-size="11" font-weight="600">数据路由</text>
+                            <line x1="130" y1="15" x2="250" y2="40" stroke="#00643B" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrow-down-green)"/>
+                            <line x1="450" y1="15" x2="450" y2="45" stroke="#00643B" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrow-down-green)"/>
+                            <line x1="770" y1="15" x2="650" y2="40" stroke="#00643B" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrow-down-green)"/>
+                        </svg>
+                    </div>
+
+                    <!-- Layer 4: Shards -->
+                    <div class="sharding-layer">
+                        <div style="position:relative; width:100%; display:flex; justify-content:center; gap:2rem; flex-wrap:wrap;">
+                            <!-- Shard 1 -->
+                            <div class="shard-group">
+                                <div class="shard-group-label">Shard 1</div>
+                                <div class="replica-set-row">
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Primary</div>
+                                        <span class="rs-badge rs-primary">P</span>
+                                    </div>
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Secondary</div>
+                                        <span class="rs-badge rs-secondary">S</span>
+                                    </div>
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Secondary</div>
+                                        <span class="rs-badge rs-secondary">S</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Shard 2 -->
+                            <div class="shard-group">
+                                <div class="shard-group-label">Shard 2</div>
+                                <div class="replica-set-row">
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Primary</div>
+                                        <span class="rs-badge rs-primary">P</span>
+                                    </div>
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Secondary</div>
+                                        <span class="rs-badge rs-secondary">S</span>
+                                    </div>
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Secondary</div>
+                                        <span class="rs-badge rs-secondary">S</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Shard 3 -->
+                            <div class="shard-group">
+                                <div class="shard-group-label">Shard 3</div>
+                                <div class="replica-set-row">
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Primary</div>
+                                        <span class="rs-badge rs-primary">P</span>
+                                    </div>
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Secondary</div>
+                                        <span class="rs-badge rs-secondary">S</span>
+                                    </div>
+                                    <div class="arch-box shard" style="min-width:90px;">
+                                        <div style="font-size:0.85rem;">Secondary</div>
+                                        <span class="rs-badge rs-secondary">S</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>关键要点：</strong>每个分片都是一个副本集（Replica Set），确保分片级别的高可用性。配置服务器也必须是副本集（CSRS）。mongos 可以部署多个实例以实现路由层的高可用和负载均衡。
+                </div>
+            </section>
+
+            <!-- 3. Core Components -->
+            <section class="concept-section" id="components">
+                <h2>3. 核心组件</h2>
+
+                <h3>Shard（分片）</h3>
+                <p>
+                    每个分片包含集群数据的一个子集。<strong>每个分片必须是一个副本集</strong>，以提供分片级别的高可用性和数据冗余。在生产环境中，所有分片都应为副本集。
+                </p>
+
+                <h3>mongos（查询路由器）</h3>
+                <p>
+                    <code>mongos</code> 是客户端应用程序与分片集群之间的接口。<code>mongos</code> 将查询请求路由到正确的分片，然后将结果合并返回给客户端。应用程序<strong>绝不应</strong>直接连接分片，而应始终通过 <code>mongos</code> 连接。
+                </p>
+                <ul>
+                    <li>解析客户端查询，确定目标分片</li>
+                    <li>从配置服务器获取集群元数据（分片键范围映射）</li>
+                    <li>将查询路由到相关分片并合并结果</li>
+                    <li>支持部署多个 <code>mongos</code> 实例以实现高可用</li>
+                </ul>
+
+                <h3>Config Servers（配置服务器）</h3>
+                <p>
+                    配置服务器存储分片集群的元数据和配置信息，包括：
+                </p>
+                <ul>
+                    <li>每个分片上的数据段（chunk）范围</li>
+                    <li>集群中可用的分片列表</li>
+                    <li>分片键与数据库/集合的映射关系</li>
+                </ul>
+
+                <div class="warning">
+                    <strong>重要：</strong>配置服务器<strong>必须是副本集</strong>（CSRS - Config Server Replica Set）。配置服务器的数据对集群运行至关重要，如果配置服务器数据丢失，集群将无法正常工作。
+                </div>
+            </section>
+
+            <!-- 4. Shard Key -->
+            <section class="concept-section" id="shard-key">
+                <h2>4. 分片键（Shard Key）</h2>
+                <p>
+                    分片键决定了文档在集群中的分布方式。MongoDB 使用分片键的值将文档划分到不同的数据段（chunk）中，进而分配到不同的分片上。
+                </p>
+
+                <h3>分片键的类型</h3>
+                <ul>
+                    <li><strong>单字段分片键</strong>：基于一个字段，如 <code>userId</code></li>
+                    <li><strong>复合分片键</strong>：基于多个字段，如 <code>{ userId: 1, createdAt: 1 }</code></li>
+                </ul>
+
+                <h3>分片键的限制</h3>
+                <ul>
+                    <li>分片键在集合创建后<strong>不可更改</strong>（直到 MongoDB 5.0 引入重新分片功能）</li>
+                    <li>分片键字段的值不可变：已分片集合中<strong>不可修改</strong>分片键字段的值</li>
+                    <li>缺失的分片键值被视为 <code>null</code>，用于数据分布计算</li>
+                    <li>分片键索引必须存在且不能是唯一索引（除非是 <code>_id</code> 或范围分片的单个键）</li>
+                </ul>
+
+                <h3>重新分片（Resharding）- MongoDB 5.0+</h3>
+                <p>
+                    MongoDB 5.0 引入了重新分片功能，允许更改集合的分片键。重新分片过程在后台进行，集群在此期间仍可正常读写。
+                </p>
+
+                <h3>分片键精化（Refinement）- MongoDB 4.4+</h3>
+                <p>
+                    从 4.4 开始，可以通过在现有分片键上添加后缀字段来精化分片键。这在原有分片键的基数不足时非常有用，且不需要完全重新分片。
+                </p>
+
+                <div class="info">
+                    <strong>关于缺失的分片键：</strong>如果文档不包含分片键字段，该字段在数据分布时被视为 <code>null</code>。这意味着大量缺失分片键的文档会被集中到同一数据段中，导致数据分布不均。
+                </div>
+
+                <h3>分片键选择指南</h3>
+                <div class="shardkey-grid">
+                    <div class="shardkey-card good">
+                        <div class="card-title">高基数</div>
+                        <div class="card-desc">分片键应有足够多的不同值，以确保数据可以均匀分布。例如：userId、orderId</div>
+                    </div>
+                    <div class="shardkey-card good">
+                        <div class="card-title">低频率</div>
+                        <div class="card-desc">每个分片键值不应出现过高的频率，避免单个值产生过大的数据段</div>
+                    </div>
+                    <div class="shardkey-card good">
+                        <div class="card-title">非单调递增</div>
+                        <div class="card-desc">避免使用如 ObjectId 或时间戳等单调递增的值作为范围分片键，会导致所有写入集中到最后一个分片</div>
+                    </div>
+                    <div class="shardkey-card bad">
+                        <div class="card-title">低基数</div>
+                        <div class="card-desc">如布尔值（只有 true/false），最多只能分布到有限的数据段中</div>
+                    </div>
+                    <div class="shardkey-card bad">
+                        <div class="card-title">高频率值</div>
+                        <div class="card-desc">某个值出现过多会导致"超大块"（jumbo chunk），无法迁移</div>
+                    </div>
+                    <div class="shardkey-card bad">
+                        <div class="card-title">单调递增</div>
+                        <div class="card-desc">如用时间戳做范围分片键，所有新数据写入同一分片，热点问题严重</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Chunks -->
+            <section class="concept-section" id="chunks">
+                <h2>5. 数据段（Chunks）</h2>
+                <p>
+                    MongoDB 将分片集合的数据划分为若干数据段（chunk）。每个数据段对应分片键值范围中的一个子区间。
+                </p>
+
+                <h3>数据段的范围规则</h3>
+                <p>
+                    每个数据段定义了分片键值的范围：<strong>下界包含，上界不包含</strong>（左闭右开区间）。
+                </p>
+
+                <div class="chunk-diagram">
+                    <div class="chunk-item">
+                        <div class="chunk-label">数据段 A</div>
+                        <div class="chunk-range">[-inf, 100)</div>
+                        <div style="font-size:0.75rem; color:#999; margin-top:0.3rem;">在 Shard 1 上</div>
+                    </div>
+                    <div class="chunk-arrow">&rarr;</div>
+                    <div class="chunk-item">
+                        <div class="chunk-label">数据段 B</div>
+                        <div class="chunk-range">[100, 500)</div>
+                        <div style="font-size:0.75rem; color:#999; margin-top:0.3rem;">在 Shard 2 上</div>
+                    </div>
+                    <div class="chunk-arrow">&rarr;</div>
+                    <div class="chunk-item">
+                        <div class="chunk-label">数据段 C</div>
+                        <div class="chunk-range">[500, +inf)</div>
+                        <div style="font-size:0.75rem; color:#999; margin-top:0.3rem;">在 Shard 3 上</div>
+                    </div>
+                </div>
+
+                <h3>数据段拆分</h3>
+                <p>
+                    当数据段的大小超过配置的阈值（默认 64MB）时，MongoDB 会自动将数据段拆分为两个较小的数据段。拆分基于分片键值的中点进行。
+                </p>
+
+                <h3>数据段迁移</h3>
+                <p>
+                    均衡器（Balancer）会在分片间迁移数据段以实现均匀分布。迁移过程在后台进行，对应用程序透明。
+                </p>
+
+                <div class="note">
+                    <strong>超大块（Jumbo Chunk）：</strong>当一个数据段的大小超过阈值但无法拆分（因为所有文档的分片键值都相同）时，该数据段被标记为"超大块"。超大块无法被均衡器迁移，需要手动处理。
+                </div>
+            </section>
+
+            <!-- 6. Balancer -->
+            <section class="concept-section" id="balancer">
+                <h2>6. 均衡器（Balancer）</h2>
+                <p>
+                    均衡器是一个后台进程，负责管理数据段在分片间的迁移，确保数据均匀分布。
+                </p>
+
+                <h3>均衡器的工作机制</h3>
+                <ul>
+                    <li>均衡器运行在 <code>mongos</code> 实例上（主 <code>mongos</code>）</li>
+                    <li>定期检查各分片上的数据段数量</li>
+                    <li>当数据段分布不均匀时，自动发起迁移</li>
+                    <li>迁移过程中源分片和目标分片继续正常提供服务</li>
+                </ul>
+
+                <h3>自动均衡的触发</h3>
+                <ul>
+                    <li><code>shardCollection</code> 命令会启动均衡器</li>
+                    <li>添加新分片时，均衡器会自动将数据迁移到新分片</li>
+                    <li>数据段拆分后，可能触发后续迁移</li>
+                </ul>
+
+                <h3>即时均衡 - shardAndDistributeCollection (8.0+)</h3>
+                <p>
+                    MongoDB 8.0 引入了 <code>shardAndDistributeCollection</code> 命令，在分片集合的同时立即将数据均匀分布到所有分片上，而非等待后台均衡器逐步完成。对于大型集合，这可以显著缩短数据均衡的时间。
+                </p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step" style="min-width:280px;">
+                        <strong>shardCollection</strong><br>
+                        <span style="font-size:0.85rem; color:#666;">创建初始数据段，启动均衡器后台迁移</span>
+                    </div>
+                    <div class="flow-arrow" style="font-size:0.9rem; color:#999;">vs</div>
+                    <div class="flow-step" style="min-width:280px;">
+                        <strong>shardAndDistributeCollection</strong>
+                        <span class="badge badge-success">8.0+</span><br>
+                        <span style="font-size:0.85rem; color:#666;">分片同时立即均衡数据分布</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 7. Sharding Strategies -->
+            <section class="concept-section" id="strategies">
+                <h2>7. 分片策略</h2>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>策略</th>
+                            <th>说明</th>
+                            <th>优点</th>
+                            <th>缺点</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>哈希分片</strong><br><code>hashed</code></td>
+                            <td>对分片键值进行哈希计算，按哈希值分配数据段</td>
+                            <td>数据分布更加均匀，写入负载均衡</td>
+                            <td>范围查询需广播到所有分片</td>
+                        </tr>
+                        <tr>
+                            <td><strong>范围分片</strong><br><code>1 / -1</code></td>
+                            <td>按分片键值的范围分配数据段</td>
+                            <td>支持针对分片键的定向范围查询</td>
+                            <td>数据可能分布不均匀（热点）</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>哈希分片详细说明</h3>
+                <p>
+                    哈希分片使用分片键字段的哈希值来分配文档。由于哈希函数将接近的值映射到随机位置，数据分布更加均匀，但牺牲了范围查询的效率。
+                </p>
+
+                <h3>范围分片详细说明</h3>
+                <p>
+                    范围分片按分片键值的数值或字典顺序将数据划分为连续区间。值的"相近"意味着在物理上更可能位于同一分片上，这有利于范围查询的定向路由，但如果分片键单调递增则会导致写入热点。
+                </p>
+
+                <div class="arch-diagram">
+                    <h3 style="text-align:center; color:var(--primary-color); margin-bottom:1rem;">哈希分片 vs 范围分片 数据分布对比</h3>
+                    <div style="display:flex; gap:2rem; flex-wrap:wrap; justify-content:center;">
+                        <!-- Hashed -->
+                        <div style="flex:1; min-width:280px; max-width:400px;">
+                            <div style="text-align:center; font-weight:700; color:#E65100; margin-bottom:0.8rem;">哈希分片</div>
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
+                                <div class="arch-box mongos" style="min-width:auto; font-size:0.8rem;">1</div>
+                                <div class="arch-box mongos" style="min-width:auto; font-size:0.8rem;">5</div>
+                                <div class="arch-box mongos" style="min-width:auto; font-size:0.8rem;">3</div>
+                            </div>
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center; margin-top:0.5rem;">
+                                <div class="arch-box mongos" style="min-width:auto; font-size:0.8rem;">8</div>
+                                <div class="arch-box mongos" style="min-width:auto; font-size:0.8rem;">2</div>
+                                <div class="arch-box mongos" style="min-width:auto; font-size:0.8rem;">9</div>
+                            </div>
+                            <div style="text-align:center; font-size:0.8rem; color:#666; margin-top:0.5rem;">相邻值可能分布在不同分片</div>
+                        </div>
+                        <!-- Ranged -->
+                        <div style="flex:1; min-width:280px; max-width:400px;">
+                            <div style="text-align:center; font-weight:700; color:#00643B; margin-bottom:0.8rem;">范围分片</div>
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
+                                <div class="arch-box shard" style="min-width:auto; font-size:0.8rem;">1</div>
+                                <div class="arch-box shard" style="min-width:auto; font-size:0.8rem;">2</div>
+                                <div class="arch-box shard" style="min-width:auto; font-size:0.8rem;">3</div>
+                            </div>
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center; margin-top:0.5rem;">
+                                <div class="arch-box shard" style="min-width:auto; font-size:0.8rem;">5</div>
+                                <div class="arch-box shard" style="min-width:auto; font-size:0.8rem;">8</div>
+                                <div class="arch-box shard" style="min-width:auto; font-size:0.8rem;">9</div>
+                            </div>
+                            <div style="text-align:center; font-size:0.8rem; color:#666; margin-top:0.5rem;">相邻值集中在同一分片</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 8. Targeted vs Broadcast Operations -->
+            <section class="concept-section" id="operations">
+                <h2>8. 定向操作与广播操作</h2>
+                <p>
+                    分片集群中，查询操作的效率取决于查询是否包含分片键：
+                </p>
+
+                <h3>定向操作（Targeted Operation）</h3>
+                <p>
+                    当查询条件包含分片键时，<code>mongos</code> 可以确定目标分片，将请求直接路由到对应的分片。这是最高效的查询方式。
+                </p>
+
+                <div class="query-diagram">
+                    <div class="query-flow">
+                        <div class="query-flow-label targeted">定向查询</div>
+                        <div class="diagram-box" style="min-width:80px;">客户端</div>
+                        <div class="query-arrow-right">&rarr;</div>
+                        <div class="diagram-box" style="min-width:80px; border-color:#FF9800; background:#FFF3E0;">mongos</div>
+                        <div class="query-arrow-right">&rarr;</div>
+                        <div class="diagram-box primary" style="min-width:100px;">Shard 2</div>
+                    </div>
+                    <div style="font-size:0.85rem; color:#666; text-align:center;">
+                        查询条件包含分片键 &rarr; mongos 精准路由到目标分片
+                    </div>
+                </div>
+
+                <h3>广播操作 / 散集收集（Broadcast / Scatter-Gather）</h3>
+                <p>
+                    当查询条件<strong>不包含</strong>分片键时，<code>mongos</code> 无法确定目标分片，必须将查询广播到所有分片，然后收集并合并结果。这会显著增加延迟和资源消耗。
+                </p>
+
+                <div class="query-diagram">
+                    <div class="query-flow">
+                        <div class="query-flow-label broadcast">广播查询</div>
+                        <div class="diagram-box" style="min-width:80px;">客户端</div>
+                        <div class="query-arrow-right">&rarr;</div>
+                        <div class="diagram-box" style="min-width:80px; border-color:#FF9800; background:#FFF3E0;">mongos</div>
+                        <div class="query-arrow-right">&rarr;</div>
+                        <div style="display:flex; flex-direction:column; gap:0.3rem;">
+                            <div class="diagram-box shard" style="min-width:80px; font-size:0.85rem;">Shard 1</div>
+                            <div class="diagram-box shard" style="min-width:80px; font-size:0.85rem;">Shard 2</div>
+                            <div class="diagram-box shard" style="min-width:80px; font-size:0.85rem;">Shard 3</div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.85rem; color:#666; text-align:center;">
+                        查询条件不含分片键 &rarr; mongos 广播到所有分片，收集合并结果
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <strong>性能提示：</strong>尽可能让查询条件包含分片键，以利用定向路由避免广播查询的开销。对于无法包含分片键的高频查询，应考虑建立合适的复合索引或重新评估分片键选择。
+                </div>
+            </section>
+
+            <!-- 9. Zones -->
+            <section class="concept-section" id="zones">
+                <h2>9. 区域（Zones）</h2>
+                <p>
+                    区域（Zones）允许将分片键的特定值范围与特定的分片关联起来，实现数据局部性管理。这在地理分布式部署中特别有用。
+                </p>
+
+                <h3>区域工作原理</h3>
+                <ol>
+                    <li>为分片定义区域（如 "Asia"、"Europe"）</li>
+                    <li>为集合定义区域范围（zone range），指定分片键值范围与区域的映射</li>
+                    <li>均衡器自动将匹配范围的数据段迁移到关联的分片上</li>
+                </ol>
+
+                <div class="zone-diagram">
+                    <div class="zone-row" style="margin-bottom:0.5rem;">
+                        <div style="font-weight:700; font-size:1.1rem; color:var(--secondary-color);">分片键范围 &rarr; 区域 &rarr; 分片</div>
+                    </div>
+                    <div class="zone-row">
+                        <div class="zone-box zone-asia">
+                            <div class="zone-name">Zone: Asia</div>
+                            <div class="zone-detail">region: ["CN", "JP"]</div>
+                            <div class="zone-detail">&darr; 路由到</div>
+                            <div class="zone-detail" style="font-weight:600;">Shard-Asia</div>
+                        </div>
+                        <div class="zone-box zone-europe">
+                            <div class="zone-name">Zone: Europe</div>
+                            <div class="zone-detail">region: ["DE", "UK"]</div>
+                            <div class="zone-detail">&darr; 路由到</div>
+                            <div class="zone-detail" style="font-weight:600;">Shard-EU</div>
+                        </div>
+                        <div class="zone-box zone-americas">
+                            <div class="zone-name">Zone: Americas</div>
+                            <div class="zone-detail">region: ["US", "BR"]</div>
+                            <div class="zone-detail">&darr; 路由到</div>
+                            <div class="zone-detail" style="font-weight:600;">Shard-US</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>区域与均衡器：</strong>区域不替代均衡器，均衡器仍然会确保分片间的数据段数量大致均衡，但会优先遵守区域约束。未被区域覆盖的数据段可以分配到任意分片。
+                </div>
+            </section>
+
+            <!-- 10. Sharded vs Unsharded Collections -->
+            <section class="concept-section" id="collections">
+                <h2>10. 分片与未分片集合</h2>
+                <p>
+                    分片集群中的数据库可以同时包含分片集合和未分片集合：
+                </p>
+
+                <h3>未分片集合</h3>
+                <p>
+                    未分片集合的所有数据存储在该数据库的<strong>主分片（Primary Shard）</strong>上。主分片是在启用分片时自动选择的，与复制集中的 primary 节点无直接关系。
+                </p>
+
+                <h3>分片集合</h3>
+                <p>
+                    分片集合的数据分布在集群的多个分片上，由分片键决定分布方式。
+                </p>
+
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>未分片集合</th>
+                            <th>分片集合</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>数据存储位置</td>
+                            <td>数据库主分片</td>
+                            <td>分布在多个分片上</td>
+                        </tr>
+                        <tr>
+                            <td>查询路由</td>
+                            <td>路由到主分片</td>
+                            <td>根据分片键路由或广播</td>
+                        </tr>
+                        <tr>
+                            <td>写入扩展</td>
+                            <td><span class="cross">&times;</span></td>
+                            <td><span class="check">&check;</span></td>
+                        </tr>
+                        <tr>
+                            <td>均衡器管理</td>
+                            <td><span class="cross">&times;</span></td>
+                            <td><span class="check">&check;</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="danger">
+                    <strong>重要规则：</strong>无论操作分片还是未分片集合，应用程序都<strong>必须</strong>通过 <code>mongos</code> 连接集群。绝不应直接连接分片节点进行操作，否则可能导致数据不一致或查询结果不完整。
+                </div>
+            </section>
+
+            <!-- 11. Connection Rules -->
+            <section class="concept-section" id="connections">
+                <h2>11. 连接规则</h2>
+
+                <h3>必须通过 mongos 连接</h3>
+                <p>
+                    所有客户端应用程序都必须通过 <code>mongos</code> 实例连接到分片集群。<code>mongos</code> 接受客户端请求并路由到正确的分片，然后将结果合并后返回。
+                </p>
+
+                <h3>连接字符串示例</h3>
+                <pre><code>mongodb://mongos1.example.com:27017,mongos2.example.com:27017,mongos3.example.com:27017/?replicaSet=myCluster</code></pre>
+
+                <h3>禁止直连分片</h3>
+                <ul>
+                    <li>直接连接分片可能导致查询结果不完整（只看到一个分片的数据）</li>
+                    <li>直连写入可能破坏集群元数据一致性</li>
+                    <li>直连无法利用跨分片事务和路由功能</li>
+                </ul>
+
+                <div class="warning">
+                    <strong>运维注意：</strong>在运维场景下（如备份单个分片），可以直连分片的 primary 节点，但应仅限于受控的维护操作，而非应用正常的读写请求。
+                </div>
+            </section>
+
+            <!-- 12. DDL Operation Restrictions -->
+            <section class="concept-section" id="ddl">
+                <h2>12. DDL 操作限制</h2>
+                <p>
+                    在分片集群中，部分 DDL（数据定义语言）操作受到限制或需要特殊处理：
+                </p>
+
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>操作</th>
+                            <th>限制说明</th>
+                            <th>版本</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>dropDatabase</code></td>
+                            <td>必须在 <code>mongos</code> 上执行，会删除所有分片上的数据库数据</td>
+                            <td>全版本</td>
+                        </tr>
+                        <tr>
+                            <td><code>dropCollection</code></td>
+                            <td>必须在 <code>mongos</code> 上执行，对分片集合会清理所有分片上的数据和元数据</td>
+                            <td>全版本</td>
+                        </tr>
+                        <tr>
+                            <td><code>createCollection</code></td>
+                            <td>分片集合的创建需使用 <code>shardCollection</code> 命令</td>
+                            <td>全版本</td>
+                        </tr>
+                        <tr>
+                            <td>唯一索引</td>
+                            <td>分片集合上的唯一索引必须包含分片键作为前缀（例外：<code>_id</code> 索引）</td>
+                            <td>全版本</td>
+                        </tr>
+                        <tr>
+                            <td>跨分片事务</td>
+                            <td>支持跨分片事务，但性能开销较大，应尽量避免</td>
+                            <td>4.2+</td>
+                        </tr>
+                        <tr>
+                            <td><code>reshardCollection</code></td>
+                            <td>允许更改集合的分片键，操作在后台进行</td>
+                            <td><span class="ddl-version-badge v8">5.0+</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>shardAndDistributeCollection</code></td>
+                            <td>分片的同时立即均衡分布数据</td>
+                            <td><span class="ddl-version-badge v8">8.0+</span></td>
+                        </tr>
+                        <tr>
+                            <td>细化分片键</td>
+                            <td>可添加后缀字段到现有分片键（精化），无需完全重新分片</td>
+                            <td><span class="ddl-version-badge v8">4.4+</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>moveCollection</code></td>
+                            <td>将未分片集合从一个分片移动到另一个分片</td>
+                            <td><span class="ddl-version-badge v83">8.3+</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info">
+                    <strong>_id 索引的特殊规则：</strong>分片集合的 <code>_id</code> 索引必须是唯一索引，但不要求包含分片键。MongoDB 默认在 <code>_id</code> 上创建唯一索引。如果应用程序自行指定 <code>_id</code> 值，则需确保跨分片的唯一性。
+                </div>
+            </section>
+
+        </div>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="change-streams.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：变更流 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>基于 <a href="https://www.mongodb.com/docs/manual/sharding/" target="_blank">MongoDB 官方文档</a> 整理 | MongoDB 概念详解</p>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB CRUD 操作 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* CRUD Page Specific Styles */
+        .crud-overview-diagram {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .crud-category {
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+
+        .crud-category:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .crud-category.create {
+            background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+            border: 2px solid #4CAF50;
+        }
+
+        .crud-category.read {
+            background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+            border: 2px solid #2196F3;
+        }
+
+        .crud-category.update {
+            background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+            border: 2px solid #FF9800;
+        }
+
+        .crud-category.delete {
+            background: linear-gradient(135deg, #FFEBEE, #FFCDD2);
+            border: 2px solid #F44336;
+        }
+
+        .crud-category h3 {
+            font-size: 1.6rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .crud-category.create h3 { color: #2E7D32; }
+        .crud-category.read h3 { color: #1565C0; }
+        .crud-category.update h3 { color: #E65100; }
+        .crud-category.delete h3 { color: #C62828; }
+
+        .crud-methods {
+            margin-top: 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        .crud-methods code {
+            display: inline-block;
+            margin: 0.2rem;
+            font-size: 0.85rem;
+        }
+
+        .crud-category.create code {
+            background: #C8E6C9;
+            color: #1B5E20;
+        }
+
+        .crud-category.read code {
+            background: #BBDEFB;
+            color: #0D47A1;
+        }
+
+        .crud-category.update code {
+            background: #FFE0B2;
+            color: #BF360C;
+        }
+
+        .crud-category.delete code {
+            background: #FFCDD2;
+            color: #B71C1C;
+        }
+
+        .operator-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        .operator-table th {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 0.8rem 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .operator-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        .operator-table tr:nth-child(even) {
+            background: var(--light-color);
+        }
+
+        .operator-table tr:hover {
+            background: #e8f4f0;
+        }
+
+        .operator-table code {
+            font-size: 0.85rem;
+        }
+
+        .operator-section {
+            margin: 2.5rem 0;
+        }
+
+        .operator-section h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 1.15rem;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.3rem;
+            display: inline-block;
+        }
+
+        .code-example {
+            margin: 1.5rem 0;
+        }
+
+        .code-example .code-label {
+            display: inline-block;
+            background: var(--primary-color);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px 4px 0 0;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .code-example pre {
+            border-radius: 0 8px 8px 8px;
+            margin-top: 0;
+        }
+
+        .concern-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .concern-card {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .concern-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .concern-card h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.8rem;
+            font-size: 1.05rem;
+        }
+
+        .concern-level {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin: 0.2rem;
+        }
+
+        .concern-level.safe {
+            background: #C8E6C9;
+            color: #1B5E20;
+        }
+
+        .concern-level.default {
+            background: #FFF9C4;
+            color: #F57F17;
+        }
+
+        .concern-level.strong {
+            background: #BBDEFB;
+            color: #0D47A1;
+        }
+
+        .query-flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .flow-node {
+            background: white;
+            border: 2px solid;
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            min-width: 130px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .flow-node:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .flow-node.client {
+            border-color: #2196F3;
+            background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+            color: #1565C0;
+        }
+
+        .flow-node.router {
+            border-color: #FF9800;
+            background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+            color: #E65100;
+        }
+
+        .flow-node.index {
+            border-color: #4CAF50;
+            background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+            color: #2E7D32;
+        }
+
+        .flow-node.scan {
+            border-color: #9C27B0;
+            background: linear-gradient(135deg, #F3E5F5, #E1BEE7);
+            color: #6A1B9A;
+        }
+
+        .flow-node.result {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #001E2B, #00643B);
+            color: #00ED64;
+        }
+
+        .flow-connector {
+            display: flex;
+            align-items: center;
+            color: var(--primary-color);
+            font-size: 1.3rem;
+            padding: 0 0.3rem;
+        }
+
+        .sql-mongo-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        .sql-mongo-table th {
+            background: linear-gradient(135deg, #001E2B, #00643B);
+            color: #00ED64;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .sql-mongo-table td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sql-mongo-table tr:nth-child(even) {
+            background: var(--light-color);
+        }
+
+        .sql-mongo-table tr:hover {
+            background: #e8f4f0;
+        }
+
+        .sql-mongo-table code {
+            font-size: 0.85rem;
+        }
+
+        .bulk-ops-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .bulk-op-item {
+            background: var(--light-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .bulk-op-item:hover {
+            border-color: var(--primary-color);
+            background: white;
+            box-shadow: var(--shadow);
+        }
+
+        .bulk-op-item code {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .bulk-op-item .op-type {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .ordered-vs-unordered {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .order-option {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .order-option:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow);
+        }
+
+        .order-option h4 {
+            margin-bottom: 0.8rem;
+        }
+
+        .order-option.ordered h4 {
+            color: #2E7D32;
+        }
+
+        .order-option.unordered h4 {
+            color: #E65100;
+        }
+
+        .order-option ul {
+            margin-left: 1.2rem;
+            font-size: 0.95rem;
+        }
+
+        .order-option li {
+            margin-bottom: 0.4rem;
+        }
+
+        .write-concern-params {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .wc-param {
+            background: var(--light-color);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .wc-param h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .wc-param p {
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        @media (max-width: 768px) {
+            .crud-overview-diagram {
+                grid-template-columns: 1fr;
+            }
+
+            .ordered-vs-unordered {
+                grid-template-columns: 1fr;
+            }
+
+            .write-concern-params {
+                grid-template-columns: 1fr;
+            }
+
+            .query-flow-diagram {
+                flex-direction: column;
+            }
+
+            .flow-connector {
+                transform: rotate(90deg);
+            }
+
+            .operator-table,
+            .sql-mongo-table {
+                font-size: 0.8rem;
+            }
+
+            .operator-table th,
+            .operator-table td,
+            .sql-mongo-table th,
+            .sql-mongo-table td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container">
+           
+            <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>CRUD 操作</h1>
+            <p class="subtitle">创建 / 读取 / 更新 / 删除 — MongoDB 数据操作核心</p>
+        </div>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main class="container">
+
+        <!-- Table of Contents -->
+<!-- 1. CRUD Overview -->
+        <section class="concept-section" id="crud-overview">
+            <h2>CRUD 概述</h2>
+            <p>CRUD 是 <strong>Create（创建）、Read（读取）、Update（更新）、Delete（删除）</strong>四种数据操作的缩写，是所有数据库系统的核心功能。MongoDB 提供了丰富且灵活的 CRUD 操作 API，支持对文档的增删改查。</p>
+
+            <div class="crud-overview-diagram">
+                <div class="crud-category create">
+                    <h3>Create</h3>
+                    <p style="color:#2E7D32; font-weight:600;">插入文档</p>
+                    <div class="crud-methods">
+                        <code>insertOne()</code>
+                        <code>insertMany()</code>
+                    </div>
+                </div>
+                <div class="crud-category read">
+                    <h3>Read</h3>
+                    <p style="color:#1565C0; font-weight:600;">查询文档</p>
+                    <div class="crud-methods">
+                        <code>find()</code>
+                        <code>findOne()</code>
+                    </div>
+                </div>
+                <div class="crud-category update">
+                    <h3>Update</h3>
+                    <p style="color:#E65100; font-weight:600;">更新文档</p>
+                    <div class="crud-methods">
+                        <code>updateOne()</code>
+                        <code>updateMany()</code>
+                        <code>replaceOne()</code>
+                    </div>
+                </div>
+                <div class="crud-category delete">
+                    <h3>Delete</h3>
+                    <p style="color:#C62828; font-weight:600;">删除文档</p>
+                    <div class="crud-methods">
+                        <code>deleteOne()</code>
+                        <code>deleteMany()</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="note">
+                <strong>核心原则：</strong>MongoDB 中所有写操作（Create、Update、Delete）在<strong>单个文档级别</strong>上是原子操作（Atomic）。这意味着对单个文档的修改要么全部成功，要么全部失败，不会出现部分更新的情况。
+            </div>
+        </section>
+
+        <!-- 2. Create Operations -->
+        <section class="concept-section" id="create-operations">
+            <h2>创建操作 (Create)</h2>
+            <p>创建操作将新文档插入到集合中。如果插入操作时集合不存在，MongoDB 会<strong>自动创建</strong>该集合。</p>
+
+            <h3>db.collection.insertOne()</h3>
+            <p>向集合中插入单个文档。返回包含 <code>insertedId</code> 的结果。</p>
+
+            <div class="code-example">
+                <span class="code-label">示例：插入单个文档</span>
+<pre><code>db.users.insertOne({
+  name: "张三",
+  age: 28,
+  email: "zhangsan@example.com",
+  hobbies: ["阅读", "编程"],
+  address: {
+    city: "北京",
+    district: "海淀区"
+  }
+})
+
+// 返回结果
+{ "acknowledged": true, "insertedId": ObjectId("6502...") }</code></pre>
+            </div>
+
+            <h3>db.collection.insertMany()</h3>
+            <p>向集合中插入多个文档。接受文档数组作为参数，可指定 <code>ordered</code> 选项。</p>
+
+            <div class="code-example">
+                <span class="code-label">示例：插入多个文档</span>
+<pre><code>db.users.insertMany([
+  { name: "李四", age: 32, email: "lisi@example.com" },
+  { name: "王五", age: 25, email: "wangwu@example.com" },
+  { name: "赵六", age: 29, email: "zhaoliu@example.com" }
+], { ordered: true })
+
+// 返回结果
+{
+  "acknowledged": true,
+  "insertedIds": [
+    ObjectId("6502a1..."),
+    ObjectId("6502a2..."),
+    ObjectId("6502a3...")
+  ]
+}</code></pre>
+            </div>
+
+            <div class="info">
+                <strong>ordered 选项说明：</strong>
+                <ul>
+                    <li><code>ordered: true</code>（默认）：按顺序执行，遇到错误时停止后续插入</li>
+                    <li><code>ordered: false</code>：无序执行，即使某个文档插入失败也继续插入其余文档</li>
+                </ul>
+            </div>
+
+            <h3>关键特性</h3>
+            <ul>
+                <li><strong>自动创建集合：</strong>如果集合不存在，插入操作会自动创建集合</li>
+                <li><strong>自动生成 _id：</strong>如果未指定 <code>_id</code> 字段，MongoDB 自动生成 <code>ObjectId</code></li>
+                <li><strong>原子性：</strong>单个文档的插入操作是原子的</li>
+                <li><strong>_id 唯一性：</strong>集合中每个文档的 <code>_id</code> 必须唯一，重复插入会报错</li>
+            </ul>
+
+            <div class="warning">
+                <strong>注意：</strong><code>_id</code> 字段在文档插入后不可修改。如果手动指定 <code>_id</code>，请确保其唯一性，否则会抛出 <code>duplicate key error</code>。
+            </div>
+        </section>
+
+        <!-- 3. Read Operations -->
+        <section class="concept-section" id="read-operations">
+            <h2>读取操作 (Read)</h2>
+            <p>读取操作从集合中检索文档。MongoDB 使用 <code>db.collection.find()</code> 方法查询文档，支持丰富的查询操作符和投影操作。</p>
+
+            <h3>基本查询</h3>
+            <div class="code-example">
+                <span class="code-label">示例：基本查询</span>
+<pre><code>// 查询所有文档
+db.users.find({})
+
+// 等值查询
+db.users.find({ age: 25 })
+
+// 查询单个文档
+db.users.findOne({ email: "zhangsan@example.com" })</code></pre>
+            </div>
+
+            <h3>比较操作符</h3>
+            <p>比较操作符用于对字段值进行比较筛选。</p>
+
+            <table class="operator-table">
+                <thead>
+                    <tr>
+                        <th>操作符</th>
+                        <th>说明</th>
+                        <th>示例</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>$eq</code></td>
+                        <td>等于</td>
+                        <td><code>{ age: { $eq: 25 } }</code> 等同于 <code>{ age: 25 }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$gt / $gte</code></td>
+                        <td>大于 / 大于等于</td>
+                        <td><code>{ age: { $gt: 20 } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$lt / $lte</code></td>
+                        <td>小于 / 小于等于</td>
+                        <td><code>{ age: { $lt: 30 } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$in</code></td>
+                        <td>在数组中（匹配任一值）</td>
+                        <td><code>{ age: { $in: [20, 25, 30] } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$ne</code></td>
+                        <td>不等于</td>
+                        <td><code>{ age: { $ne: 25 } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$nin</code></td>
+                        <td>不在数组中</td>
+                        <td><code>{ age: { $nin: [20, 25] } }</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-example">
+                <span class="code-label">示例：范围查询</span>
+<pre><code>// 查询年龄在 20 到 30 之间的用户
+db.users.find({
+  age: { $gte: 20, $lte: 30 }
+})</code></pre>
+            </div>
+
+            <div class="operator-section">
+                <h4>逻辑操作符</h4>
+                <table class="operator-table">
+                    <thead>
+                        <tr>
+                            <th>操作符</th>
+                            <th>说明</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>$and</code></td>
+                            <td>逻辑与，所有条件同时满足</td>
+                            <td><code>{ $and: [{ age: { $gt: 20 } }, { city: "北京" }] }</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>$or</code></td>
+                            <td>逻辑或，满足任一条件</td>
+                            <td><code>{ $or: [{ age: { $lt: 20 } }, { age: { $gt: 60 } }] }</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>$not</code></td>
+                            <td>逻辑非，取反操作</td>
+                            <td><code>{ age: { $not: { $gt: 30 } } }</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>$nor</code></td>
+                            <td>所有条件都不满足</td>
+                            <td><code>{ $nor: [{ age: 20 }, { age: 25 }] }</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note">
+                    <strong>隐式 $and：</strong>当同一字段使用多个操作符时，MongoDB 隐式使用 <code>$and</code>。例如 <code>{ age: { $gt: 20, $lt: 30 } }</code> 等同于 <code>{ $and: [{ age: { $gt: 20 } }, { age: { $lt: 30 } }] }</code>。
+                </div>
+            </div>
+
+            <div class="operator-section">
+                <h4>元素操作符</h4>
+                <table class="operator-table">
+                    <thead>
+                        <tr>
+                            <th>操作符</th>
+                            <th>说明</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>$exists</code></td>
+                            <td>判断字段是否存在</td>
+                            <td><code>{ phone: { $exists: true } }</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>$type</code></td>
+                            <td>判断字段类型</td>
+                            <td><code>{ age: { $type: "int" } }</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="code-example">
+                    <span class="code-label">示例：元素操作符</span>
+<pre><code>// 查询包含 phone 字段的文档
+db.users.find({ phone: { $exists: true } })
+
+// 查询 age 字段类型为 string 的文档（数据类型不一致问题排查）
+db.users.find({ age: { $type: "string" } })</code></pre>
+                </div>
+            </div>
+
+            <div class="operator-section">
+                <h4>数组操作符</h4>
+                <table class="operator-table">
+                    <thead>
+                        <tr>
+                            <th>操作符</th>
+                            <th>说明</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>$all</code></td>
+                            <td>匹配包含所有指定元素的数组</td>
+                            <td><code>{ tags: { $all: ["MongoDB", "数据库"] } }</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>$elemMatch</code></td>
+                            <td>匹配数组中满足所有条件的元素</td>
+                            <td><code>{ results: { $elemMatch: { $gt: 80, $lt: 95 } } }</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>$size</code></td>
+                            <td>匹配指定长度的数组</td>
+                            <td><code>{ tags: { $size: 3 } }</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="code-example">
+                    <span class="code-label">示例：数组操作符</span>
+<pre><code>// 查询 hobbies 同时包含 "阅读" 和 "编程" 的文档
+db.users.find({
+  hobbies: { $all: ["阅读", "编程"] }
+})
+
+// 查询 scores 数组中存在同时 > 80 且 < 95 的元素
+db.students.find({
+  scores: { $elemMatch: { $gt: 80, $lt: 95 } }
+})
+
+// 查询恰好有 3 个标签的文档
+db.articles.find({
+  tags: { $size: 3 }
+})</code></pre>
+                </div>
+            </div>
+
+            <div class="operator-section">
+                <h4>嵌套文档查询（点号表示法）</h4>
+                <p>使用<strong>点号表示法</strong>可以查询嵌套文档中的字段。点号表示法是 MongoDB 查询嵌入文档的核心机制。</p>
+
+                <div class="code-example">
+                    <span class="code-label">示例：嵌套文档查询</span>
+<pre><code>// 查询 address.city 为 "北京" 的文档
+db.users.find({
+  "address.city": "北京"
+})
+
+// 多层嵌套查询
+db.users.find({
+  "address.city": "北京",
+  "address.district": "海淀区"
+})
+
+// 嵌套数组中的对象查询
+db.schools.find({
+  "students.name": "张三"
+})
+
+// 使用 $elemMatch 精确匹配数组内嵌套文档的多个字段
+db.schools.find({
+  students: {
+    $elemMatch: { name: "张三", age: 15 }
+  }
+})</code></pre>
+                </div>
+
+                <div class="warning">
+                    <strong>注意：</strong>查询嵌套文档时，使用点号表示法而非直接匹配整个嵌套对象。直接匹配对象要求<strong>精确匹配所有字段及顺序</strong>，通常不是预期行为。
+                </div>
+            </div>
+
+            <div class="operator-section">
+                <h4>投影 (Projection)</h4>
+                <p>投影用于控制查询结果中返回的字段，减少网络传输和提高性能。</p>
+
+                <div class="code-example">
+                    <span class="code-label">示例：投影操作</span>
+<pre><code>// 只返回 name 和 email 字段（包含模式）
+db.users.find(
+  { age: { $gt: 20 } },
+  { name: 1, email: 1 }
+)
+// 结果: { _id: ..., name: "...", email: "..." }
+
+// 排除 address 字段（排除模式）
+db.users.find(
+  {},
+  { address: 0 }
+)
+
+// 排除 _id 字段
+db.users.find(
+  {},
+  { _id: 0, name: 1, email: 1 }
+)
+
+// 数组投影：只返回数组前 N 个元素
+db.articles.find(
+  {},
+  { comments: { $slice: 5 } }
+)
+
+// 数组投影：跳过前 2 个，返回接下来 3 个
+db.articles.find(
+  {},
+  { comments: { $slice: [2, 3] } }
+)</code></pre>
+                </div>
+
+                <div class="note">
+                    <strong>投影规则：</strong>
+                    <ul>
+                        <li><code>1</code> 或 <code>true</code> — 包含该字段</li>
+                        <li><code>0</code> 或 <code>false</code> — 排除该字段</li>
+                        <li>不能混合使用包含和排除（<code>_id</code> 字段除外，始终可以排除）</li>
+                        <li>默认情况下，<code>_id</code> 字段始终返回，需显式设为 <code>0</code> 才能排除</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Update Operations -->
+        <section class="concept-section" id="update-operations">
+            <h2>更新操作 (Update)</h2>
+            <p>更新操作修改集合中已有文档。MongoDB 提供了三种更新方法和丰富的更新操作符。</p>
+
+            <h3>更新方法</h3>
+            <table class="operator-table">
+                <thead>
+                    <tr>
+                        <th>方法</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>db.collection.updateOne()</code></td>
+                        <td>更新匹配筛选条件的<strong>第一个</strong>文档</td>
+                    </tr>
+                    <tr>
+                        <td><code>db.collection.updateMany()</code></td>
+                        <td>更新匹配筛选条件的<strong>所有</strong>文档</td>
+                    </tr>
+                    <tr>
+                        <td><code>db.collection.replaceOne()</code></td>
+                        <td>替换匹配筛选条件的第一个文档（整体替换，保留 <code>_id</code>）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>更新操作符</h3>
+            <p>更新操作符是 MongoDB 更新的核心，可以精确控制文档的修改方式。</p>
+
+            <table class="operator-table">
+                <thead>
+                    <tr>
+                        <th>操作符</th>
+                        <th>说明</th>
+                        <th>示例</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>$set</code></td>
+                        <td>设置字段值（字段不存在则创建）</td>
+                        <td><code>{ $set: { status: "active" } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$unset</code></td>
+                        <td>删除字段</td>
+                        <td><code>{ $unset: { tempField: "" } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$inc</code></td>
+                        <td>增加数值（可为负数）</td>
+                        <td><code>{ $inc: { loginCount: 1 } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$mul</code></td>
+                        <td>乘以数值</td>
+                        <td><code>{ $mul: { price: 1.1 } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$rename</code></td>
+                        <td>重命名字段</td>
+                        <td><code>{ $rename: { "oldName": "newName" } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$push</code></td>
+                        <td>向数组添加元素</td>
+                        <td><code>{ $push: { tags: "new" } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$pull</code></td>
+                        <td>从数组删除匹配元素</td>
+                        <td><code>{ $pull: { tags: "old" } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$addToSet</code></td>
+                        <td>添加唯一元素到数组（去重）</td>
+                        <td><code>{ $addToSet: { tags: "unique" } }</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>$pop</code></td>
+                        <td>删除数组首(=-1)或末(=1)元素</td>
+                        <td><code>{ $pop: { tags: 1 } }</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-example">
+                <span class="code-label">示例：updateOne 使用更新操作符</span>
+<pre><code>// 使用 $set 更新字段
+db.users.updateOne(
+  { name: "张三" },
+  { $set: { age: 29, "address.city": "上海" } }
+)
+
+// 使用 $inc 增加数值
+db.products.updateOne(
+  { _id: 100 },
+  { $inc: { stock: -1, soldCount: 1 } }
+)
+
+// 使用 $push 和 $addToSet 操作数组
+db.users.updateOne(
+  { name: "张三" },
+  {
+    $push: { hobbies: "旅行" },
+    $addToSet: { tags: "vip" }
+  }
+)</code></pre>
+            </div>
+
+            <div class="code-example">
+                <span class="code-label">示例：updateMany 批量更新</span>
+<pre><code>// 将所有北京用户的 status 更新为 "active"
+db.users.updateMany(
+  { "address.city": "北京" },
+  { $set: { status: "active" } }
+)
+
+// 返回结果
+{
+  "acknowledged": true,
+  "matchedCount": 15,
+  "modifiedCount": 12
+}</code></pre>
+            </div>
+
+            <div class="code-example">
+                <span class="code-label">示例：replaceOne 整体替换</span>
+<pre><code>// 替换整个文档（_id 保持不变）
+db.users.replaceOne(
+  { name: "张三" },
+  {
+    name: "张三",
+    age: 30,
+    email: "zhangsan@new.com",
+    city: "上海"
+  }
+)</code></pre>
+            </div>
+
+            <h3>Upsert 选项</h3>
+            <p><code>upsert: true</code> 选项在找不到匹配文档时自动创建新文档，实现了"更新或插入"的语义。</p>
+
+            <div class="code-example">
+                <span class="code-label">示例：upsert 操作</span>
+<pre><code>db.users.updateOne(
+  { email: "newuser@example.com" },
+  { $set: { name: "新用户", age: 20 } },
+  { upsert: true }
+)
+
+// 如果匹配到文档 → 更新
+// 如果未匹配到文档 → 插入新文档：
+// { _id: ObjectId("..."), email: "newuser@example.com", name: "新用户", age: 20 }</code></pre>
+            </div>
+
+            <div class="note">
+                <strong>原子性保证：</strong>所有更新操作在单个文档级别是原子的。对单个文档的多个字段修改（如同时 <code>$set</code> 和 <code>$inc</code>）要么全部生效，要么全部不生效。
+            </div>
+        </section>
+
+        <!-- 5. Delete Operations -->
+        <section class="concept-section" id="delete-operations">
+            <h2>删除操作 (Delete)</h2>
+            <p>删除操作从集合中移除文档。与更新类似，MongoDB 提供了两种删除方法。</p>
+
+            <table class="operator-table">
+                <thead>
+                    <tr>
+                        <th>方法</th>
+                        <th>说明</th>
+                        <th>示例</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>db.collection.deleteOne()</code></td>
+                        <td>删除匹配筛选条件的<strong>第一个</strong>文档</td>
+                        <td><code>db.users.deleteOne({ status: "inactive" })</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>db.collection.deleteMany()</code></td>
+                        <td>删除匹配筛选条件的<strong>所有</strong>文档</td>
+                        <td><code>db.users.deleteMany({ status: "inactive" })</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-example">
+                <span class="code-label">示例：删除操作</span>
+<pre><code>// 删除单个文档
+db.users.deleteOne({ _id: ObjectId("6502a1...") })
+
+// 批量删除：删除所有 status 为 "inactive" 的文档
+db.users.deleteMany({ status: "inactive" })
+
+// 删除所有文档（慎用！）
+db.users.deleteMany({})
+
+// 返回结果
+{ "acknowledged": true, "deletedCount": 15 }</code></pre>
+            </div>
+
+            <div class="danger">
+                <strong>警告：</strong>
+                <ul>
+                    <li><code>deleteMany({})</code> 会删除集合中<strong>所有文档</strong>，但不会删除集合本身</li>
+                    <li>如需删除集合，请使用 <code>db.collection.drop()</code></li>
+                    <li>删除操作不可逆，请在生产环境中谨慎操作，建议先使用 <code>find()</code> 确认筛选条件</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 6. Bulk Write Operations -->
+        <section class="concept-section" id="bulk-write">
+            <h2>批量写入操作 (Bulk Write)</h2>
+            <p><code>db.collection.bulkWrite()</code> 允许在单次请求中执行多种类型的写操作，显著提高批量数据处理的效率。</p>
+
+            <h3>支持的操作类型</h3>
+            <div class="bulk-ops-grid">
+                <div class="bulk-op-item">
+                    <code>insertOne</code>
+                    <div class="op-type">插入单个文档</div>
+                </div>
+                <div class="bulk-op-item">
+                    <code>updateOne</code>
+                    <div class="op-type">更新单个文档</div>
+                </div>
+                <div class="bulk-op-item">
+                    <code>updateMany</code>
+                    <div class="op-type">批量更新文档</div>
+                </div>
+                <div class="bulk-op-item">
+                    <code>deleteOne</code>
+                    <div class="op-type">删除单个文档</div>
+                </div>
+                <div class="bulk-op-item">
+                    <code>deleteMany</code>
+                    <div class="op-type">批量删除文档</div>
+                </div>
+                <div class="bulk-op-item">
+                    <code>replaceOne</code>
+                    <div class="op-type">替换单个文档</div>
+                </div>
+            </div>
+
+            <div class="code-example">
+                <span class="code-label">示例：bulkWrite 批量操作</span>
+<pre><code>db.users.bulkWrite([
+  {
+    insertOne: {
+      document: { name: "新用户A", age: 22 }
+    }
+  },
+  {
+    updateOne: {
+      filter: { name: "张三" },
+      update: { $set: { status: "active" } },
+      upsert: true
+    }
+  },
+  {
+    deleteOne: {
+      filter: { status: "expired" }
+    }
+  },
+  {
+    updateMany: {
+      filter: { "address.city": "北京" },
+      update: { $inc: { loginCount: 1 } }
+    }
+  }
+], { ordered: true })</code></pre>
+            </div>
+
+            <h3>有序 vs 无序执行</h3>
+            <div class="ordered-vs-unordered">
+                <div class="order-option ordered">
+                    <h4>Ordered（有序执行）</h4>
+                    <ul>
+                        <li>默认模式：<code>ordered: true</code></li>
+                        <li>按数组顺序逐一执行</li>
+                        <li>遇到错误立即停止后续操作</li>
+                        <li>适用于操作之间<strong>有依赖关系</strong>的场景</li>
+                        <li>性能相对较低（串行执行）</li>
+                    </ul>
+                </div>
+                <div class="order-option unordered">
+                    <h4>Unordered（无序执行）</h4>
+                    <ul>
+                        <li>设置：<code>ordered: false</code></li>
+                        <li>MongoDB 可并行执行操作</li>
+                        <li>遇到错误继续执行其余操作</li>
+                        <li>适用于操作之间<strong>无依赖关系</strong>的场景</li>
+                        <li>性能更高（并行执行）</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. SQL to MongoDB Mapping -->
+        <section class="concept-section" id="sql-mapping">
+            <h2>SQL 到 MongoDB 映射</h2>
+            <p>对于熟悉关系型数据库的开发者，下表展示了常见 SQL 操作与 MongoDB 操作的对应关系。</p>
+
+            <table class="sql-mongo-table">
+                <thead>
+                    <tr>
+                        <th>SQL 操作</th>
+                        <th>MongoDB 操作</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>INSERT INTO users VALUES(...)</code></td>
+                        <td><code>db.users.insertOne({...})</code></td>
+                        <td>插入单行/文档</td>
+                    </tr>
+                    <tr>
+                        <td><code>INSERT INTO users VALUES(...), (...)</code></td>
+                        <td><code>db.users.insertMany([...])</code></td>
+                        <td>批量插入</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT * FROM users</code></td>
+                        <td><code>db.users.find({})</code></td>
+                        <td>查询所有</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT * FROM users WHERE age = 25</code></td>
+                        <td><code>db.users.find({ age: 25 })</code></td>
+                        <td>条件查询</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT name, email FROM users</code></td>
+                        <td><code>db.users.find({}, { name: 1, email: 1 })</code></td>
+                        <td>投影查询</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT * FROM users WHERE age > 25</code></td>
+                        <td><code>db.users.find({ age: { $gt: 25 } })</code></td>
+                        <td>范围查询</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT * FROM users WHERE age IN (20, 25)</code></td>
+                        <td><code>db.users.find({ age: { $in: [20, 25] } })</code></td>
+                        <td>IN 查询</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT * FROM users WHERE a=1 OR b=2</code></td>
+                        <td><code>db.users.find({ $or: [{ a: 1 }, { b: 2 }] })</code></td>
+                        <td>OR 查询</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT * FROM users ORDER BY age DESC</code></td>
+                        <td><code>db.users.find({}).sort({ age: -1 })</code></td>
+                        <td>排序</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT * FROM users LIMIT 10 SKIP 20</code></td>
+                        <td><code>db.users.find({}).skip(20).limit(10)</code></td>
+                        <td>分页</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT COUNT(*) FROM users</code></td>
+                        <td><code>db.users.countDocuments({})</code></td>
+                        <td>计数</td>
+                    </tr>
+                    <tr>
+                        <td><code>UPDATE users SET status='A' WHERE age > 30</code></td>
+                        <td><code>db.users.updateMany({ age: { $gt: 30 } }, { $set: { status: "A" } })</code></td>
+                        <td>批量更新</td>
+                    </tr>
+                    <tr>
+                        <td><code>DELETE FROM users WHERE status='D'</code></td>
+                        <td><code>db.users.deleteMany({ status: "D" })</code></td>
+                        <td>批量删除</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT DISTINCT city FROM users</code></td>
+                        <td><code>db.users.distinct("city")</code></td>
+                        <td>去重</td>
+                    </tr>
+                    <tr>
+                        <td><code>SELECT * FROM users JOIN orders ON ...</code></td>
+                        <td><code>db.users.aggregate([{ $lookup: ... }])</code></td>
+                        <td>关联查询</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="note">
+                <strong>术语映射：</strong>
+                <ul>
+                    <li>表 (Table) → 集合 (Collection)</li>
+                    <li>行 (Row) → 文档 (Document)</li>
+                    <li>列 (Column) → 字段 (Field)</li>
+                    <li>主键 (Primary Key) → <code>_id</code> 字段</li>
+                    <li>JOIN → <code>$lookup</code> 聚合阶段</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 8. Read/Write Concern -->
+        <section class="concept-section" id="read-write-concern">
+            <h2>读写关注 (Read/Write Concern)</h2>
+            <p>读写关注（Concern）决定了 MongoDB 在返回操作结果前需要满足的确认级别，是数据一致性与性能之间的关键权衡。</p>
+
+            <h3>Read Concern（读关注）</h3>
+            <p>读关注级别控制从查询返回的数据的一致性和隔离性程度。</p>
+
+            <div class="concern-grid">
+                <div class="concern-card">
+                    <h4><span class="concern-level default">local</span></h4>
+                    <p>默认级别。返回实例的最新数据，<strong>不保证</strong>该数据已写入大多数节点。可能回滚。</p>
+                    <div class="code-example">
+                        <pre><code>db.users.find().readConcern("local")</code></pre>
+                    </div>
+                </div>
+                <div class="concern-card">
+                    <h4><span class="concern-level default">available</span></h4>
+                    <p>返回实例的最新数据，与 <code>local</code> 类似但对分片集合查询不会产生碎片。适用于读操作不需要因果一致性的场景。</p>
+                </div>
+                <div class="concern-card">
+                    <h4><span class="concern-level safe">majority</span></h4>
+                    <p>返回已被<strong>大多数</strong>副本集成员确认的数据。保证数据不会被回滚（读取已提交）。</p>
+                    <div class="code-example">
+                        <pre><code>db.users.find().readConcern("majority")</code></pre>
+                    </div>
+                </div>
+                <div class="concern-card">
+                    <h4><span class="concern-level strong">linearizable</span></h4>
+                    <p>最强读一致性保证。确保读操作返回的数据在读操作开始前已被大多数节点确认，且读操作期间数据不会变化。适用于对一致性要求极高的场景。</p>
+                </div>
+                <div class="concern-card">
+                    <h4><span class="concern-level strong">snapshot</span></h4>
+                    <p>仅在多文档事务中可用。读取事务开始时的一致性快照，保证事务内读取的数据一致性。</p>
+                </div>
+            </div>
+
+            <div class="note">
+                <strong>读关注级别对比：</strong><br>
+                <code>local</code> / <code>available</code>：性能最优，一致性最弱<br>
+                <code>majority</code>：平衡性能与一致性，最常用<br>
+                <code>linearizable</code> / <code>snapshot</code>：一致性最强，性能开销最大
+            </div>
+
+            <h3>Write Concern（写关注）</h3>
+            <p>写关注决定了 MongoDB 在确认写操作成功前需要多少个节点确认该写入。</p>
+
+            <div class="write-concern-params">
+                <div class="wc-param">
+                    <h4>w</h4>
+                    <p>确认写入的节点数</p>
+                    <p style="font-size:0.8rem; color:#888; margin-top:0.5rem;">
+                        <code>w: 1</code> — 主节点确认<br>
+                        <code>w: "majority"</code> — 大多数节点确认<br>
+                        <code>w: 0</code> — 不确认（fire-and-forget）
+                    </p>
+                </div>
+                <div class="wc-param">
+                    <h4>j</h4>
+                    <p>是否写入日志 (journal)</p>
+                    <p style="font-size:0.8rem; color:#888; margin-top:0.5rem;">
+                        <code>j: true</code> — 写入持久化到磁盘日志<br>
+                        <code>j: false</code> — 不等待日志写入（默认）
+                    </p>
+                </div>
+                <div class="wc-param">
+                    <h4>wtimeout</h4>
+                    <p>写操作超时时间</p>
+                    <p style="font-size:0.8rem; color:#888; margin-top:0.5rem;">
+                        超时后写操作仅在指定节点确认<br>
+                        单位：毫秒<br>
+                        <code>wtimeout: 5000</code>
+                    </p>
+                </div>
+            </div>
+
+            <div class="code-example">
+                <span class="code-label">示例：写关注配置</span>
+<pre><code>// 等待大多数节点确认 + 写入日志
+db.users.insertOne(
+  { name: "张三", age: 28 },
+  {
+    writeConcern: {
+      w: "majority",
+      j: true,
+      wtimeout: 5000
+    }
+  }
+)
+
+// 仅主节点确认（默认行为）
+db.users.insertOne(
+  { name: "李四", age: 25 },
+  { writeConcern: { w: 1 } }
+)
+
+// 不等待确认（最高性能，最低可靠性）
+db.logs.insertOne(
+  { level: "info", message: "..." },
+  { writeConcern: { w: 0 } }
+)</code></pre>
+            </div>
+
+            <div class="warning">
+                <strong>最佳实践：</strong>
+                <ul>
+                    <li>关键业务数据：使用 <code>w: "majority"</code> + <code>j: true</code> 确保数据安全</li>
+                    <li>日志等非关键数据：使用 <code>w: 1</code> 或 <code>w: 0</code> 提升写入性能</li>
+                    <li>始终设置 <code>wtimeout</code> 防止无限等待</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 9. Query Processing Flow -->
+        <section class="concept-section" id="query-flow">
+            <h2>查询处理流程</h2>
+            <p>MongoDB 查询从客户端发出到返回结果，经历一系列处理步骤。理解这个流程有助于编写高效查询和排查性能问题。</p>
+
+            <div class="query-flow-diagram">
+                <div class="flow-node client">
+                    客户端<br>Client
+                </div>
+                <div class="flow-connector">&#10140;</div>
+                <div class="flow-node router">
+                    mongos / mongod<br>路由/节点
+                </div>
+                <div class="flow-connector">&#10140;</div>
+                <div class="flow-node index">
+                    索引查找<br>Index Lookup
+                </div>
+                <div class="flow-connector">&#10140;</div>
+                <div class="flow-node scan">
+                    集合扫描<br>Collection Scan
+                </div>
+                <div class="flow-connector">&#10140;</div>
+                <div class="flow-node result">
+                    返回结果<br>Result
+                </div>
+            </div>
+
+            <h3>流程详解</h3>
+            <table class="operator-table">
+                <thead>
+                    <tr>
+                        <th>阶段</th>
+                        <th>说明</th>
+                        <th>性能关注点</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>1. 客户端发送</strong></td>
+                        <td>驱动程序将查询序列化为 BSON，发送到 mongos（分片集群）或 mongod（单节点/副本集）</td>
+                        <td>减少查询字段（使用投影）、限制返回数量（limit）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>2. mongos/mongod 接收</strong></td>
+                        <td>解析查询语句，生成查询计划（Query Plan），决定使用哪个索引或全表扫描</td>
+                        <td>查询计划缓存、索引选择</td>
+                    </tr>
+                    <tr>
+                        <td><strong>3. 索引查找</strong></td>
+                        <td>如果存在合适的索引，使用 B-tree 索引快速定位文档；否则跳过此步骤</td>
+                        <td>确保查询使用索引（通过 <code>explain()</code> 验证）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>4. 集合扫描</strong></td>
+                        <td>索引定位后检查文档（FETCH 阶段），验证是否完全匹配查询条件；无索引时执行全表扫描（COLLSCAN）</td>
+                        <td>避免全表扫描、使用覆盖查询（Covered Query）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>5. 返回结果</strong></td>
+                        <td>将匹配的文档序列化为 BSON 返回客户端；支持游标（Cursor）分批返回</td>
+                        <td>合理使用游标、控制批量大小</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-example">
+                <span class="code-label">示例：使用 explain() 分析查询计划</span>
+<pre><code>// 查看查询执行计划
+db.users.find({ age: { $gt: 25 } }).explain("executionStats")
+
+// 关键输出字段：
+// - winningPlan: 选中的执行计划
+// - stage: COLLSCAN（全表扫描） vs IXSCAN（索引扫描）
+// - totalDocsExamined: 扫描的文档数
+// - totalKeysExamined: 扫描的索引键数
+// - executionTimeMillis: 执行耗时
+
+// 理想比例：totalDocsExamined ≈ nReturned（扫描文档数 ≈ 返回文档数）</code></pre>
+            </div>
+
+            <div class="note">
+                <strong>性能优化建议：</strong>
+                <ul>
+                    <li>始终为高频查询创建合适的索引</li>
+                    <li>使用 <code>explain()</code> 验证查询是否使用了索引</li>
+                    <li>目标是 <code>COLLSCAN</code> 阶段不出现在生产查询中</li>
+                    <li>覆盖查询（Covered Query）可以跳过 FETCH 阶段，直接从索引返回数据</li>
+                    <li>使用投影减少返回字段，降低网络传输和内存占用</li>
+                </ul>
+            </div>
+        </section>
+
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="indexes.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：索引 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>MongoDB 概念详解 | 基于 <a href="https://www.mongodb.com/docs/" target="_blank">MongoDB 官方文档</a> 整理</p>
+        </div>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

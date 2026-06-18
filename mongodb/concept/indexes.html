@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 索引 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* === B-Tree Visualization === */
+        .btree-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 2rem 0;
+            padding: 2rem 1rem;
+            background: var(--light-color);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+        }
+        .btree-visual h3 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .btree-level {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .btree-node {
+            background: linear-gradient(135deg, #001E2B, #00643B);
+            color: #00ED64;
+            border: 2px solid #00ED64;
+            border-radius: 8px;
+            padding: 0.6rem 1.2rem;
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 0.9rem;
+            min-width: 80px;
+            text-align: center;
+            position: relative;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+        .btree-node:hover {
+            transform: scale(1.08);
+        }
+        .btree-node.leaf {
+            background: linear-gradient(135deg, #00643B, #00ED64);
+            color: #001E2B;
+            border-color: #00643B;
+        }
+        .btree-connector-row {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 0.3rem 0;
+        }
+        .btree-connector {
+            width: 2px;
+            height: 20px;
+            background: var(--primary-color);
+            position: relative;
+        }
+        .btree-connector::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid var(--primary-color);
+        }
+        .btree-label {
+            font-size: 0.75rem;
+            color: #999;
+            margin-top: 0.2rem;
+            text-align: center;
+        }
+
+        /* === ESR Rule Diagram === */
+        .esr-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        .esr-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 160px;
+        }
+        .esr-box {
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            width: 160px;
+        }
+        .esr-box:hover {
+            transform: translateY(-3px);
+        }
+        .esr-box.equality {
+            background: linear-gradient(135deg, #001E2B, #00643B);
+            color: #00ED64;
+            border: 2px solid #00ED64;
+        }
+        .esr-box.sort {
+            background: linear-gradient(135deg, #FFC107, #FD7E14);
+            color: #001E2B;
+            border: 2px solid #FFC107;
+        }
+        .esr-box.range {
+            background: linear-gradient(135deg, #E34234, #C62828);
+            color: white;
+            border: 2px solid #E34234;
+        }
+        .esr-desc {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.5rem;
+            text-align: center;
+            line-height: 1.4;
+        }
+        .esr-arrow {
+            font-size: 2rem;
+            color: var(--primary-color);
+            font-weight: bold;
+            padding: 0 0.5rem;
+            align-self: center;
+        }
+        .esr-priority {
+            font-size: 0.75rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* === Decision Tree === */
+        .decision-tree {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+        .decision-tree h3 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .dt-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 auto;
+        }
+        .dt-question {
+            background: linear-gradient(135deg, #001E2B, #00643B);
+            color: #00ED64;
+            border: 2px solid #00ED64;
+            border-radius: 24px;
+            padding: 0.8rem 2rem;
+            font-weight: 600;
+            text-align: center;
+            min-width: 280px;
+            margin-bottom: 0.5rem;
+        }
+        .dt-branches {
+            display: flex;
+            gap: 2rem;
+            margin-top: 0.5rem;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .dt-branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 180px;
+        }
+        .dt-label {
+            font-size: 0.85rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin: 0.5rem 0;
+        }
+        .dt-result {
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--dark-color);
+            box-shadow: var(--shadow);
+        }
+        .dt-result.highlight {
+            background: linear-gradient(135deg, #00ED64, #00643B);
+            color: white;
+            border-color: #00ED64;
+        }
+        .dt-line-down {
+            width: 2px;
+            height: 20px;
+            background: var(--primary-color);
+        }
+        .dt-line-side {
+            width: 1px;
+            height: 2px;
+            background: var(--primary-color);
+        }
+
+        /* === Index Strategy Cards === */
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .strategy-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        .strategy-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-3px);
+        }
+        .strategy-card h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+        }
+        .strategy-card p {
+            color: #555;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .strategy-card .tag {
+            display: inline-block;
+            background: var(--light-color);
+            color: var(--primary-color);
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        /* === Build Process Timeline === */
+        .build-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 2rem 0;
+            position: relative;
+        }
+        .build-timeline::before {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+        .build-step {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1rem 0;
+            position: relative;
+        }
+        .build-step-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px var(--primary-color);
+            flex-shrink: 0;
+            margin-top: 0.3rem;
+            z-index: 1;
+        }
+        .build-step-dot.warning {
+            background: var(--warning-color);
+            box-shadow: 0 0 0 2px var(--warning-color);
+        }
+        .build-step-content h4 {
+            color: var(--dark-color);
+            margin-bottom: 0.3rem;
+        }
+        .build-step-content p {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* === Tradeoff Visual === */
+        .tradeoff-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: var(--light-color);
+            border-radius: 8px;
+        }
+        .tradeoff-label {
+            font-weight: 600;
+            min-width: 80px;
+            font-size: 0.9rem;
+        }
+        .tradeoff-track {
+            flex: 1;
+            height: 28px;
+            background: white;
+            border-radius: 14px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .tradeoff-fill-read {
+            height: 100%;
+            background: linear-gradient(90deg, #00ED64, #00643B);
+            border-radius: 14px 0 0 14px;
+            width: 75%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .tradeoff-fill-write {
+            height: 100%;
+            background: linear-gradient(90deg, #E34234, #C62828);
+            border-radius: 14px 0 0 14px;
+            width: 35%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 索引</h1>
+        <p class="subtitle">加速查询的核心机制 -- 理解索引结构、类型与策略</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main>
+        <div class="container">
+
+            <!-- Table of Contents -->
+<!-- Section 1: Index Overview -->
+            <section class="concept-section" id="overview">
+                <h2>1. 索引概述</h2>
+
+                <p>索引是 MongoDB 中提高查询效率的核心数据结构。类似于书籍的目录，索引让数据库无需扫描整个集合就能快速定位到所需文档，将查询时间从 O(n) 降低到 O(log n)。</p>
+
+                <h3>B-Tree 数据结构</h3>
+                <p>MongoDB 使用 <strong>B-Tree（B树）</strong>作为索引的底层数据结构（从 MongoDB 4.2 起统一使用 B-Tree，替代了早期的 Hash 索引方案用于大多数场景）。B-Tree 的核心特性：</p>
+                <ul>
+                    <li><strong>平衡多路搜索树</strong> -- 所有叶子节点处于同一层级，查询路径长度一致</li>
+                    <li><strong>有序存储</strong> -- 索引键按排序顺序存储，支持范围查询和排序</li>
+                    <li><strong>高扇出低高度</strong> -- 每个节点可存储大量键值，树高度通常只有 3-4 层</li>
+                </ul>
+
+                <h3>读写权衡</h3>
+                <p>索引是有代价的。每个索引都会占用额外的磁盘和内存空间，并在每次写操作（插入、更新、删除）时需要同步维护索引结构。</p>
+
+                <div class="tradeoff-bar">
+                    <span class="tradeoff-label" style="color: var(--primary-color);">读性能</span>
+                    <div class="tradeoff-track">
+                        <div class="tradeoff-fill-read">提升 75%</div>
+                    </div>
+                    <span style="font-size: 0.85rem; color: #666;">索引越多，查询越快</span>
+                </div>
+                <div class="tradeoff-bar">
+                    <span class="tradeoff-label" style="color: var(--danger-color);">写性能</span>
+                    <div class="tradeoff-track">
+                        <div class="tradeoff-fill-write">降低 35%</div>
+                    </div>
+                    <span style="font-size: 0.85rem; color: #666;">索引越多，写入越慢</span>
+                </div>
+
+                <h3>默认 _id 索引</h3>
+                <p>每个集合在创建时自动在 <code>_id</code> 字段上建立<strong>唯一索引</strong>，该索引不可删除。_id 索引确保每个文档有唯一标识，是复制集和分片集群中数据同步的关键依据。</p>
+
+                <div class="note">
+                    <strong>要点：</strong>MongoDB 的 _id 默认是 ObjectId 类型，12 字节，包含时间戳、机器标识和计数器信息。_id 也可以使用任何唯一值（如 UUID、自增数字等）。
+                </div>
+            </section>
+
+            <!-- Section 2: Index Types -->
+            <section class="concept-section" id="types">
+                <h2>2. 索引类型</h2>
+
+                <p>MongoDB 提供多种索引类型，以支持不同场景的查询需求。选择正确的索引类型是优化性能的关键。</p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>索引类型</th>
+                            <th>说明</th>
+                            <th>创建示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>单字段索引</strong></td>
+                            <td>在单个字段上建立索引，最基础的索引类型。1 表示升序，-1 表示降序</td>
+                            <td><code>db.col.createIndex({name: 1})</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>复合索引</strong></td>
+                            <td>在多个字段上建立的组合索引。字段顺序影响索引效率，需遵循 ESR 规则</td>
+                            <td><code>db.col.createIndex({name: 1, age: -1})</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>多键索引</strong></td>
+                            <td>当索引字段为数组类型时自动创建。为数组中的每个元素建立独立索引项</td>
+                            <td><code>db.col.createIndex({"tags": 1})</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>文本索引</strong></td>
+                            <td>支持对字符串内容进行全文搜索，支持词干提取和停用词过滤</td>
+                            <td><code>db.col.createIndex({content: "text"})</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>地理空间索引</strong></td>
+                            <td>支持 2d（平面坐标）和 2dsphere（球面坐标）地理空间查询</td>
+                            <td><code>db.col.createIndex({loc: "2dsphere"})</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>哈希索引</strong></td>
+                            <td>对字段值进行哈希后建立索引，常用于哈希分片的分片键</td>
+                            <td><code>db.col.createIndex({shardKey: "hashed"})</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>通配符索引</strong></td>
+                            <td>对未知或动态字段名建立索引，使用 <code>$**</code> 匹配所有字段</td>
+                            <td><code>db.col.createIndex({"$**": 1})</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>集群化索引</strong></td>
+                            <td>文档按索引键顺序物理存储，无需额外索引结构，查询时直接读取</td>
+                            <td><code>createCollection with clusteredIndex</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="warning">
+                    <strong>限制：</strong>单个集合最多支持 64 个索引。复合索引最多包含 32 个字段。一个集合只能有一个文本索引。
+                </div>
+            </section>
+
+            <!-- Section 3: ESR Rule -->
+            <section class="concept-section" id="esr-rule">
+                <h2>3. 复合索引键顺序 (ESR 规则)</h2>
+
+                <p>复合索引中字段的排列顺序直接影响索引能否被查询有效利用。<strong>ESR 规则</strong>（Equality-Sort-Range）是 MongoDB 复合索引设计的核心原则。</p>
+
+                <h3>ESR 含义</h3>
+                <ul>
+                    <li><strong>E -- Equality（等值匹配）</strong>：查询条件中使用精确匹配的字段，如 <code>{status: "active"}</code></li>
+                    <li><strong>S -- Sort（排序）</strong>：查询中需要排序的字段，如 <code>.sort({createdAt: -1})</code></li>
+                    <li><strong>R -- Range（范围查询）</strong>：查询条件中使用范围操作符的字段，如 <code>{age: {$gte: 18}}</code></li>
+                </ul>
+
+                <h3>最优字段排列</h3>
+                <div class="esr-diagram">
+                    <div class="esr-step">
+                        <div class="esr-box equality">E - 等值匹配</div>
+                        <div class="esr-desc">精确过滤，缩小区间<br><span class="esr-priority">优先级 1 -- 最先排列</span></div>
+                    </div>
+                    <div class="esr-arrow">&rarr;</div>
+                    <div class="esr-step">
+                        <div class="esr-box sort">S - 排序</div>
+                        <div class="esr-desc">避免内存排序<br><span class="esr-priority">优先级 2 -- 其次排列</span></div>
+                    </div>
+                    <div class="esr-arrow">&rarr;</div>
+                    <div class="esr-step">
+                        <div class="esr-box range">R - 范围查询</div>
+                        <div class="esr-desc">有序扫描范围<br><span class="esr-priority">优先级 3 -- 最后排列</span></div>
+                    </div>
+                </div>
+
+                <h3>示例</h3>
+                <p>查询条件：<code>{status: "active", age: {$gte: 18}}</code>，排序：<code>.sort({name: 1})</code></p>
+                <p>最优复合索引：<code>{status: 1, name: 1, age: 1}</code></p>
+                <ul>
+                    <li><code>status</code> 放第一 -- 等值匹配，快速定位</li>
+                    <li><code>name</code> 放第二 -- 排序字段，利用索引有序性</li>
+                    <li><code>age</code> 放第三 -- 范围查询，有序扫描</li>
+                </ul>
+
+                <h3>索引前缀</h3>
+                <p>复合索引 <code>{a: 1, b: 1, c: 1}</code> 包含以下前缀索引：</p>
+                <ul>
+                    <li><code>{a: 1}</code></li>
+                    <li><code>{a: 1, b: 1}</code></li>
+                    <li><code>{a: 1, b: 1, c: 1}</code>（完整索引本身）</li>
+                </ul>
+                <p>查询条件只涉及前缀字段时，可以复用复合索引，无需额外创建单字段索引。这有助于减少索引总数，降低写入开销。</p>
+
+                <div class="note">
+                    <strong>技巧：</strong>将等值匹配字段排在前面可以最大限度缩小索引扫描范围，让后续的排序和范围操作在更小的数据集上执行，从而提升整体查询效率。
+                </div>
+            </section>
+
+            <!-- Section 4: Index Properties -->
+            <section class="concept-section" id="properties">
+                <h2>4. 索引属性</h2>
+
+                <p>索引属性是对索引行为的额外约束或扩展，可叠加在不同索引类型上，实现更精细的控制。</p>
+
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>属性</th>
+                            <th>说明</th>
+                            <th>兼容类型</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>唯一索引</strong> <span class="badge badge-primary">Unique</span></td>
+                            <td>拒绝索引字段中存在重复值。在复合索引中使用时，字段组合值必须唯一（单个字段可重复）</td>
+                            <td>单字段 / 复合索引</td>
+                        </tr>
+                        <tr>
+                            <td><strong>TTL 索引</strong> <span class="badge badge-warning">TTL</span></td>
+                            <td>自动删除超过指定时间的文档。需指定 <code>expireAfterSeconds</code>，仅适用于 Date 类型字段</td>
+                            <td>单字段索引 (Date)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>部分索引</strong> <span class="badge badge-success">Partial</span></td>
+                            <td>仅索引满足指定条件的文档（通过 <code>partialFilterExpression</code>），减少索引大小和维护开销</td>
+                            <td>所有索引类型</td>
+                        </tr>
+                        <tr>
+                            <td><strong>稀疏索引</strong> <span class="badge badge-secondary">Sparse</span></td>
+                            <td>仅索引包含索引字段的文档，跳过字段缺失或为 null 的文档</td>
+                            <td>所有索引类型</td>
+                        </tr>
+                        <tr>
+                            <td><strong>隐藏索引</strong> <span class="badge badge-danger">Hidden</span></td>
+                            <td>对查询规划器不可见，不会影响查询计划选择。可用于安全评估删除索引的影响</td>
+                            <td>所有索引类型</td>
+                        </tr>
+                        <tr>
+                            <td><strong>不区分大小写</strong> <span class="badge badge-primary">Collation</span></td>
+                            <td>通过指定排序规则（Collation）使索引在比较和排序时忽略大小写</td>
+                            <td>字符串字段索引</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>属性组合示例</h3>
+                <pre><code>// 唯一 + 部分索引：仅对活跃用户强制唯一
+db.users.createIndex(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: "active" }
+  }
+)
+
+// TTL 索引：日志保留 30 天
+db.logs.createIndex(
+  { createdAt: 1 },
+  { expireAfterSeconds: 2592000 }
+)
+
+// 隐藏索引：测试删除索引的影响
+db.orders.createIndex(
+  { customerId: 1 },
+  { hidden: true }
+)</code></pre>
+            </section>
+
+            <!-- Section 5: Index Management -->
+            <section class="concept-section" id="management">
+                <h2>5. 索引管理</h2>
+
+                <h3>创建索引</h3>
+                <pre><code>// 创建单个索引
+db.collection.createIndex({ field: 1 }, options)
+
+// 同时创建多个索引
+db.collection.createIndexes([
+  { key: { name: 1 } },
+  { key: { age: -1, status: 1 } }
+])
+
+// 常用 options
+{
+  unique: true,                // 唯一约束
+  name: "myIndexName",        // 自定义索引名
+  background: true,            // (4.2前) 后台构建
+  partialFilterExpression: {}, // 部分索引条件
+  sparse: true,               // 稀疏索引
+  expireAfterSeconds: 3600,   // TTL
+  hidden: true,                // 隐藏索引
+  collation: { locale: "zh", strength: 2 } // 排序规则
+}</code></pre>
+
+                <h3>删除索引</h3>
+                <pre><code>// 删除指定索引（按名称）
+db.collection.dropIndex("indexName")
+
+// 删除指定索引（按键模式）
+db.collection.dropIndex({ name: 1 })
+
+// 删除所有非 _id 索引
+db.collection.dropIndexes()</code></pre>
+
+                <h3>查看索引</h3>
+                <pre><code>// 查看集合上的所有索引
+db.collection.getIndexes()
+
+// 查看索引使用统计
+db.collection.aggregate([
+  { $indexStats: {} }
+])</code></pre>
+
+                <h3>索引命名规则</h3>
+                <p>默认索引名称由字段名和排序方向拼接而成：</p>
+                <ul>
+                    <li>单字段：<code>{name: 1}</code> &rarr; <code>name_1</code></li>
+                    <li>复合索引：<code>{name: 1, age: -1}</code> &rarr; <code>name_1_age_-1</code></li>
+                    <li>自定义名称：<code>name: "idx_user_name"</code></li>
+                </ul>
+
+                <div class="warning">
+                    <strong>注意：</strong>索引名称一旦创建不可修改，只能删除重建。建议在创建时指定有意义的名称，尤其是复合索引。
+                </div>
+            </section>
+
+            <!-- Section 6: Index Build Process -->
+            <section class="concept-section" id="build-process">
+                <h2>6. 索引构建过程</h2>
+
+                <h3>构建方式</h3>
+                <p>从 MongoDB 4.2 开始，索引构建统一使用<strong>优化的构建过程</strong>（之前版本分为前台构建和后台构建两种模式）。</p>
+
+                <div class="build-timeline">
+                    <div class="build-step">
+                        <div class="build-step-dot"></div>
+                        <div class="build-step-content">
+                            <h4>阶段 1：初始化与快照</h4>
+                            <p>获取集合的当前数据快照，开始扫描文档。此阶段会短暂持有集合的排他锁（仅影响开始瞬间）。</p>
+                        </div>
+                    </div>
+                    <div class="build-step">
+                        <div class="build-step-dot"></div>
+                        <div class="build-step-content">
+                            <h4>阶段 2：索引键构建</h4>
+                            <p>扫描集合中的所有文档，提取索引键值并排序。此阶段允许并发读写操作，新写入的数据通过 oplog 追踪。</p>
+                        </div>
+                    </div>
+                    <div class="build-step">
+                        <div class="build-step-dot warning"></div>
+                        <div class="build-step-content">
+                            <h4>阶段 3：应用变更</h4>
+                            <p>将构建期间发生的写入操作（插入、更新、删除）应用到正在构建的索引上。此阶段可能影响写入性能。</p>
+                        </div>
+                    </div>
+                    <div class="build-step">
+                        <div class="build-step-dot"></div>
+                        <div class="build-step-content">
+                            <h4>阶段 4：提交索引</h4>
+                            <p>索引构建完成后提交，索引变为可用状态。查询规划器开始考虑使用该索引。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>对性能的影响</h3>
+                <ul>
+                    <li><strong>CPU 和内存</strong>：构建索引需要额外的 CPU 资源进行排序，以及内存来缓存索引条目</li>
+                    <li><strong>磁盘 I/O</strong>：大量读写操作，可能影响其他操作的 I/O 性能</li>
+                    <li><strong>副本集</strong>：在主节点上构建索引时，secondary 会自动同步构建（5.0+ 支持可同时构建）</li>
+                </ul>
+
+                <div class="info">
+                    <strong>最佳实践：</strong>在大集合上构建索引时，建议在低峰期进行。可以使用 <code>commitQuorum</code> 参数控制副本集上的构建提交条件。在 MongoDB 4.4+ 中，可以在 secondary 上优先构建，再提升为主节点。
+                </div>
+            </section>
+
+            <!-- Section 7: Index Strategy -->
+            <section class="concept-section" id="strategy">
+                <h2>7. 索引策略</h2>
+
+                <p>合理的索引策略需要在查询性能和写入开销之间找到平衡点。以下是关键策略建议：</p>
+
+                <div class="strategy-grid">
+                    <div class="strategy-card">
+                        <h4>遵循 ESR 规则</h4>
+                        <p>复合索引中，将等值匹配字段排在前面，排序字段居中，范围查询字段放最后。确保索引最左前缀能被最大化利用。</p>
+                        <span class="tag">核心原则</span>
+                    </div>
+                    <div class="strategy-card">
+                        <h4>覆盖查询</h4>
+                        <p>当查询所需的所有字段（包括返回字段和条件字段）都包含在索引中时，MongoDB 可以仅从索引返回结果，无需访问文档本身，极大提升性能。</p>
+                        <span class="tag">性能优化</span>
+                    </div>
+                    <div class="strategy-card">
+                        <h4>避免多余索引</h4>
+                        <p>每个索引都增加写入开销和存储成本。利用 <code>$indexStats</code> 识别未使用或低效的索引。重复前缀的复合索引可以合并。</p>
+                        <span class="tag">精简设计</span>
+                    </div>
+                    <div class="strategy-card">
+                        <h4>使用 explain() 验证</h4>
+                        <p>通过 <code>db.col.find(...).explain("executionStats")</code> 检查查询是否命中索引、扫描了多少文档、执行耗时等。关注 <code>totalDocsExamined</code> 与 <code>nReturned</code> 的比例。</p>
+                        <span class="tag">调试工具</span>
+                    </div>
+                </div>
+
+                <h3>覆盖查询示例</h3>
+                <pre><code>// 索引: { status: 1, name: 1 }
+
+// 覆盖查询 -- 仅从索引返回结果
+db.users.find(
+  { status: "active" },
+  { name: 1, _id: 0 }   // 只返回索引包含的字段
+)
+
+// 非覆盖查询 -- 需要回表获取额外字段
+db.users.find(
+  { status: "active" },
+  { name: 1, email: 1, _id: 0 }  // email 不在索引中
+)</code></pre>
+
+                <h3>explain() 关键指标</h3>
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>含义</th>
+                            <th>理想值</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>winningPlan.stage</code></td>
+                            <td>查询阶段类型</td>
+                            <td>IXSCAN（而非 COLLSCAN）</td>
+                        </tr>
+                        <tr>
+                            <td><code>totalDocsExamined</code></td>
+                            <td>扫描文档数</td>
+                            <td>接近 <code>nReturned</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>executionTimeMillis</code></td>
+                            <td>执行时间</td>
+                            <td>尽可能低</td>
+                        </tr>
+                        <tr>
+                            <td><code>indexBounds</code></td>
+                            <td>索引扫描范围</td>
+                            <td>有明确边界（非 MinKey~MaxKey）</td>
+                        </tr>
+                        <tr>
+                            <td><code>isMultiKey</code></td>
+                            <td>是否使用多键索引</td>
+                            <td>根据预期判断</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Section 8: B-Tree Diagram -->
+            <section class="concept-section" id="btree-diagram">
+                <h2>8. B-Tree 结构图解</h2>
+
+                <p>以下展示 MongoDB 索引底层 B-Tree 结构的简化模型。根节点和中间节点存储键值与子节点指针，叶子节点存储实际索引键和文档引用（RecordId）。</p>
+
+                <div class="btree-visual">
+                    <h3>B-Tree 索引结构（简化示例）</h3>
+
+                    <!-- Level 0: Root -->
+                    <div class="btree-level">
+                        <div class="btree-node">30</div>
+                    </div>
+
+                    <div class="btree-connector-row">
+                        <div style="display: flex; justify-content: center; gap: 6rem; width: 100%;">
+                            <div class="btree-connector"></div>
+                            <div class="btree-connector"></div>
+                        </div>
+                    </div>
+
+                    <!-- Level 1: Internal -->
+                    <div class="btree-level">
+                        <div class="btree-node">10 | 20</div>
+                        <div class="btree-node">40 | 50</div>
+                    </div>
+
+                    <div class="btree-connector-row">
+                        <div style="display: flex; justify-content: center; gap: 1.5rem; width: 100%;">
+                            <div class="btree-connector"></div>
+                            <div class="btree-connector"></div>
+                            <div class="btree-connector"></div>
+                            <div class="btree-connector"></div>
+                        </div>
+                    </div>
+
+                    <!-- Level 2: Leaf -->
+                    <div class="btree-level">
+                        <div class="btree-node leaf">1|5|10</div>
+                        <div class="btree-node leaf">12|15|20</div>
+                        <div class="btree-node leaf">30|35|40</div>
+                        <div class="btree-node leaf">45|50|55</div>
+                    </div>
+
+                    <div class="btree-label">叶子节点：索引键值 + RecordId &rarr; 指向文档物理位置</div>
+                </div>
+
+                <h3>B-Tree 查询过程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">1. 从根节点开始，比较目标值与节点键值</div>
+                    <div class="flow-arrow">&darr;</div>
+                    <div class="flow-step">2. 选择对应的子节点指针，进入下一层</div>
+                    <div class="flow-arrow">&darr;</div>
+                    <div class="flow-step">3. 重复比较直到到达叶子节点</div>
+                    <div class="flow-arrow">&darr;</div>
+                    <div class="flow-step">4. 在叶子节点中找到索引键，获取 RecordId</div>
+                    <div class="flow-arrow">&darr;</div>
+                    <div class="flow-step">5. 通过 RecordId 定位并返回文档数据</div>
+                </div>
+
+                <div class="note">
+                    <strong>关键优势：</strong>无论集合有多少文档，B-Tree 查询深度通常只有 3-4 层，保证了 O(log n) 的查询时间复杂度。相比全集合扫描 O(n)，在大数据集上性能差异可达数个数量级。
+                </div>
+            </section>
+
+            <!-- Section 9: Decision Tree -->
+            <section class="concept-section" id="decision-tree">
+                <h2>9. 索引类型选择决策树</h2>
+
+                <p>根据查询场景选择最合适的索引类型：</p>
+
+                <div class="decision-tree">
+                    <h3>查询场景分析</h3>
+
+                    <div class="dt-node">
+                        <div class="dt-question">查询条件是什么类型？</div>
+                        <div class="dt-line-down"></div>
+                        <div class="dt-branches">
+                            <div class="dt-branch">
+                                <div class="dt-label">单个字段精确匹配/范围</div>
+                                <div class="dt-line-down"></div>
+                                <div class="dt-result highlight">单字段索引</div>
+                            </div>
+                            <div class="dt-branch">
+                                <div class="dt-label">多字段组合查询</div>
+                                <div class="dt-line-down"></div>
+                                <div class="dt-question">需要排序吗？</div>
+                                <div class="dt-branches">
+                                    <div class="dt-branch">
+                                        <div class="dt-label">需要排序</div>
+                                        <div class="dt-result highlight">复合索引 (ESR规则)</div>
+                                    </div>
+                                    <div class="dt-branch">
+                                        <div class="dt-label">不需要排序</div>
+                                        <div class="dt-result">复合索引 (等值优先)</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="dt-branch">
+                                <div class="dt-label">数组字段查询</div>
+                                <div class="dt-line-down"></div>
+                                <div class="dt-result highlight">多键索引</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem;"></div>
+
+                    <div class="dt-node">
+                        <div class="dt-question">有特殊查询需求？</div>
+                        <div class="dt-line-down"></div>
+                        <div class="dt-branches">
+                            <div class="dt-branch">
+                                <div class="dt-label">全文关键词搜索</div>
+                                <div class="dt-result highlight">文本索引</div>
+                            </div>
+                            <div class="dt-branch">
+                                <div class="dt-label">地理位置查询</div>
+                                <div class="dt-result highlight">2dsphere / 2d 索引</div>
+                            </div>
+                            <div class="dt-branch">
+                                <div class="dt-label">哈希分片</div>
+                                <div class="dt-result highlight">哈希索引</div>
+                            </div>
+                            <div class="dt-branch">
+                                <div class="dt-label">字段名不确定</div>
+                                <div class="dt-result highlight">通配符索引</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem;"></div>
+
+                    <div class="dt-node">
+                        <div class="dt-question">需要额外的约束？</div>
+                        <div class="dt-line-down"></div>
+                        <div class="dt-branches">
+                            <div class="dt-branch">
+                                <div class="dt-label">字段值必须唯一</div>
+                                <div class="dt-result highlight">唯一索引</div>
+                            </div>
+                            <div class="dt-branch">
+                                <div class="dt-label">文档自动过期</div>
+                                <div class="dt-result highlight">TTL 索引</div>
+                            </div>
+                            <div class="dt-branch">
+                                <div class="dt-label">仅索引部分文档</div>
+                                <div class="dt-result highlight">部分索引</div>
+                            </div>
+                            <div class="dt-branch">
+                                <div class="dt-label">评估删除索引影响</div>
+                                <div class="dt-result highlight">隐藏索引</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="data-modeling.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：数据建模 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>MongoDB 概念详解 | 基于 <a href="https://www.mongodb.com/docs/" target="_blank">MongoDB 官方文档</a> 整理</p>
+        </div>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

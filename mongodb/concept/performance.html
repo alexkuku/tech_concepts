@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>性能优化 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>性能优化</h1>
+        <p class="subtitle">Performance - 诊断与优化策略</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main class="container">
+<!-- 常见性能问题 -->
+        <section class="concept-section" id="common-causes">
+            <h2>常见性能问题</h2>
+            <p>MongoDB 性能问题的常见原因可以归纳为以下几类：</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>问题类别</th>
+                    <th>具体原因</th>
+                    <th>典型表现</th>
+                </tr>
+                <tr>
+                    <td>不合理的访问策略</td>
+                    <td>全表扫描、缺少索引查询、返回过多字段</td>
+                    <td>查询响应时间长、CPU 飙升</td>
+                </tr>
+                <tr>
+                    <td>硬件资源不足</td>
+                    <td>内存不够、磁盘 I/O 慢、CPU 不足</td>
+                    <td>系统级延迟、页面故障多</td>
+                </tr>
+                <tr>
+                    <td>连接数过多</td>
+                    <td>连接池配置不当、连接泄漏</td>
+                    <td>连接排队、响应超时</td>
+                </tr>
+                <tr>
+                    <td>不合理的索引</td>
+                    <td>冗余索引、缺失索引、索引未覆盖查询</td>
+                    <td>写入变慢、查询走错执行计划</td>
+                </tr>
+                <tr>
+                    <td>不合理的 Schema 设计</td>
+                    <td>过度嵌入或过度引用、大文档、无限增长数组</td>
+                    <td>文档移动、写入放大</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 性能排障流程 -->
+        <section class="concept-section" id="troubleshooting-flow">
+            <h2>性能排障流程</h2>
+            <p>当遇到性能问题时，按照以下流程逐步诊断：</p>
+            <div class="flow-diagram">
+                <div class="flow-step">1. 确认性能问题表现<br><small>慢查询? 高CPU? 高内存? 连接超时?</small></div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">2. 检查服务器状态<br><small>serverStatus / dbStats / collStats</small></div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">3. 分析连接情况<br><small>connections.current / connections.available</small></div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">4. 检查锁与队列<br><small>acquireWaitCount / currentQueue</small></div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">5. 分析慢查询<br><small>Profiler / Explain / mongotop / mongostat</small></div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">6. 优化索引与 Schema<br><small>添加/删除索引、调整 Schema</small></div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">7. 评估硬件资源<br><small>内存、磁盘 I/O、CPU</small></div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">8. 验证优化效果<br><small>重新运行负载测试、对比指标</small></div>
+            </div>
+        </section>
+
+        <!-- 锁分析 -->
+        <section class="concept-section" id="lock-analysis">
+            <h2>锁分析</h2>
+            <p>MongoDB 使用多粒度锁机制。通过 <code>serverStatus</code> 命令可以获取锁相关的关键指标：</p>
+            <pre><code>db.serverStatus().locks
+db.serverStatus().globalLock</code></pre>
+            <h3>关键锁指标</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>指标</th>
+                    <th>含义</th>
+                    <th>关注点</th>
+                </tr>
+                <tr>
+                    <td><code>acquireWaitCount</code></td>
+                    <td>锁等待次数</td>
+                    <td>值高表示锁争用严重</td>
+                </tr>
+                <tr>
+                    <td><code>timeAcquiringMicros</code></td>
+                    <td>获取锁的累计等待时间（微秒）</td>
+                    <td>值高表示锁等待时间长</td>
+                </tr>
+                <tr>
+                    <td><code>deadlockCount</code></td>
+                    <td>死锁检测次数</td>
+                    <td>应为 0，非零表示需要排查</td>
+                </tr>
+                <tr>
+                    <td><code>currentQueue</code></td>
+                    <td>当前等待队列长度</td>
+                    <td>包含 reader 和 writer 子字段</td>
+                </tr>
+                <tr>
+                    <td><code>activeClients</code></td>
+                    <td>活跃客户端数</td>
+                    <td>包含 reader 和 writer 子字段</td>
+                </tr>
+            </table>
+            <div class="note">
+                <strong>提示：</strong>在 WiredTiger 引擎中，默认使用文档级锁，锁争用通常较少。但如果观察到 <code>currentQueue</code> 持续增长，需要重点检查是否有长时间运行的写操作或全表扫描。
+            </div>
+            <h3>锁类型层级</h3>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box app">全局锁 (Global)</div>
+                </div>
+                <div class="arch-connector">&darr;</div>
+                <div class="arch-layer">
+                    <div class="arch-box mongos">数据库锁 (Database)</div>
+                </div>
+                <div class="arch-connector">&darr;</div>
+                <div class="arch-layer">
+                    <div class="arch-box config">集合锁 (Collection)</div>
+                </div>
+                <div class="arch-connector">&darr;</div>
+                <div class="arch-layer">
+                    <div class="arch-box shard">文档锁 (Document) - WiredTiger 默认</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 慢查询分析 -->
+        <section class="concept-section" id="long-queries">
+            <h2>慢查询分析</h2>
+            <p>慢查询是性能问题最常见的表现形式，主要原因包括：</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>原因</th>
+                    <th>说明</th>
+                    <th>诊断方法</th>
+                </tr>
+                <tr>
+                    <td>无效索引</td>
+                    <td>查询未使用索引或使用了错误的索引</td>
+                    <td><code>explain()</code> 查看 winningPlan</td>
+                </tr>
+                <tr>
+                    <td>不合理的 Schema</td>
+                    <td>大文档、无限增长数组导致文档移动</td>
+                    <td><code>collStats</code> 查看平均文档大小</td>
+                </tr>
+                <tr>
+                    <td>不合理的查询结构</td>
+                    <td>$or / $in 使用不当、正则表达式未锚定</td>
+                    <td>分析查询模式，重写查询</td>
+                </tr>
+                <tr>
+                    <td>内存不足</td>
+                    <td>工作集大于可用内存，频繁页面故障</td>
+                    <td><code>serverStatus().metrics</code> 查看 page faults</td>
+                </tr>
+            </table>
+            <h3>常用诊断工具</h3>
+            <pre><code># 实时监控
+mongostat --host localhost --port 27017
+
+# 集合级别耗时分析
+mongotop --host localhost --port 27017
+
+# 查看当前正在执行的操作
+db.currentOp(true)
+
+# 终止长时间运行的操作
+db.killOp(opId)</code></pre>
+            <div class="warning">
+                <strong>注意：</strong>生产环境中应谨慎终止操作，确保不会破坏正在进行的写操作一致性。优先排查慢查询的根本原因。
+            </div>
+        </section>
+
+        <!-- 连接分析 -->
+        <section class="concept-section" id="connections">
+            <h2>连接分析</h2>
+            <p>连接数管理对 MongoDB 性能至关重要。通过 <code>serverStatus</code> 监控连接指标：</p>
+            <pre><code>db.serverStatus().connections</code></pre>
+            <table class="comparison-table">
+                <tr>
+                    <th>指标</th>
+                    <th>含义</th>
+                    <th>建议</th>
+                </tr>
+                <tr>
+                    <td><code>connections.current</code></td>
+                    <td>当前活跃连接数</td>
+                    <td>不应接近上限</td>
+                </tr>
+                <tr>
+                    <td><code>connections.available</code></td>
+                    <td>剩余可用连接数</td>
+                    <td>应保持充足余量</td>
+                </tr>
+                <tr>
+                    <td><code>connections.totalCreated</code></td>
+                    <td>累计创建的连接总数</td>
+                    <td>增长过快可能有连接泄漏</td>
+                </tr>
+            </table>
+            <h3>连接池配置建议</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>参数</th>
+                    <th>默认值</th>
+                    <th>建议</th>
+                </tr>
+                <tr>
+                    <td><code>maxPoolSize</code></td>
+                    <td>100</td>
+                    <td>根据并发量调整，通常 50-200</td>
+                </tr>
+                <tr>
+                    <td><code>minPoolSize</code></td>
+                    <td>0</td>
+                    <td>设置合理最小值以避免冷启动</td>
+                </tr>
+                <tr>
+                    <td><code>maxIdleTimeMS</code></td>
+                    <td>无</td>
+                    <td>设置超时以回收空闲连接</td>
+                </tr>
+                <tr>
+                    <td><code>waitQueueTimeoutMS</code></td>
+                    <td>无</td>
+                    <td>设置等待超时避免无限等待</td>
+                </tr>
+            </table>
+            <div class="info">
+                <strong>公式参考：</strong>总连接数上限 = 应用实例数 &times; maxPoolSize + 系统预留（监控、备份等）。确保不超过 MongoDB 的 <code>ulimit</code> 和 <code>maxIncomingConnections</code> 限制。
+            </div>
+        </section>
+
+        <!-- 执行计划 -->
+        <section class="concept-section" id="explain">
+            <h2>执行计划 (Explain)</h2>
+            <p><code>explain()</code> 是诊断查询性能的核心工具，提供三种详细程度：</p>
+            <pre><code>// 基本用法
+db.collection.find({ status: "active" }).explain()
+
+// 三种详细程度
+db.collection.find({ status: "active" }).explain("queryPlanner")
+db.collection.find({ status: "active" }).explain("executionStats")
+db.collection.find({ status: "active" }).explain("allPlansExecution")</code></pre>
+            <table class="comparison-table">
+                <tr>
+                    <th>模式</th>
+                    <th>包含信息</th>
+                    <th>用途</th>
+                </tr>
+                <tr>
+                    <td><code>"queryPlanner"</code></td>
+                    <td>查询计划选择过程、winningPlan、rejectedPlans</td>
+                    <td>查看是否走了正确的索引</td>
+                </tr>
+                <tr>
+                    <td><code>"executionStats"</code></td>
+                    <td>包含 queryPlanner + 实际执行统计</td>
+                    <td>查看扫描行数、执行时间等指标</td>
+                </tr>
+                <tr>
+                    <td><code>"allPlansExecution"</code></td>
+                    <td>包含 executionStats + 所有候选计划的执行统计</td>
+                    <td>对比不同计划的执行效果</td>
+                </tr>
+            </table>
+            <h3>关键执行指标</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>指标</th>
+                    <th>含义</th>
+                    <th>理想值</th>
+                </tr>
+                <tr>
+                    <td><code>totalDocsExamined</code></td>
+                    <td>扫描的文档数</td>
+                    <td>等于返回文档数</td>
+                </tr>
+                <tr>
+                    <td><code>totalKeysExamined</code></td>
+                    <td>扫描的索引键数</td>
+                    <td>等于返回文档数</td>
+                </tr>
+                <tr>
+                    <td><code>nReturned</code></td>
+                    <td>返回的文档数</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td><code>executionTimeMillis</code></td>
+                    <td>执行时间（毫秒）</td>
+                    <td>尽可能低</td>
+                </tr>
+                <tr>
+                    <td><code>stage</code></td>
+                    <td>执行阶段（COLLSCAN / IXSCAN / FETCH 等）</td>
+                    <td>应避免 COLLSCAN</td>
+                </tr>
+            </table>
+            <div class="note">
+                <strong>高效查询公式：</strong><code>nReturned</code> &asymp; <code>totalKeysExamined</code> &asymp; <code>totalDocsExamined</code>。如果 <code>totalDocsExamined</code> 远大于 <code>nReturned</code>，考虑添加索引或使用投影来减少扫描量。
+            </div>
+        </section>
+
+        <!-- 性能分析器 -->
+        <section class="concept-section" id="profiler">
+            <h2>性能分析器 (Profiler)</h2>
+            <p>MongoDB 的数据库分析器（Profiler）可以记录操作的详细信息，用于诊断性能问题。</p>
+            <pre><code>// 设置分析级别
+db.setProfilingLevel(0)                                    // 关闭（默认）
+db.setProfilingLevel(1, { slowms: 100 })                  // 仅记录慢操作（>100ms）
+db.setProfilingLevel(2)                                    // 记录所有操作
+
+// 查看当前级别
+db.getProfilingStatus()
+
+// 查询分析结果
+db.system.profile.find().sort({ ts: -1 }).limit(10)
+
+// 查询特定集合的慢操作
+db.system.profile.find({
+  ns: "mydb.orders",
+  millis: { $gt: 50 }
+}).sort({ ts: -1 })</code></pre>
+            <table class="comparison-table">
+                <tr>
+                    <th>级别</th>
+                    <th>值</th>
+                    <th>行为</th>
+                    <th>性能影响</th>
+                </tr>
+                <tr>
+                    <td>关闭</td>
+                    <td><code>0</code></td>
+                    <td>不记录任何操作</td>
+                    <td>无</td>
+                </tr>
+                <tr>
+                    <td>慢操作</td>
+                    <td><code>1</code></td>
+                    <td>记录超过 <code>slowms</code> 阈值的操作</td>
+                    <td>轻微</td>
+                </tr>
+                <tr>
+                    <td>全部</td>
+                    <td><code>2</code></td>
+                    <td>记录所有操作</td>
+                    <td>较大，仅用于调试</td>
+                </tr>
+            </table>
+            <div class="warning">
+                <strong>警告：</strong>级别 2 会记录所有操作，包括分析器自身的写入，可能严重影响性能。仅在排查问题时临时开启，排查完毕后及时关闭。
+            </div>
+        </section>
+
+        <!-- 优化策略 -->
+        <section class="concept-section" id="optimization">
+            <h2>优化策略</h2>
+            <p>根据诊断结果，采取以下优化策略：</p>
+
+            <h3>1. 合理创建索引</h3>
+            <pre><code>// ESR 原则：等值(E) &rarr; 排序(S) &rarr; 范围(R)
+db.orders.createIndex({
+  userId: 1,        // 等值查询
+  createdAt: -1,    // 排序
+  amount: 1         // 范围查询
+})
+
+// 查看冗余索引
+db.orders.getIndexes()
+
+// 删除冗余索引（如 {a:1} 被 {a:1,b:1} 覆盖）
+db.orders.dropIndex("a_1")</code></pre>
+
+            <h3>2. 覆盖查询</h3>
+            <pre><code>// 非覆盖查询：需要回表 FETCH
+db.users.find({ name: "Alice" }, { name: 1, email: 1 })
+// 索引: { name: 1, email: 1 } 可以覆盖此查询
+
+// 覆盖查询：所有字段都在索引中，无需回表
+db.users.find(
+  { name: "Alice" },
+  { _id: 0, name: 1, email: 1 }  // 排除 _id 才能真正覆盖
+)
+// explain() 中 stage 为 "PROJECTION" 而非 "FETCH"</code></pre>
+
+            <h3>3. 投影优化</h3>
+            <pre><code>// 仅返回需要的字段，减少网络传输和内存占用
+db.orders.find(
+  { status: "active" },
+  { orderId: 1, total: 1, _id: 0 }
+)</code></pre>
+
+            <h3>4. 排序使用索引</h3>
+            <pre><code>// 无索引排序（in-memory sort，超过 32MB 报错）
+db.orders.find().sort({ createdAt: -1 })
+
+// 有索引排序（索引有序，避免内存排序）
+db.orders.createIndex({ createdAt: -1 })
+db.orders.find().sort({ createdAt: -1 })</code></pre>
+
+            <h3>优化策略总结</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>策略</th>
+                    <th>原理</th>
+                    <th>效果</th>
+                </tr>
+                <tr>
+                    <td>合理索引</td>
+                    <td>减少扫描行数，避免全表扫描</td>
+                    <td>大幅减少 IO 和 CPU 开销</td>
+                </tr>
+                <tr>
+                    <td>覆盖查询</td>
+                    <td>仅扫描索引，无需回表</td>
+                    <td>减少 IO，提升查询速度</td>
+                </tr>
+                <tr>
+                    <td>投影限制</td>
+                    <td>仅返回必要字段</td>
+                    <td>减少网络传输和内存</td>
+                </tr>
+                <tr>
+                    <td>索引排序</td>
+                    <td>利用索引有序性避免内存排序</td>
+                    <td>避免 32MB 排序内存限制</td>
+                </tr>
+                <tr>
+                    <td>Schema 优化</td>
+                    <td>合理嵌入/引用、控制文档大小</td>
+                    <td>减少文档移动和写入放大</td>
+                </tr>
+                <tr>
+                    <td>硬件升级</td>
+                    <td>增加内存、使用 SSD</td>
+                    <td>减少页面故障、提升 IO 速度</td>
+                </tr>
+            </table>
+        </section>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="security.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：安全 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>MongoDB 概念详解 | 基于官方文档整理</p>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

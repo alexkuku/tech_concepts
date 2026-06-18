@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 数据建模 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Data Modeling Page Specific Styles */
+        .principle-box {
+            background: linear-gradient(135deg, #001E2B 0%, #00643B 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin: 2rem 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .principle-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0,237,100,0.1) 0%, transparent 70%);
+        }
+        .principle-box h3 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            color: #00ED64;
+        }
+        .principle-box p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+        .principle-box .quote-mark {
+            font-size: 3rem;
+            color: #00ED64;
+            opacity: 0.5;
+            line-height: 1;
+        }
+
+        .benefit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .benefit-card {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .benefit-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-3px);
+        }
+        .benefit-card .benefit-icon {
+            font-size: 2rem;
+            margin-bottom: 0.8rem;
+        }
+        .benefit-card h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        .benefit-card p {
+            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .relationship-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .relationship-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-lg);
+        }
+        .relationship-card .rel-type {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.8rem;
+        }
+        .rel-type.one-to-one { background: #E8F5E9; color: #00643B; }
+        .rel-type.one-to-many { background: #E3F2FD; color: #1565C0; }
+        .rel-type.many-to-many { background: #FFF3E0; color: #E65100; }
+        .relationship-card h4 {
+            color: var(--dark-color);
+            margin-bottom: 0.5rem;
+        }
+        .relationship-card .recommendation {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        .recommendation.embed { background: #C8E6C9; color: #1B5E20; }
+        .recommendation.reference { background: #BBDEFB; color: #0D47A1; }
+        .recommendation.both { background: #FFE0B2; color: #E65100; }
+
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .pattern-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-left: 5px solid var(--primary-color);
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+        .pattern-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        .pattern-card h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.3rem;
+        }
+        .pattern-card .pattern-name-en {
+            color: #999;
+            font-size: 0.85rem;
+            margin-bottom: 0.8rem;
+        }
+        .pattern-card p {
+            color: #555;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 0.8rem;
+        }
+        .pattern-card pre {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            padding: 1rem;
+        }
+
+        .anti-pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .anti-pattern-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-left: 5px solid var(--danger-color);
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+        .anti-pattern-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        .anti-pattern-card h4 {
+            color: var(--danger-color);
+            margin-bottom: 0.5rem;
+        }
+        .anti-pattern-card p {
+            color: #555;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 0.5rem;
+        }
+        .anti-pattern-card .solution {
+            background: #E8F5E9;
+            padding: 0.5rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #00643B;
+        }
+        .anti-pattern-card .solution::before {
+            content: '\2713 ';
+            font-weight: bold;
+        }
+
+        /* Decision Flowchart */
+        .decision-flow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            margin: 2rem 0;
+            padding: 2rem;
+            background: var(--light-color);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+        }
+        .decision-node {
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            text-align: center;
+            font-weight: 600;
+            min-width: 260px;
+            box-shadow: var(--shadow);
+            position: relative;
+            z-index: 1;
+        }
+        .decision-node.start {
+            background: linear-gradient(135deg, #001E2B 0%, #00643B 100%);
+            color: white;
+            border-radius: 30px;
+        }
+        .decision-node.question {
+            background: white;
+            border: 2px solid #FFC107;
+            color: var(--dark-color);
+            transform: rotate(0deg);
+            position: relative;
+        }
+        .decision-node.question::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            width: 14px;
+            height: 14px;
+            background: white;
+            border-top: 2px solid #FFC107;
+            border-left: 2px solid #FFC107;
+        }
+        .decision-node.result-embed {
+            background: #C8E6C9;
+            border: 2px solid #00643B;
+            color: #1B5E20;
+        }
+        .decision-node.result-reference {
+            background: #BBDEFB;
+            border: 2px solid #1565C0;
+            color: #0D47A1;
+        }
+        .decision-connector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        .decision-line {
+            width: 3px;
+            height: 24px;
+            background: var(--primary-color);
+        }
+        .decision-branch {
+            display: flex;
+            align-items: flex-start;
+            gap: 2rem;
+            position: relative;
+            width: 100%;
+            justify-content: center;
+        }
+        .decision-branch .branch-side {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            min-width: 200px;
+        }
+        .decision-branch .branch-label {
+            background: white;
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: var(--shadow);
+        }
+        .branch-label.yes { color: #00643B; border: 1px solid #00643B; }
+        .branch-label.no { color: #E65100; border: 1px solid #E65100; }
+        .decision-branch-line {
+            height: 20px;
+            width: 3px;
+            background: var(--primary-color);
+        }
+        .decision-branch-h-line {
+            height: 3px;
+            width: 100px;
+            background: var(--primary-color);
+            margin-top: 10px;
+        }
+
+        /* Embedding vs Referencing Diagram */
+        .vs-diagram {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 1rem;
+            align-items: center;
+            margin: 2rem 0;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+        }
+        .vs-side {
+            background: var(--light-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .vs-side h4 {
+            text-align: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+        }
+        .vs-side.embed-side h4 {
+            color: #00643B;
+            border-bottom: 2px solid #00643B;
+        }
+        .vs-side.ref-side h4 {
+            color: #1565C0;
+            border-bottom: 2px solid #1565C0;
+        }
+        .vs-doc {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.8rem 1.2rem;
+            margin-bottom: 0.8rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            box-shadow: var(--shadow);
+        }
+        .vs-doc .field-name { color: #00643B; font-weight: 600; }
+        .vs-doc .field-value { color: #333; }
+        .vs-doc .nested { margin-left: 1.2rem; border-left: 2px solid #00ED64; padding-left: 0.8rem; }
+        .vs-doc .ref-link { color: #1565C0; font-weight: 600; }
+        .vs-divider {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .vs-divider .vs-text {
+            background: linear-gradient(135deg, #001E2B, #00643B);
+            color: #00ED64;
+            padding: 0.5rem 1.5rem;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .vs-divider .vs-arrows {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+        /* Schema Validation Highlight */
+        .validation-demo {
+            margin: 2rem 0;
+        }
+        .validation-demo pre {
+            position: relative;
+        }
+        .validation-demo .line-highlight {
+            background: rgba(0, 237, 100, 0.08);
+            border-left: 3px solid #00ED64;
+            margin: 0 -1.5rem;
+            padding: 0 1.5rem;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 数据建模</h1>
+        <p class="subtitle">Schema Design Patterns | 嵌入 vs 引用 | 模式验证</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main>
+        <div class="container">
+
+            <!-- Table of Contents -->
+<!-- 1. Core Principle -->
+            <section class="concept-section" id="core-principle">
+                <h2>1. 核心原则</h2>
+                <div class="principle-box">
+                    <div class="quote-mark">&ldquo;</div>
+                    <h3>一起访问的数据应该一起存储</h3>
+                    <p>Data accessed together should be stored together</p>
+                    <div class="quote-mark" style="transform: rotate(180deg);">&rdquo;</div>
+                </div>
+                <p>MongoDB 的数据建模与关系型数据库有本质区别。关系型数据库强调范式化（Normalization），通过外键关联分散存储数据；而 MongoDB 倡导根据应用的<strong>数据访问模式</strong>来组织数据结构。</p>
+                <div class="note">
+                    <strong>关键思路：</strong>在 MongoDB 中，数据建模的首要考虑是应用如何使用数据，而非数据本身的结构。如果某些数据总是被一起查询，就应该将它们放在同一个文档中。
+                </div>
+            </section>
+
+            <!-- 2. Flexible Schema Benefits -->
+            <section class="concept-section" id="flexible-schema">
+                <h2>2. 灵活模式的优势</h2>
+                <p>MongoDB 的文档模型天然支持灵活模式（Flexible Schema），即同一集合中的文档可以拥有不同的字段结构。这带来了以下核心优势：</p>
+                <div class="benefit-grid">
+                    <div class="benefit-card">
+                        <div class="benefit-icon">&#x1F4CA;</div>
+                        <h4>字段变化 (Field Variation)</h4>
+                        <p>不同文档可以包含不同的字段。例如，不同类型的商品拥有不同的属性字段，无需为每种类型创建单独的表。</p>
+                    </div>
+                    <div class="benefit-card">
+                        <div class="benefit-icon">&#x1F4E6;</div>
+                        <h4>类型变化 (Type Variation)</h4>
+                        <p>同一字段在不同文档中可以存储不同类型的数据。例如，<code>tags</code> 字段在某个文档中是字符串，在另一个文档中可以是数组。</p>
+                    </div>
+                    <div class="benefit-card">
+                        <div class="benefit-icon">&#x1F504;</div>
+                        <h4>迭代式模型改进 (Iterative Improvement)</h4>
+                        <p>无需停机即可演进数据模型。新增字段不影响现有文档，应用可以逐步迁移到新模式。</p>
+                    </div>
+                    <div class="benefit-card">
+                        <div class="benefit-icon">&#x1F517;</div>
+                        <h4>直接对象映射 (Direct Object Mapping)</h4>
+                        <p>BSON 文档天然映射到应用层的对象结构，消除 ORM 层的阻抗失配问题，开发更高效。</p>
+                    </div>
+                    <div class="benefit-card">
+                        <div class="benefit-icon">&#x2705;</div>
+                        <h4>按需验证 (On-demand Validation)</h4>
+                        <p>通过 <code>$jsonSchema</code> 可在需要时对集合施加验证规则，灵活性与一致性兼得。</p>
+                    </div>
+                </div>
+                <div class="info">
+                    <strong>提示：</strong>灵活模式不等于没有模式。最佳实践是：开发初期利用灵活性快速迭代，生产环境稳定后通过 Schema Validation 保障数据质量。
+                </div>
+            </section>
+
+            <!-- 3. Relationships Modeling -->
+            <section class="concept-section" id="relationships">
+                <h2>3. 关系建模</h2>
+                <p>MongoDB 中建模实体间关系有三种基本类型，每种类型有不同的推荐策略：</p>
+
+                <div class="relationship-card">
+                    <span class="rel-type one-to-one">一对一 (One-to-One)</span>
+                    <h4>嵌入（推荐） <span class="recommendation embed">推荐嵌入</span></h4>
+                    <p>例如：患者 &rarr; 病历。每个患者只有一份病历，两者总是一起访问，将病历嵌入患者文档可一次查询获取所有信息。</p>
+                    <pre><code>// 嵌入方式
+{
+  "_id": ObjectId("..."),
+  "name": "张三",
+  "record": {
+    "bloodType": "A",
+    "allergies": ["penicillin"],
+    "diagnoses": [...]
+  }
+}</code></pre>
+                </div>
+
+                <div class="relationship-card">
+                    <span class="rel-type one-to-many">一对多 (One-to-Many)</span>
+                    <h4>嵌入或引用 <span class="recommendation both">视情况而定</span></h4>
+                    <p>例如：用户 &rarr; 帖子。如果"多"的一端数据量少且总是一起访问，适合嵌入；如果数据量大或需要独立访问，适合引用。</p>
+                    <pre><code>// 少量数据：嵌入
+{ "name": "李四", "posts": [
+    { "title": "帖1", "content": "..." },
+    { "title": "帖2", "content": "..." }
+]}
+
+// 大量数据：引用
+{ "name": "李四", "postIds": [ObjectId("..."), ObjectId("...")] }
+// 或在帖子中引用用户
+{ "title": "帖1", "authorId": ObjectId("..."), "content": "..." }</code></pre>
+                </div>
+
+                <div class="relationship-card">
+                    <span class="rel-type many-to-many">多对多 (Many-to-Many)</span>
+                    <h4>引用 <span class="recommendation reference">推荐引用</span></h4>
+                    <p>例如：学生 &harr; 课程。一个学生可选多门课程，一门课程有多个学生。使用引用数组避免数据冗余和不一致。</p>
+                    <pre><code>// 学生文档
+{ "name": "王五", "courseIds": [ObjectId("..."), ObjectId("...")] }
+
+// 课程文档
+{ "name": "数据库原理", "studentIds": [ObjectId("..."), ObjectId("...")] }</code></pre>
+                </div>
+            </section>
+
+            <!-- 4. Embedding vs Referencing Comparison -->
+            <section class="concept-section" id="comparison">
+                <h2>4. 嵌入 vs 引用对比表</h2>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>嵌入 (Embedding)</th>
+                            <th>引用 (Referencing)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>数据获取</strong></td>
+                            <td>单次查询获取所有相关数据</td>
+                            <td>多次查询或使用 <code>$lookup</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>更新</strong></td>
+                            <td>需更新所有包含该数据的副本</td>
+                            <td>只需更新一处</td>
+                        </tr>
+                        <tr>
+                            <td><strong>文档大小</strong></td>
+                            <td>可能超过 16MB 限制</td>
+                            <td>无此限制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>适用场景</strong></td>
+                            <td>高频访问、少量数据、读取远多于写入</td>
+                            <td>低频访问、大量数据、频繁更新</td>
+                        </tr>
+                        <tr>
+                            <td><strong>一致性</strong></td>
+                            <td>可能出现数据副本间不一致</td>
+                            <td>始终一致（单一数据源）</td>
+                        </tr>
+                        <tr>
+                            <td><strong>查询复杂度</strong></td>
+                            <td>简单，单文档操作</td>
+                            <td>需要 <code>$lookup</code> 或应用层 join</td>
+                        </tr>
+                        <tr>
+                            <td><strong>写入性能</strong></td>
+                            <td>写入较大文档，可能触发碎片整理</td>
+                            <td>写入小文档，性能更优</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 5. Schema Design Patterns -->
+            <section class="concept-section" id="patterns">
+                <h2>5. 模式设计模式</h2>
+                <p>以下模式来自 MongoDB 官方文档，用于解决常见的数据建模挑战：</p>
+
+                <div class="pattern-grid">
+                    <div class="pattern-card">
+                        <h4>子集模式</h4>
+                        <div class="pattern-name-en">Subset Pattern</div>
+                        <p>将频繁访问的数据子集嵌入文档，将其余数据以引用方式存储。适用于"多"的一端数据量较大的场景。</p>
+                        <pre><code>// 电影评论：只嵌入最近5条
+{
+  "title": "星际穿越",
+  "recentReviews": [
+    { "user": "A", "score": 5, ... },
+    // 最多5条
+  ],
+  "totalReviewCount": 1250
+}
+// 完整评论单独存储在 reviews 集合</code></pre>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>扩展引用模式</h4>
+                        <div class="pattern-name-en">Extended Reference Pattern</div>
+                        <p>将引用文档中高频访问的字段嵌入到当前文档中，避免频繁 <code>$lookup</code>。减少 join 操作。</p>
+                        <pre><code>// 订单文档嵌入客户姓名
+{
+  "orderId": "1001",
+  "customerId": ObjectId("..."),
+  "customerName": "张三",  // 冗余但避免join
+  "customerLevel": "VIP",  // 高频访问字段
+  "items": [...]
+}</code></pre>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>属性模式</h4>
+                        <div class="pattern-name-en">Attribute Pattern</div>
+                        <p>使用键值对数组代替固定字段，解决动态属性问题。可对 <code>attrs.k</code> 和 <code>attrs.v</code> 建立复合索引。</p>
+                        <pre><code>// 商品动态属性
+{
+  "name": "手机",
+  "attrs": [
+    { "k": "color", "v": "black" },
+    { "k": "storage", "v": "128GB" },
+    { "k": "screen", "v": "6.1in" }
+  ]
+}
+// 索引: { "attrs.k": 1, "attrs.v": 1 }</code></pre>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>桶模式</h4>
+                        <div class="pattern-name-en">Bucket Pattern</div>
+                        <p>将时间序列数据按时间段（小时/天）分组到一个文档中，减少文档数量，提升查询效率。</p>
+                        <pre><code>// 传感器数据按小时分组
+{
+  "sensorId": "S001",
+  "date": ISODate("2024-01-01"),
+  "hour": 10,
+  "readings": [
+    { "t": 600, "v": 23.5 },
+    { "t": 660, "v": 24.1 },
+    { "t": 720, "v": 23.8 }
+  ],
+  "minVal": 23.5,
+  "maxVal": 24.1
+}</code></pre>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>多态模式</h4>
+                        <div class="pattern-name-en">Polymorphic Pattern</div>
+                        <p>将不同类型的对象存储在同一集合中，通过公共字段统一查询。适合有共同属性但各自有独特字段的场景。</p>
+                        <pre><code>// 产品集合包含不同类型
+{ "type": "book", "title": "...", "author": "..." }
+{ "type": "laptop", "title": "...", "cpu": "...", "ram": "16GB" }
+// 通过 type 字段区分，公共字段统一索引</code></pre>
+                    </div>
+
+                    <div class="pattern-card">
+                        <h4>计算模式</h4>
+                        <div class="pattern-name-en">Computed Pattern</div>
+                        <p>预先计算并存储计算结果，避免每次查询时重复计算。适用于读多写少且计算开销大的场景。</p>
+                        <pre><code>// 预计算销售总额
+{
+  "productId": "P001",
+  "name": "商品A",
+  "totalSold": 1580,       // 预计算
+  "totalRevenue": 79000,  // 预计算
+  "monthlyUpdate": ISODate("...")
+}</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. Anti-Patterns -->
+            <section class="concept-section" id="anti-patterns">
+                <h2>6. 反模式</h2>
+                <p>以下模式在实际项目中应避免使用：</p>
+
+                <div class="anti-pattern-grid">
+                    <div class="anti-pattern-card">
+                        <h4>无限增长数组</h4>
+                        <p>数组大小没有上限，随时间不断增长。例如将所有日志嵌入用户文档，最终会超过 16MB 文档限制。</p>
+                        <div class="solution">使用子集模式限制嵌入数量，或使用引用 + 单独集合</div>
+                    </div>
+
+                    <div class="anti-pattern-card">
+                        <h4>不必要的索引</h4>
+                        <p>每个索引都会增加写入开销和存储空间。索引过多会严重拖慢写入性能，且占用大量内存。</p>
+                        <div class="solution">只为实际查询创建索引，定期审查并删除未使用的索引</div>
+                    </div>
+
+                    <div class="anti-pattern-card">
+                        <h4>超大文档</h4>
+                        <p>文档接近 16MB 限制时，写入性能下降，内存压力增大，WiredTiger 需频繁压缩和解压。</p>
+                        <div class="solution">拆分为多个文档，使用引用关联或子集模式</div>
+                    </div>
+
+                    <div class="anti-pattern-card">
+                        <h4>过度范式化</h4>
+                        <p>照搬关系型数据库思维，所有关系都用引用表示，导致大量 <code>$lookup</code> 操作，失去文档模型优势。</p>
+                        <div class="solution">根据访问模式适当嵌入数据，减少 join 需求</div>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <strong>注意：</strong>16MB 是 MongoDB 文档的硬性大小限制。设计数据模型时务必评估嵌入数据的增长趋势，避免触碰此限制。
+                </div>
+            </section>
+
+            <!-- 7. Schema Validation -->
+            <section class="concept-section" id="schema-validation">
+                <h2>7. 模式验证 ($jsonSchema)</h2>
+                <p>MongoDB 支持使用 <code>$jsonSchema</code> 对集合施加文档验证规则。在数据模型稳定后，这是保障数据质量的关键手段。</p>
+
+                <div class="validation-demo">
+                    <pre><code>db.createCollection("users", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["name", "email"],
+      properties: {
+        name: {
+          bsonType: "string",
+          description: "必填，用户姓名"
+        },
+        email: {
+          bsonType: "string",
+          pattern: "^.+@.+$",
+          description: "必填，合法邮箱格式"
+        },
+        age: {
+          bsonType: "int",
+          minimum: 0,
+          maximum: 150,
+          description: "可选，0~150之间的整数"
+        }
+      }
+    }
+  },
+  validationLevel: "strict",    // 对所有插入和更新验证
+  validationAction: "error"     // 验证失败拒绝操作
+})</code></pre>
+                </div>
+
+                <h3>验证级别与行为</h3>
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>选项</th>
+                            <th>值</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>validationLevel</code></td>
+                            <td><code>"strict"</code></td>
+                            <td>对所有插入和更新操作验证（默认）</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td><code>"moderate"</code></td>
+                            <td>仅对已符合验证规则的文档验证更新</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td><code>"off"</code></td>
+                            <td>关闭验证</td>
+                        </tr>
+                        <tr>
+                            <td><code>validationAction</code></td>
+                            <td><code>"error"</code></td>
+                            <td>验证失败时拒绝操作（默认）</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td><code>"warn"</code></td>
+                            <td>验证失败时仅记录警告，允许操作</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>常用验证操作符</h3>
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>操作符</th>
+                            <th>说明</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>bsonType</code></td>
+                            <td>指定字段 BSON 类型</td>
+                            <td><code>bsonType: "string"</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>required</code></td>
+                            <td>必填字段列表</td>
+                            <td><code>required: ["name", "email"]</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>pattern</code></td>
+                            <td>正则表达式匹配</td>
+                            <td><code>pattern: "^.+@.+$"</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>minimum / maximum</code></td>
+                            <td>数值范围约束</td>
+                            <td><code>minimum: 0, maximum: 150</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>enum</code></td>
+                            <td>枚举允许的值</td>
+                            <td><code>enum: ["active", "inactive"]</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>additionalProperties</code></td>
+                            <td>是否允许额外字段</td>
+                            <td><code>additionalProperties: false</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>items</code></td>
+                            <td>数组元素验证</td>
+                            <td><code>items: { bsonType: "string" }</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info">
+                    <strong>建议：</strong>在开发初期使用 <code>validationAction: "warn"</code> 收集不符合规则的数据情况，待确认规则后再切换为 <code>"error"</code> 严格模式。
+                </div>
+            </section>
+
+            <!-- 8. Embedding vs Referencing Visual Diagram -->
+            <section class="concept-section" id="vs-diagram">
+                <h2>8. 嵌入 vs 引用可视化对比</h2>
+                <p>以下直观展示两种策略下文档结构的差异：</p>
+
+                <div class="vs-diagram">
+                    <div class="vs-side embed-side">
+                        <h4>嵌入 (Embedding)</h4>
+                        <div class="vs-doc">
+                            <span class="field-name">_id</span>: <span class="field-value">ObjectId("...")</span><br>
+                            <span class="field-name">name</span>: <span class="field-value">"张三"</span><br>
+                            <span class="field-name">email</span>: <span class="field-value">"zhangsan@mail.com"</span><br>
+                            <span class="field-name">address</span>: {<br>
+                            <div class="nested">
+                                <span class="field-name">city</span>: <span class="field-value">"北京"</span><br>
+                                <span class="field-name">street</span>: <span class="field-value">"中关村大街1号"</span><br>
+                                <span class="field-name">zip</span>: <span class="field-value">"100080"</span>
+                            </div>
+                            }
+                        </div>
+                        <div style="text-align: center; margin-top: 0.5rem; font-size: 0.85rem; color: #00643B;">
+                            单次查询获取全部数据
+                        </div>
+                    </div>
+
+                    <div class="vs-divider">
+                        <div class="vs-text">VS</div>
+                        <div class="vs-arrows">
+                            <span>&#x2190;</span>
+                            <span>&#x2192;</span>
+                        </div>
+                    </div>
+
+                    <div class="vs-side ref-side">
+                        <h4>引用 (Referencing)</h4>
+                        <div class="vs-doc">
+                            <span class="field-name">_id</span>: <span class="field-value">ObjectId("user1")</span><br>
+                            <span class="field-name">name</span>: <span class="field-value">"张三"</span><br>
+                            <span class="field-name">email</span>: <span class="field-value">"zhangsan@mail.com"</span><br>
+                            <span class="field-name">addressId</span>: <span class="ref-link">ObjectId("addr1")</span>
+                        </div>
+                        <div class="vs-doc">
+                            <span class="field-name">_id</span>: <span class="ref-link">ObjectId("addr1")</span><br>
+                            <span class="field-name">city</span>: <span class="field-value">"北京"</span><br>
+                            <span class="field-name">street</span>: <span class="field-value">"中关村大街1号"</span><br>
+                            <span class="field-name">zip</span>: <span class="field-value">"100080"</span>
+                        </div>
+                        <div style="text-align: center; margin-top: 0.5rem; font-size: 0.85rem; color: #1565C0;">
+                            需要两次查询或 $lookup
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9. Decision Flowchart -->
+            <section class="concept-section" id="decision-flow">
+                <h2>9. 嵌入 vs 引用决策流程图</h2>
+                <p>根据以下决策流程选择合适的数据建模策略：</p>
+
+                <div class="decision-flow">
+                    <!-- Start Node -->
+                    <div class="decision-node start">
+                        开始：需要建模两个实体的关系
+                    </div>
+
+                    <!-- Connector -->
+                    <div class="decision-connector">
+                        <div class="decision-line"></div>
+                    </div>
+
+                    <!-- Question 1 -->
+                    <div class="decision-node question">
+                        "多"的一端数据量是否有限？
+                    </div>
+
+                    <!-- Branch -->
+                    <div class="decision-connector">
+                        <div class="decision-line"></div>
+                    </div>
+
+                    <div class="decision-branch">
+                        <div class="branch-side">
+                            <div class="decision-branch-h-line"></div>
+                            <div class="branch-label yes">是</div>
+                            <div class="decision-branch-line"></div>
+                            <div class="decision-node question">
+                                是否需要单独访问"多"的一端？
+                            </div>
+                            <div class="decision-connector">
+                                <div class="decision-line"></div>
+                            </div>
+                            <div class="decision-branch">
+                                <div class="branch-side">
+                                    <div class="decision-branch-h-line"></div>
+                                    <div class="branch-label no">否</div>
+                                    <div class="decision-branch-line"></div>
+                                    <div class="decision-node result-embed">
+                                        嵌入 (Embed)
+                                        <div style="font-size:0.8rem; margin-top:0.3rem; font-weight:400;">
+                                            一次查询获取全部数据
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="branch-side">
+                                    <div class="decision-branch-h-line" style="background:#E65100;"></div>
+                                    <div class="branch-label no">是</div>
+                                    <div class="decision-branch-line"></div>
+                                    <div class="decision-node question">
+                                        是否频繁更新"多"的一端？
+                                    </div>
+                                    <div class="decision-connector">
+                                        <div class="decision-line"></div>
+                                    </div>
+                                    <div class="decision-branch">
+                                        <div class="branch-side">
+                                            <div class="decision-branch-h-line" style="background:#E65100;"></div>
+                                            <div class="branch-label no">否</div>
+                                            <div class="decision-branch-line"></div>
+                                            <div class="decision-node result-embed">
+                                                嵌入 (Embed)
+                                                <div style="font-size:0.8rem; margin-top:0.3rem; font-weight:400;">
+                                                    读取优先，少量更新可接受
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="branch-side">
+                                            <div class="decision-branch-h-line" style="background:#E65100;"></div>
+                                            <div class="branch-label yes">是</div>
+                                            <div class="decision-branch-line"></div>
+                                            <div class="decision-node result-reference">
+                                                引用 (Reference)
+                                                <div style="font-size:0.8rem; margin-top:0.3rem; font-weight:400;">
+                                                    避免多处更新数据副本
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="branch-side">
+                            <div class="decision-branch-h-line" style="background:#E65100;"></div>
+                            <div class="branch-label no">否</div>
+                            <div class="decision-branch-line"></div>
+                            <div class="decision-node question">
+                                是否需要频繁一起访问？
+                            </div>
+                            <div class="decision-connector">
+                                <div class="decision-line"></div>
+                            </div>
+                            <div class="decision-branch">
+                                <div class="branch-side">
+                                    <div class="decision-branch-h-line"></div>
+                                    <div class="branch-label yes">是</div>
+                                    <div class="decision-branch-line"></div>
+                                    <div class="decision-node result-embed">
+                                        子集模式 (Subset)
+                                        <div style="font-size:0.8rem; margin-top:0.3rem; font-weight:400;">
+                                            嵌入高频子集 + 引用完整数据
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="branch-side">
+                                    <div class="decision-branch-h-line" style="background:#E65100;"></div>
+                                    <div class="branch-label no">否</div>
+                                    <div class="decision-branch-line"></div>
+                                    <div class="decision-node result-reference">
+                                        引用 (Reference)
+                                        <div style="font-size:0.8rem; margin-top:0.3rem; font-weight:400;">
+                                            保持文档小巧，独立访问
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>经验法则：</strong>当不确定时，优先考虑嵌入。嵌入通常能提供更好的查询性能，只在数据量、更新频率或一致性要求超出嵌入承受范围时才切换到引用。
+                </div>
+            </section>
+
+        </div>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="aggregation.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：聚合操作 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>MongoDB 概念详解 | 基于官方文档整理</p>
+        <p><a href="https://www.mongodb.com/docs/manual/data-modeling/" target="_blank">MongoDB 官方数据建模文档</a></p>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>变更流 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>变更流</h1>
+        <p class="subtitle">Change Streams - 实时数据变更监听</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main class="container">
+<!-- 概述 -->
+        <section class="concept-section" id="overview">
+            <h2>概述</h2>
+            <p>变更流（Change Streams）允许应用程序实时访问集合、数据库或整个部署的数据变更，而无需手动跟踪 oplog（操作日志）。变更流基于 MongoDB 的复制机制，将数据变更事件以结构化的文档形式推送给监听者。</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box app">应用程序</div>
+                </div>
+                <div class="arch-connector">| watch() 订阅变更</div>
+                <div class="arch-layer">
+                    <div class="arch-box mongos">Change Stream API</div>
+                </div>
+                <div class="arch-connector">| 读取 oplog</div>
+                <div class="arch-layer">
+                    <div class="arch-box primary">副本集 Primary</div>
+                </div>
+                <div class="arch-connector">| 写入 oplog</div>
+                <div class="arch-layer">
+                    <div class="arch-box shard">Oplog (操作日志)</div>
+                </div>
+            </div>
+            <p>变更流将 oplog 中的原始操作转化为易于消费的事件文档格式，包含操作类型、完整文档、命名空间等结构化信息。</p>
+        </section>
+
+        <!-- 前提条件 -->
+        <section class="concept-section" id="requirements">
+            <h2>前提条件</h2>
+            <p>使用变更流需要满足以下条件：</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>条件</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>存储引擎</td>
+                    <td>必须使用 <code>WiredTiger</code> 存储引擎</td>
+                </tr>
+                <tr>
+                    <td>复制协议版本</td>
+                    <td>必须使用 <code>pv1</code>（复制协议版本 1）</td>
+                </tr>
+                <tr>
+                    <td>读关注级别</td>
+                    <td>必须使用 <code>"majority"</code> 读关注（read concern）</td>
+                </tr>
+                <tr>
+                    <td>部署模式</td>
+                    <td>副本集或分片集群（不支持单机实例）</td>
+                </tr>
+            </table>
+            <div class="warning">
+                <strong>注意：</strong>单机实例（standalone）不支持变更流。必须在副本集或分片集群环境中运行。
+            </div>
+        </section>
+
+        <!-- 监听目标 -->
+        <section class="concept-section" id="watch-targets">
+            <h2>监听目标</h2>
+            <p>变更流支持三种粒度的监听目标，从细粒度到粗粒度：</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box shard">集合级别<br><code>db.collection.watch()</code></div>
+                    <div class="arch-box config">数据库级别<br><code>db.watch()</code></div>
+                    <div class="arch-box mongos">部署级别<br><code>Mongo.watch()</code></div>
+                </div>
+                <div class="arch-connector">监听范围递增 &rarr;</div>
+            </div>
+            <table class="comparison-table">
+                <tr>
+                    <th>监听目标</th>
+                    <th>方法</th>
+                    <th>监听范围</th>
+                    <th>可用版本</th>
+                </tr>
+                <tr>
+                    <td>集合</td>
+                    <td><code>db.collection.watch()</code></td>
+                    <td>单个集合的数据变更</td>
+                    <td>3.6+</td>
+                </tr>
+                <tr>
+                    <td>数据库</td>
+                    <td><code>db.watch()</code></td>
+                    <td>该数据库中所有集合的变更</td>
+                    <td>4.0+</td>
+                </tr>
+                <tr>
+                    <td>部署</td>
+                    <td><code>Mongo.watch()</code></td>
+                    <td>整个部署（除 config/local/admin 外）</td>
+                    <td>4.0+</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 管道阶段 -->
+        <section class="concept-section" id="pipeline">
+            <h2>管道阶段</h2>
+            <p>变更流支持使用聚合管道阶段来修改和过滤输出。可以在 <code>watch()</code> 方法中传入管道数组。</p>
+            <h3>支持的管道阶段</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>阶段</th>
+                    <th>作用</th>
+                    <th>示例</th>
+                </tr>
+                <tr>
+                    <td><code>$addFields</code></td>
+                    <td>向变更事件文档添加新字段</td>
+                    <td>添加处理时间戳等派生字段</td>
+                </tr>
+                <tr>
+                    <td><code>$match</code></td>
+                    <td>过滤变更事件，仅传递匹配的文档</td>
+                    <td>仅监听特定命名空间或操作类型</td>
+                </tr>
+                <tr>
+                    <td><code>$project</code></td>
+                    <td>重塑文档，包含/排除指定字段</td>
+                    <td>仅保留需要的字段以减少数据传输</td>
+                </tr>
+                <tr>
+                    <td><code>$replaceRoot</code></td>
+                    <td>用指定文档替换根文档</td>
+                    <td>将 <code>fullDocument</code> 提升为根文档</td>
+                </tr>
+                <tr>
+                    <td><code>$replaceWith</code></td>
+                    <td>同 <code>$replaceRoot</code>（别名）</td>
+                    <td>同上</td>
+                </tr>
+                <tr>
+                    <td><code>$redact</code></td>
+                    <td>基于字段值限制文档内容</td>
+                    <td>基于安全策略裁剪敏感字段</td>
+                </tr>
+                <tr>
+                    <td><code>$set</code></td>
+                    <td>设置文档中的字段值（同 <code>$addFields</code> 别名）</td>
+                    <td>添加或覆盖字段</td>
+                </tr>
+                <tr>
+                    <td><code>$unset</code></td>
+                    <td>移除文档中的指定字段</td>
+                    <td>排除不需要的元数据字段</td>
+                </tr>
+            </table>
+            <div class="note">
+                <strong>提示：</strong>使用 <code>$match</code> 在管道中尽早过滤变更事件，可以减少不必要的事件处理开销，提高性能。
+            </div>
+            <h3>管道示例</h3>
+            <pre><code>// 仅监听 insert 操作
+db.orders.watch([
+  { $match: { operationType: "insert" } }
+])
+
+// 仅监听特定用户集合的变更并添加字段
+db.users.watch([
+  { $match: { "fullDocument.status": "active" } },
+  { $addFields: { processedAt: "$$NOW" } }
+])</code></pre>
+        </section>
+
+        <!-- 完整文档查找 -->
+        <section class="concept-section" id="full-document">
+            <h2>完整文档查找</h2>
+            <p>默认情况下，对于 <code>update</code> 操作，变更流仅返回增量变更（差异字段），不包含完整文档。通过设置 <code>fullDocument</code> 选项可以获取更新后的完整文档。</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>选项值</th>
+                    <th>行为</th>
+                    <th>适用操作</th>
+                </tr>
+                <tr>
+                    <td><code>"updateLookup"</code></td>
+                    <td>在更新操作时，额外查询集合以获取更新后的完整文档</td>
+                    <td>update</td>
+                </tr>
+                <tr>
+                    <td><code>"whenAvailable"</code></td>
+                    <td>如果后置镜像可用则返回，否则返回 null</td>
+                    <td>update, replace</td>
+                </tr>
+                <tr>
+                    <td><code>"required"</code></td>
+                    <td>必须返回后置镜像，不可用则报错</td>
+                    <td>update, replace</td>
+                </tr>
+            </table>
+            <pre><code>// 使用 updateLookup 获取完整文档
+const changeStream = db.collection("orders").watch(
+  [],
+  { fullDocument: "updateLookup" }
+);
+
+changeStream.on("change", (event) => {
+  console.log(event.fullDocument); // 包含更新后的完整文档
+});</code></pre>
+            <div class="warning">
+                <strong>注意：</strong><code>"updateLookup"</code> 是在变更发生之后发起的额外查询，因此返回的文档可能不反映变更时的精确状态，如果在查询与变更之间有其他更新发生。
+            </div>
+        </section>
+
+        <!-- 恢复令牌 -->
+        <section class="concept-section" id="resume">
+            <h2>恢复令牌</h2>
+            <p>变更流支持断点续传功能，在连接中断后可以从上次的位置继续消费变更事件。每个变更事件都包含一个 <code>_id</code> 字段（即恢复令牌 / resume token）。</p>
+            <div class="flow-diagram">
+                <div class="flow-step">开始监听变更流</div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">接收变更事件，保存 resume token</div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">连接中断</div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">使用 resumeAfter / startAfter 恢复</div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">从断点继续消费变更</div>
+            </div>
+            <h3>两种恢复方式对比</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>特性</th>
+                    <th><code>resumeAfter</code></th>
+                    <th><code>startAfter</code></th>
+                </tr>
+                <tr>
+                    <td>参数</td>
+                    <td>resume token</td>
+                    <td>resume token</td>
+                </tr>
+                <tr>
+                    <td>跳过指定事件</td>
+                    <td>是（从指定 token 之后开始）</td>
+                    <td>是（从指定 token 之后开始）</td>
+                </tr>
+                <tr>
+                    <td>invalidate 事件后可恢复</td>
+                    <td><span style="color:#E34234; font-weight:bold;">不可</span></td>
+                    <td><span style="color:#00643B; font-weight:bold;">可以</span></td>
+                </tr>
+                <tr>
+                    <td>适用场景</td>
+                    <td>常规断点续传</td>
+                    <td>invalidate 事件后恢复监听</td>
+                </tr>
+                <tr>
+                    <td>可用版本</td>
+                    <td>3.6+</td>
+                    <td>4.1.1+</td>
+                </tr>
+            </table>
+            <div class="info">
+                <strong>说明：</strong>当监听的集合被删除（drop）或重命名时，会触发 <code>invalidate</code> 事件，此事件之后变更流关闭。使用 <code>resumeAfter</code> 无法恢复，必须使用 <code>startAfter</code> 从 invalidate 事件的 token 之后重新打开新的变更流。
+            </div>
+            <pre><code>// resumeAfter 示例
+let lastToken = null;
+
+changeStream.on("change", (event) => {
+  lastToken = event._id;  // 保存恢复令牌
+  processEvent(event);
+});
+
+// 连接恢复后
+const newStream = db.collection("orders").watch([], {
+  resumeAfter: lastToken
+});
+
+// startAfter 示例 - 在 invalidate 事件后恢复
+const newStream = db.collection("orders").watch([], {
+  startAfter: invalidateToken
+});</code></pre>
+        </section>
+
+        <!-- 前置与后置镜像 -->
+        <section class="concept-section" id="pre-post-images">
+            <h2>前置与后置镜像</h2>
+            <p>从 MongoDB 6.0 开始，变更流支持前置镜像（Pre-Image）和后置镜像（Post-Image），可以在变更事件中获取文档变更前和变更后的完整状态。</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box app">变更事件文档</div>
+                </div>
+                <div class="arch-connector">|</div>
+                <div class="arch-layer">
+                    <div class="arch-box shard">fullDocument (后置镜像)<br>变更后的文档状态</div>
+                    <div class="arch-box config">fullDocumentBeforeChange (前置镜像)<br>变更前的文档状态</div>
+                </div>
+                <div class="arch-connector">|</div>
+                <div class="arch-layer">
+                    <div class="arch-box primary">集合设置<br>changeStreamPreAndPostImages</div>
+                </div>
+            </div>
+            <h3>启用前置与后置镜像</h3>
+            <pre><code>// 在集合级别启用
+db.createCollection("orders");
+db.runCommand({
+  collMod: "orders",
+  changeStreamPreAndPostImages: { enabled: true }
+});
+
+// 监听时指定选项
+db.orders.watch([], {
+  fullDocumentBeforeChange: "whenAvailable",  // 或 "required"
+  fullDocument: "whenAvailable"               // 或 "required"
+});</code></pre>
+            <h3>fullDocumentBeforeChange 选项</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>选项值</th>
+                    <th>行为</th>
+                </tr>
+                <tr>
+                    <td><code>"whenAvailable"</code></td>
+                    <td>前置镜像可用时返回，不可用时返回 null</td>
+                </tr>
+                <tr>
+                    <td><code>"required"</code></td>
+                    <td>前置镜像必须可用，不可用时产生错误</td>
+                </tr>
+            </table>
+            <div class="warning">
+                <strong>注意：</strong>前置与后置镜像会占用额外的存储空间，并且有过期时间（通过 <code>expireAfterSeconds</code> 配置）。请根据业务需求合理设置保留时间。
+            </div>
+        </section>
+
+        <!-- 代码示例 -->
+        <section class="concept-section" id="examples">
+            <h2>代码示例</h2>
+
+            <h3>Python 示例</h3>
+            <pre><code>import pymongo
+
+client = pymongo.MongoClient("mongodb://localhost:27017/?replicaSet=rs0")
+db = client["mydb"]
+collection = db["orders"]
+
+# 基本变更流
+with collection.watch() as stream:
+    for change in stream:
+        print(f"操作类型: {change['operationType']}")
+        print(f"命名空间: {change['ns']}")
+        if "fullDocument" in change:
+            print(f"完整文档: {change['fullDocument']}")
+        print(f"恢复令牌: {change['_id']}")
+
+# 带管道过滤的变更流
+pipeline = [
+    {"$match": {"operationType": {"$in": ["insert", "update"]}}},
+    {"$addFields": {"processedAt": "$$NOW"}}
+]
+
+with collection.watch(pipeline, full_document="updateLookup") as stream:
+    for change in stream:
+        print(change)
+
+# 断点续传
+resume_token = None
+
+with collection.watch() as stream:
+    for change in stream:
+        resume_token = stream.resume_token
+        process_change(change)
+
+# 恢复变更流
+with collection.watch(resume_after=resume_token) as stream:
+    for change in stream:
+        process_change(change)</code></pre>
+
+            <h3>Node.js 示例</h3>
+            <pre><code>const { MongoClient } = require("mongodb");
+
+async function watchChanges() {
+  const client = new MongoClient("mongodb://localhost:27017/?replicaSet=rs0");
+  await client.connect();
+  const db = client.db("mydb");
+  const collection = db.collection("orders");
+
+  // 基本变更流
+  const changeStream = collection.watch();
+
+  changeStream.on("change", (event) => {
+    console.log(`操作类型: ${event.operationType}`);
+    console.log(`命名空间: ${event.ns}`);
+    if (event.fullDocument) {
+      console.log(`完整文档: ${JSON.stringify(event.fullDocument)}`);
+    }
+  });
+
+  // 带管道过滤
+  const pipeline = [
+    { $match: { operationType: { $in: ["insert", "update"] } } },
+    { $project: { "fullDocument.status": 1, operationType: 1 } }
+  ];
+
+  const filteredStream = collection.watch(pipeline, {
+    fullDocument: "updateLookup"
+  });
+
+  filteredStream.on("change", (event) => {
+    console.log("过滤后的事件:", event);
+  });
+
+  // 错误处理与恢复
+  changeStream.on("error", async (error) => {
+    console.error("变更流错误:", error);
+    // 等待后重试
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    // 使用 resumeAfter 恢复
+    const newStream = collection.watch([], {
+      resumeAfter: lastResumeToken
+    });
+  });
+
+  // 优雅关闭
+  process.on("SIGINT", async () => {
+    await changeStream.close();
+    await client.close();
+    process.exit(0);
+  });
+}
+
+watchChanges().catch(console.error);</code></pre>
+        </section>
+
+        <!-- 应用场景 -->
+        <section class="concept-section" id="use-cases">
+            <h2>应用场景</h2>
+            <table class="comparison-table">
+                <tr>
+                    <th>场景</th>
+                    <th>说明</th>
+                    <th>典型实现</th>
+                </tr>
+                <tr>
+                    <td>ETL 数据同步</td>
+                    <td>将 MongoDB 变更实时同步到数据仓库、搜索引擎或其他数据存储</td>
+                    <td>监听变更流 &rarr; 转换数据 &rarr; 写入目标系统</td>
+                </tr>
+                <tr>
+                    <td>跨平台数据同步</td>
+                    <td>在 MongoDB 与 Redis、Elasticsearch 等之间保持数据一致</td>
+                    <td>变更流 + 消息队列（Kafka/RabbitMQ）</td>
+                </tr>
+                <tr>
+                    <td>实时协作</td>
+                    <td>多人协作编辑、在线文档等场景的实时更新</td>
+                    <td>变更流 &rarr; WebSocket &rarr; 客户端推送</td>
+                </tr>
+                <tr>
+                    <td>通知系统</td>
+                    <td>数据变更触发邮件、推送、短信等通知</td>
+                    <td>变更流 &rarr; 事件处理 &rarr; 通知服务</td>
+                </tr>
+                <tr>
+                    <td>审计日志</td>
+                    <td>记录所有数据变更的完整审计轨迹</td>
+                    <td>变更流 + Pre/Post Images &rarr; 审计集合</td>
+                </tr>
+            </table>
+            <div class="flow-diagram">
+                <div class="flow-step">MongoDB 数据变更</div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">Change Stream 捕获事件</div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">管道过滤 / 转换</div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">消息队列 / 直接处理</div>
+                <div class="flow-arrow">&darr;</div>
+                <div class="flow-step">目标系统（搜索/缓存/通知/仓库）</div>
+            </div>
+        </section>
+
+        <!-- 性能考量 -->
+        <section class="concept-section" id="performance">
+            <h2>性能考量</h2>
+            <table class="comparison-table">
+                <tr>
+                    <th>考量项</th>
+                    <th>建议</th>
+                    <th>原因</th>
+                </tr>
+                <tr>
+                    <td>连接池大小</td>
+                    <td><code>maxPoolSize</code> 应大于变更流数量</td>
+                    <td>每个变更流占用一个连接，连接池不足会导致等待</td>
+                </tr>
+                <tr>
+                    <td>$lookup 使用</td>
+                    <td>谨慎使用 <code>$lookup</code></td>
+                    <td>每次变更事件都触发关联查询，开销较大</td>
+                </tr>
+                <tr>
+                    <td>管道过滤</td>
+                    <td>尽早使用 <code>$match</code> 过滤</td>
+                    <td>减少下游处理的事件数量</td>
+                </tr>
+                <tr>
+                    <td>事件处理速度</td>
+                    <td>确保事件消费速度 >= 生产速度</td>
+                    <td>处理过慢会导致 oplog 积压，可能被覆盖</td>
+                </tr>
+                <tr>
+                    <td>fullDocument 开销</td>
+                    <td>仅在必要时启用 updateLookup</td>
+                    <td>额外查询会增加服务器负载</td>
+                </tr>
+                <tr>
+                    <td>分片集群</td>
+                    <td>通过 mongos 监听变更流</td>
+                    <td>mongos 会合并所有分片的变更事件</td>
+                </tr>
+            </table>
+            <div class="note">
+                <strong>最佳实践：</strong>在生产环境中，始终为变更流实现错误处理和自动恢复机制，确保在连接断开后能够通过 resume token 恢复监听。
+            </div>
+        </section>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="performance.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：性能 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>MongoDB 概念详解 | 基于官方文档整理</p>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

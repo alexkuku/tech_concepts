@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全机制 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>安全机制</h1>
+        <p class="subtitle">Security - 四大核心安全支柱</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main class="container">
+<!-- 四大安全支柱 -->
+        <section class="concept-section" id="four-pillars">
+            <h2>四大安全支柱</h2>
+            <p>MongoDB 的安全体系建立在四大核心支柱之上，每一层都至关重要：</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box shard" style="min-width: 200px;">
+                        <strong>身份认证</strong><br>Authentication<br><small>你是谁?</small>
+                    </div>
+                    <div class="arch-box primary" style="min-width: 200px;">
+                        <strong>权限控制</strong><br>Authorization<br><small>你能做什么?</small>
+                    </div>
+                    <div class="arch-box config" style="min-width: 200px;">
+                        <strong>加密</strong><br>Encryption<br><small>数据安全</small>
+                    </div>
+                    <div class="arch-box mongos" style="min-width: 200px;">
+                        <strong>审计</strong><br>Auditing<br><small>操作追踪</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 安全分层架构 -->
+        <section class="concept-section" id="security-layers">
+            <h2>安全分层架构</h2>
+            <p>从外到内，MongoDB 安全架构呈层层防护结构：</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box app" style="min-width: 280px;">
+                        <strong>网络层</strong><br>IP 访问列表 / 网络对等连接 / 私有端点<br><small>防火墙与网络隔离</small>
+                    </div>
+                </div>
+                <div class="arch-connector">&darr;</div>
+                <div class="arch-layer">
+                    <div class="arch-box mongos" style="min-width: 280px;">
+                        <strong>传输层</strong><br>TLS/SSL 加密通信<br><small>防止窃听和中间人攻击</small>
+                    </div>
+                </div>
+                <div class="arch-connector">&darr;</div>
+                <div class="arch-layer">
+                    <div class="arch-box config" style="min-width: 280px;">
+                        <strong>身份认证</strong><br>SCRAM / x.509 / Kerberos / LDAP / OIDC<br><small>验证用户身份</small>
+                    </div>
+                </div>
+                <div class="arch-connector">&darr;</div>
+                <div class="arch-layer">
+                    <div class="arch-box primary" style="min-width: 280px;">
+                        <strong>权限控制</strong><br>RBAC (基于角色的访问控制)<br><small>限制操作范围</small>
+                    </div>
+                </div>
+                <div class="arch-connector">&darr;</div>
+                <div class="arch-layer">
+                    <div class="arch-box shard" style="min-width: 280px;">
+                        <strong>数据层</strong><br>静态加密 / 可查询加密 / CSFLE<br><small>保护存储数据安全</small>
+                    </div>
+                </div>
+            </div>
+            <div class="note">
+                <strong>原则：</strong>安全防护应采用纵深防御策略，不能仅依赖单一安全层。每一层都是下一层的保护前提，缺失任何一层都会增加安全风险。
+            </div>
+        </section>
+
+        <!-- 身份认证 -->
+        <section class="concept-section" id="authentication">
+            <h2>身份认证 (Authentication)</h2>
+            <p>MongoDB 支持多种身份认证机制，适用于不同场景和部署环境：</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>认证机制</th>
+                    <th>适用版本</th>
+                    <th>适用场景</th>
+                    <th>版本要求</th>
+                </tr>
+                <tr>
+                    <td><code>SCRAM</code></td>
+                    <td>所有版本</td>
+                    <td>默认认证机制，基于用户名/密码</td>
+                    <td>社区版 / 企业版</td>
+                </tr>
+                <tr>
+                    <td><code>x.509</code></td>
+                    <td>所有版本</td>
+                    <td>内部副本集/分片认证、客户端证书认证</td>
+                    <td>社区版 / 企业版</td>
+                </tr>
+                <tr>
+                    <td><code>Kerberos</code></td>
+                    <td>企业功能</td>
+                    <td>与现有 Kerberos 基础设施集成</td>
+                    <td><span class="badge badge-warning">Enterprise</span></td>
+                </tr>
+                <tr>
+                    <td><code>LDAP</code></td>
+                    <td>企业功能</td>
+                    <td>与 Active Directory / LDAP 集成</td>
+                    <td><span class="badge badge-warning">Enterprise</span></td>
+                </tr>
+                <tr>
+                    <td><code>OIDC</code></td>
+                    <td>7.0+</td>
+                    <td>与身份提供商（Okta/Azure AD 等）集成</td>
+                    <td>社区版 / 企业版</td>
+                </tr>
+            </table>
+            <h3>SCRAM 认证配置</h3>
+            <pre><code>// 创建管理员用户
+db.createUser({
+  user: "admin",
+  pwd: passwordPrompt(),
+  roles: [
+    { role: "userAdminAnyDatabase", db: "admin" },
+    { role: "readWriteAnyDatabase", db: "admin" }
+  ]
+})
+
+// 启用认证（mongod.conf）
+security:
+  authorization: enabled
+
+// 连接时认证
+mongo --host localhost -u admin -p --authenticationDatabase admin</code></pre>
+            <h3>x.509 证书认证配置</h3>
+            <pre><code>// mongod.conf - 启用 x.509 内部认证
+security:
+  clusterAuthMode: x509
+net:
+  tls:
+    mode: requireTLS
+    certificateKeyFile: /path/to/server.pem
+    CAFile: /path/to/ca.pem
+
+// 创建 x.509 用户
+db.getSiblingDB("$external").runCommand({
+  createUser: "CN=user,OU=dept,O=org,L=city,ST=state,C=CN",
+  roles: [{ role: "readWrite", db: "mydb" }]
+})</code></pre>
+            <div class="info">
+                <strong>最佳实践：</strong>在生产环境中，推荐使用 x.509 证书进行副本集成员间的内部认证，同时使用 SCRAM 或 LDAP 进行客户端认证。
+            </div>
+        </section>
+
+        <!-- 权限控制 -->
+        <section class="concept-section" id="authorization">
+            <h2>权限控制 (Authorization)</h2>
+            <p>MongoDB 采用基于角色的访问控制（RBAC）。用户被分配角色，角色定义了可执行的操作和可访问的资源。</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box app">用户</div>
+                </div>
+                <div class="arch-connector">&darr; 分配</div>
+                <div class="arch-layer">
+                    <div class="arch-box mongos">角色 (Role)</div>
+                </div>
+                <div class="arch-connector">&darr; 定义</div>
+                <div class="arch-layer">
+                    <div class="arch-box config">权限 (Privilege)</div>
+                </div>
+                <div class="arch-connector">&darr; 作用于</div>
+                <div class="arch-layer">
+                    <div class="arch-box shard">资源 (Resource)</div>
+                </div>
+            </div>
+            <h3>内置角色分类</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>角色类别</th>
+                    <th>角色名称</th>
+                    <th>权限范围</th>
+                </tr>
+                <tr>
+                    <td rowspan="3">数据库用户</td>
+                    <td><code>read</code></td>
+                    <td>读取指定数据库</td>
+                </tr>
+                <tr>
+                    <td><code>readWrite</code></td>
+                    <td>读写指定数据库</td>
+                </tr>
+                <tr>
+                    <td><code>dbAdmin</code></td>
+                    <td>数据库管理（索引、统计等），不含读写</td>
+                </tr>
+                <tr>
+                    <td rowspan="3">集群管理</td>
+                    <td><code>clusterAdmin</code></td>
+                    <td>集群级别的管理操作</td>
+                </tr>
+                <tr>
+                    <td><code>clusterMonitor</code></td>
+                    <td>只读的集群监控权限</td>
+                </tr>
+                <tr>
+                    <td><code>hostManager</code></td>
+                    <td>管理服务器级别操作</td>
+                </tr>
+                <tr>
+                    <td rowspan="3">备份恢复</td>
+                    <td><code>backup</code></td>
+                    <td>备份数据权限</td>
+                </tr>
+                <tr>
+                    <td><code>restore</code></td>
+                    <td>恢复数据权限</td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td rowspan="2">跨数据库</td>
+                    <td><code>readAnyDatabase</code></td>
+                    <td>读取所有数据库</td>
+                </tr>
+                <tr>
+                    <td><code>readWriteAnyDatabase</code></td>
+                    <td>读写所有数据库</td>
+                </tr>
+                <tr>
+                    <td>超级用户</td>
+                    <td><code>root</code></td>
+                    <td>所有权限（仅限 admin 数据库）</td>
+                </tr>
+            </table>
+            <h3>自定义角色示例</h3>
+            <pre><code>// 创建自定义角色
+db.createRole({
+  role: "orderManager",
+  privileges: [
+    {
+      resource: { db: "mydb", collection: "orders" },
+      actions: ["find", "insert", "update"]
+    },
+    {
+      resource: { db: "mydb", collection: "system.profile" },
+      actions: ["find"]
+    }
+  ],
+  roles: ["read"]
+})
+
+// 为用户分配自定义角色
+db.createUser({
+  user: "orderUser",
+  pwd: passwordPrompt(),
+  roles: [{ role: "orderManager", db: "admin" }]
+})</code></pre>
+            <div class="warning">
+                <strong>最小权限原则：</strong>应为每个用户/应用分配完成其工作所需的最小权限集。避免使用 root 或 readWriteAnyDatabase 等宽泛角色。
+            </div>
+        </section>
+
+        <!-- 加密机制 -->
+        <section class="concept-section" id="encryption">
+            <h2>加密机制 (Encryption)</h2>
+            <p>MongoDB 提供多层次的加密方案，保护数据在传输中和存储时的安全：</p>
+
+            <h3>1. 静态加密 (Encryption at Rest)</h3>
+            <p>对磁盘上的数据文件进行加密，防止物理存储介质被盗取后的数据泄露。</p>
+            <pre><code>// mongod.conf - 启用静态加密
+security:
+  enableEncryption: true
+  encryptionKeyFile: /path/to/keyfile
+  kmip:
+    serverName: kmip.example.com
+    port: 5696
+    clientCertificateFile: /path/to/client.pem
+    serverCAFile: /path/to/ca.pem</code></pre>
+            <table class="comparison-table">
+                <tr>
+                    <th>特性</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>加密范围</td>
+                    <td>数据文件、日志文件、oplog 等所有磁盘数据</td>
+                </tr>
+                <tr>
+                    <td>密钥管理</td>
+                    <td>本地密钥文件或 KMIP 服务器</td>
+                </tr>
+                <tr>
+                    <td>加密算法</td>
+                    <td>AES-256-CBC（默认）</td>
+                </tr>
+                <tr>
+                    <td>Atlas 支持</td>
+                    <td>默认启用静态加密，使用云提供商的 KMS</td>
+                </tr>
+            </table>
+
+            <h3>2. 传输加密 (Encryption in Transit)</h3>
+            <p>通过 TLS/SSL 加密客户端与服务器之间、副本集成员之间的网络通信。</p>
+            <pre><code>// mongod.conf - 启用 TLS
+net:
+  tls:
+    mode: requireTLS
+    certificateKeyFile: /path/to/mongodb.pem
+    CAFile: /path/to/ca.pem
+    allowConnectionsWithoutCertificates: false</code></pre>
+
+            <h3>3. 可查询加密 (Queryable Encryption)</h3>
+            <p>允许对加密数据直接执行查询，无需解密。客户端自动加密，服务端存储密文。</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box app">应用程序<br><small>自动加密 / 解密</small></div>
+                </div>
+                <div class="arch-connector">&darr; 密文传输</div>
+                <div class="arch-layer">
+                    <div class="arch-box mongos">MongoDB 服务端<br><small>存储密文，支持密文查询</small></div>
+                </div>
+                <div class="arch-connector">&darr; 密钥管理</div>
+                <div class="arch-layer">
+                    <div class="arch-box config">KMS (密钥管理服务)<br><small>AWS KMS / Azure Key Vault / GCP KMS</small></div>
+                </div>
+            </div>
+
+            <h3>4. 客户端字段级加密 (CSFLE)</h3>
+            <p>在客户端对文档的特定字段进行加密，服务端仅存储密文。支持自动和手动两种加密模式。</p>
+            <pre><code>// Node.js CSFLE 示例
+const { ClientEncryption } = require("mongodb-client-encryption");
+
+const encryption = new ClientEncryption(mongoClient, {
+  keyVaultNamespace: "encryption.__keyVault",
+  kmsProviders: {
+    aws: {
+      accessKeyId: process.env.AWS_ACCESS_KEY,
+      secretAccessKey: process.env.AWS_SECRET_KEY
+    }
+  }
+});
+
+// 创建数据密钥
+const dataKeyId = await encryption.createDataKey("aws", {
+  masterKey: { region: "us-east-1", key: "cmk-id" }
+});
+
+// 自动加密配置
+const autoEncryptionOpts = {
+  keyVaultNamespace: "encryption.__keyVault",
+  kmsProviders: { ... },
+  schemaMap: {
+    "mydb.users": {
+      bsonType: "object",
+      properties: {
+        ssn: {
+          encrypt: {
+            bsonType: "string",
+            algorithm: "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic",
+            keyId: [dataKeyId]
+          }
+        }
+      }
+    }
+  }
+};</code></pre>
+
+            <h3>加密方案对比</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>加密方案</th>
+                    <th>加密位置</th>
+                    <th>加密粒度</th>
+                    <th>可查询性</th>
+                    <th>版本要求</th>
+                </tr>
+                <tr>
+                    <td>静态加密</td>
+                    <td>服务端</td>
+                    <td>整个数据库</td>
+                    <td>透明（自动解密）</td>
+                    <td>3.2+ 企业版</td>
+                </tr>
+                <tr>
+                    <td>传输加密</td>
+                    <td>网络层</td>
+                    <td>所有通信</td>
+                    <td>透明</td>
+                    <td>3.0+</td>
+                </tr>
+                <tr>
+                    <td>可查询加密</td>
+                    <td>客户端</td>
+                    <td>字段级</td>
+                    <td>支持密文查询</td>
+                    <td>7.0+</td>
+                </tr>
+                <tr>
+                    <td>CSFLE</td>
+                    <td>客户端</td>
+                    <td>字段级</td>
+                    <td>有限支持</td>
+                    <td>4.2+ 企业版</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 审计 -->
+        <section class="concept-section" id="auditing">
+            <h2>审计 (Auditing)</h2>
+            <p>MongoDB 企业版和 Atlas 提供审计功能，记录数据库操作以满足合规性要求。</p>
+            <pre><code>// mongod.conf - 启用审计
+auditLog:
+  destination: file
+  format: JSON
+  path: /var/log/mongodb/audit.json
+  filter: '{ "atype": { "$in": ["authCheck", "createUser", "dropUser"] } }'</code></pre>
+            <table class="comparison-table">
+                <tr>
+                    <th>审计目标</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>文件</td>
+                    <td>输出到 JSON 或 BSON 文件</td>
+                </tr>
+                <tr>
+                    <td>控制台</td>
+                    <td>输出到 stdout（仅用于调试）</td>
+                </tr>
+                <tr>
+                    <td>Syslog</td>
+                    <td>发送到系统日志服务</td>
+                </tr>
+            </table>
+            <div class="note">
+                <strong>Atlas 审计：</strong>MongoDB Atlas 默认记录所有数据库操作和集群事件，可在 Atlas 控制台中查看和导出审计日志，无需额外配置。
+            </div>
+        </section>
+
+        <!-- Atlas 安全特性 -->
+        <section class="concept-section" id="atlas-security">
+            <h2>Atlas 安全特性</h2>
+            <p>MongoDB Atlas 提供了额外的云安全功能：</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>安全特性</th>
+                    <th>说明</th>
+                    <th>默认状态</th>
+                </tr>
+                <tr>
+                    <td>静态加密</td>
+                    <td>所有集群默认启用静态加密，使用云提供商 KMS</td>
+                    <td><span class="badge badge-success">默认启用</span></td>
+                </tr>
+                <tr>
+                    <td>传输加密</td>
+                    <td>所有连接默认要求 TLS</td>
+                    <td><span class="badge badge-success">默认启用</span></td>
+                </tr>
+                <tr>
+                    <td>IP 访问列表</td>
+                    <td>限制可连接的 IP 地址范围</td>
+                    <td><span class="badge badge-warning">需配置</span></td>
+                </tr>
+                <tr>
+                    <td>网络对等连接</td>
+                    <td>通过 VPC 对等连接将 Atlas 与应用 VPC 连接</td>
+                    <td><span class="badge badge-warning">需配置</span></td>
+                </tr>
+                <tr>
+                    <td>私有端点</td>
+                    <td>通过 PrivateLink / Private Service Connect 建立私有连接</td>
+                    <td><span class="badge badge-warning">需配置</span></td>
+                </tr>
+                <tr>
+                    <td>数据库审计</td>
+                    <td>自动记录所有数据库操作和集群事件</td>
+                    <td><span class="badge badge-success">默认启用</span></td>
+                </tr>
+                <tr>
+                    <td>云备份加密</td>
+                    <td>备份快照使用 AES-256 加密</td>
+                    <td><span class="badge badge-success">默认启用</span></td>
+                </tr>
+            </table>
+            <div class="info">
+                <strong>建议：</strong>在 Atlas 中始终配置 IP 访问列表和网络对等连接，限制只有授权网络能访问数据库，减少攻击面。
+            </div>
+        </section>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="timeseries.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：时间序列 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>MongoDB 概念详解 | 基于官方文档整理</p>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

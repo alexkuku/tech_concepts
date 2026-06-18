@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB 数据库与集合 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 数据库与集合</h1>
+            <p class="subtitle">理解 MongoDB 的数据组织层次：数据库、集合与文档</p>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <div id="navigation-container"></div>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+
+            <!-- Table of Contents -->
+<!-- 1. Hierarchy -->
+            <section class="concept-section" id="hierarchy">
+                <h2>数据层次结构</h2>
+                <p>
+                    MongoDB 使用灵活的层次结构来组织数据。数据从顶层到底层依次为：
+                    <strong>MongoDB 实例</strong> 包含多个 <strong>数据库</strong>，
+                    每个数据库包含多个 <strong>集合</strong>，
+                    每个集合包含多个 <strong>文档</strong>。
+                </p>
+
+                <div class="relation-diagram">
+                    <h3>层次关系</h3>
+                    <div class="diagram-container">
+                        <div class="diagram-box primary">MongoDB 实例</div>
+                        <div class="diagram-arrow">&#8595;</div>
+                        <div class="diagram-box secondary">数据库 (Database)</div>
+                        <div class="diagram-arrow">&#8595;</div>
+                        <div class="diagram-box" style="background: linear-gradient(135deg, #E3F2FD 0%, #90CAF9 100%); border-color: #2196F3; color: #0D47A1;">集合 (Collection)</div>
+                        <div class="diagram-arrow">&#8595;</div>
+                        <div class="diagram-box accent">文档 (Document)</div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>关键概念：</strong> MongoDB 的层次结构与传统关系型数据库的 实例 -> 数据库 -> 表 -> 行 结构类似，但更加灵活。集合不强制要求文档具有相同的结构，不同文档可以拥有不同的字段。
+                </div>
+            </section>
+
+            <!-- 2. Database Operations -->
+            <section class="concept-section" id="database-operations">
+                <h2>数据库操作</h2>
+
+                <h3>切换数据库</h3>
+                <p>使用 <code>use</code> 命令切换到指定数据库：</p>
+                <pre><code>use myDatabase</code></pre>
+                <div class="info">
+                    <strong>提示：</strong> 如果数据库不存在，<code>use</code> 命令不会立即创建数据库。数据库会在第一次写入数据时自动创建。
+                </div>
+
+                <h3>自动创建</h3>
+                <p>
+                    MongoDB 在以下操作发生时会自动创建数据库：
+                </p>
+                <ul>
+                    <li>向集合中插入第一个文档时</li>
+                    <li>在集合上创建第一个索引时</li>
+                    <li>使用 <code>createCollection</code> 显式创建集合时</li>
+                </ul>
+
+                <h3>查看当前数据库</h3>
+                <pre><code>db</code></pre>
+                <p>默认连接到 <code>test</code> 数据库。</p>
+
+                <h3>查看所有数据库</h3>
+                <pre><code>show dbs</code></pre>
+                <div class="warning">
+                    <strong>注意：</strong> 新创建的空数据库不会出现在 <code>show dbs</code> 的结果中，直到其中插入了数据。
+                </div>
+
+                <h3>删除数据库</h3>
+                <pre><code>use myDatabase
+db.dropDatabase()</code></pre>
+
+                <h3>数据库命名规则与限制</h3>
+                <ul>
+                    <li>数据库名不区分大小写，但建议全部小写</li>
+                    <li>名称长度最多 64 字节</li>
+                    <li>不能包含以下字符：<code>/ \ . &quot; $ * &lt; &gt; : | ?</code></li>
+                    <li>不能为空字符串</li>
+                    <li>不能以 <code>$</code> 开头</li>
+                    <li>不能包含空字符 (<code>\0</code>)</li>
+                </ul>
+
+                <h3>保留数据库名称</h3>
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>保留名称</th>
+                            <th>用途</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>admin</code></td>
+                            <td>管理数据库</td>
+                            <td>存储管理员用户、系统级配置信息。如需将用户添加到 admin 数据库，该用户将获得所有数据库的权限</td>
+                        </tr>
+                        <tr>
+                            <td><code>local</code></td>
+                            <td>本地数据库</td>
+                            <td>存储复制过程中使用的 oplog 和其他本地信息。<code>local</code> 数据库不会被复制到副本集中的其他成员</td>
+                        </tr>
+                        <tr>
+                            <td><code>config</code></td>
+                            <td>配置数据库</td>
+                            <td>存储分片集群的元数据信息，包括分片信息、块（chunks）分布等</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="danger">
+                    <strong>重要：</strong> 不要将应用数据存储在 <code>admin</code>、<code>local</code> 或 <code>config</code> 数据库中。这些数据库用于 MongoDB 内部系统功能。
+                </div>
+            </section>
+
+            <!-- 3. Collection Operations -->
+            <section class="concept-section" id="collection-operations">
+                <h2>集合操作</h2>
+
+                <h3>隐式创建</h3>
+                <p>
+                    MongoDB 在以下情况下会自动创建集合，无需显式创建：
+                </p>
+                <ul>
+                    <li>第一次向集合中 <code>insert</code> 文档时</li>
+                    <li>第一次在集合上调用 <code>createIndex</code> 时</li>
+                </ul>
+                <pre><code>// 插入文档时自动创建集合
+db.myCollection.insertOne({ name: "张三", age: 28 })
+
+// 创建索引时自动创建集合
+db.myCollection.createIndex({ name: 1 })</code></pre>
+
+                <h3>显式创建</h3>
+                <p>
+                    如果需要指定集合选项（如固定大小、验证规则等），可以使用 <code>db.createCollection()</code> 显式创建：
+                </p>
+                <pre><code>// 创建普通集合（带文档验证）
+db.createCollection("users", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["name", "email"],
+            properties: {
+                name: { bsonType: "string" },
+                email: { bsonType: "string", pattern: "^.+@.+$" },
+                age: { bsonType: "int", minimum: 0, maximum: 150 }
+            }
+        }
+    },
+    validationLevel: "strict",
+    validationAction: "error"
+})</code></pre>
+
+                <h3>集合命名规则</h3>
+                <ul>
+                    <li>集合名不能以系统保留前缀 <code>system.</code> 开头</li>
+                    <li>不能包含 <code>$</code> 字符（<code>$</code> 用于运算符）</li>
+                    <li>不能为空字符串</li>
+                    <li>不能包含空字符 (<code>\0</code>)</li>
+                    <li>以 <code>.</code> 开头的集合名仅供内部使用</li>
+                    <li>名称空间 <code>&lt;database&gt;.&lt;collection&gt;</code> 的总长度不能超过 120 字节</li>
+                </ul>
+
+                <h3>查看集合</h3>
+                <pre><code>// 列出当前数据库的所有集合
+show collections
+
+// 获取集合的详细信息
+db.getCollectionInfos("myCollection")
+
+// 检查集合是否存在
+db.getCollectionNames()</code></pre>
+
+                <h3>删除集合</h3>
+                <pre><code>db.myCollection.drop()</code></pre>
+            </section>
+
+            <!-- 4. Special Collection Types -->
+            <section class="concept-section" id="special-collections">
+                <h2>特殊集合类型</h2>
+                <p>
+                    MongoDB 提供多种特殊集合类型，针对不同的使用场景进行优化：
+                </p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>类型</th>
+                            <th>特点</th>
+                            <th>使用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>固定大小集合 (Capped)</strong></td>
+                            <td>固定大小，FIFO 覆盖写入；按插入顺序存储；不支持删除单个文档</td>
+                            <td>日志存储、缓存数据、高吞吐量插入场景</td>
+                        </tr>
+                        <tr>
+                            <td><strong>时间序列集合</strong></td>
+                            <td>按时间优化存储和查询；自动管理内部存储结构；支持自动过期</td>
+                            <td>IoT 传感器数据、金融行情数据、监控指标</td>
+                        </tr>
+                        <tr>
+                            <td><strong>集群化集合 (Clustered)</strong></td>
+                            <td>按集群键 (Clustered Key) 排序物理存储；减少索引开销；优化范围查询</td>
+                            <td>顺序访问优化场景、需要按特定键排序的查询</td>
+                        </tr>
+                        <tr>
+                            <td><strong>视图 (View)</strong></td>
+                            <td>只读虚拟集合；通过聚合管道定义；不占用额外存储空间</td>
+                            <td>数据抽象层、安全隔离、简化复杂查询</td>
+                        </tr>
+                        <tr>
+                            <td><strong>按需物化视图</strong></td>
+                            <td>按需计算和缓存结果；可以手动触发刷新；减少重复聚合计算</td>
+                            <td>报表生成、复杂聚合结果缓存</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note">
+                    <strong>选择建议：</strong>
+                    <ul>
+                        <li>需要高吞吐量日志写入 -> 选择固定大小集合</li>
+                        <li>处理带时间戳的测量数据 -> 选择时间序列集合</li>
+                        <li>需要按特定键顺序物理存储 -> 选择集群化集合</li>
+                        <li>需要数据抽象或安全隔离 -> 选择视图</li>
+                        <li>需要缓存聚合结果 -> 选择按需物化视图</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 5. Schema Validation -->
+            <section class="concept-section" id="schema-validation">
+                <h2>模式验证</h2>
+
+                <h3>灵活模式（默认行为）</h3>
+                <p>
+                    MongoDB 默认采用灵活模式（Schema-less），同一集合中的文档可以拥有完全不同的结构。
+                    这种设计使得应用可以随着需求变化而演进，无需执行数据库迁移。
+                </p>
+                <pre><code>// 同一集合中的文档可以结构不同
+db.products.insertOne({ name: "手机", price: 3999 })
+db.products.insertOne({ name: "耳机", price: 299, color: "黑色", brand: "Sony" })</code></pre>
+
+                <h3>强制模式验证</h3>
+                <p>
+                    虽然 MongoDB 默认灵活，但你可以在集合级别定义验证规则，在插入和更新操作时强制执行。
+                    使用 <code>$jsonSchema</code> 可以定义严格的文档结构验证。
+                </p>
+
+                <pre><code>// 创建带验证规则的集合
+db.createCollection("students", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["name", "studentId", "major"],
+            properties: {
+                name: {
+                    bsonType: "string",
+                    description: "必须为字符串类型且为必填字段"
+                },
+                studentId: {
+                    bsonType: "string",
+                    pattern: "^STU\\d{6}$",
+                    description: "学号格式：STU + 6位数字"
+                },
+                major: {
+                    enum: ["计算机科学", "数学", "物理", "化学", "生物"],
+                    description: "专业必须是列表中的值之一"
+                },
+                gpa: {
+                    bsonType: "double",
+                    minimum: 0,
+                    maximum: 4.0,
+                    description: "GPA 范围 0-4.0"
+                },
+                enrollDate: {
+                    bsonType: "date",
+                    description: "入学日期"
+                }
+            }
+        }
+    },
+    validationLevel: "strict",
+    validationAction: "error"
+})</code></pre>
+
+                <h3>验证级别</h3>
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>级别</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>strict</code></td>
+                            <td>对所有插入和更新操作都执行验证（默认值）</td>
+                        </tr>
+                        <tr>
+                            <td><code>moderate</code></td>
+                            <td>仅对已符合验证规则的文档执行更新验证；不符合规则的历史文档更新时不验证</td>
+                        </tr>
+                        <tr>
+                            <td><code>off</code></td>
+                            <td>不执行任何验证</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>验证动作</h3>
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>动作</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>error</code></td>
+                            <td>验证失败时拒绝操作并返回错误（默认值）</td>
+                        </tr>
+                        <tr>
+                            <td><code>warn</code></td>
+                            <td>验证失败时记录警告但允许操作继续</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>修改验证规则</h3>
+                <pre><code>// 添加验证规则到已有集合
+db.runCommand({
+    collMod: "students",
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["name", "studentId"],
+            properties: {
+                name: { bsonType: "string" },
+                studentId: { bsonType: "string" }
+            }
+        }
+    },
+    validationLevel: "moderate"
+})</code></pre>
+
+                <div class="info">
+                    <strong>最佳实践：</strong> 在开发阶段可以使用 <code>validationAction: "warn"</code> 来识别不合规数据而不阻塞操作，确认验证规则无误后再切换为 <code>"error"</code>。
+                </div>
+            </section>
+
+            <!-- 6. Collection UUID -->
+            <section class="concept-section" id="collection-uuid">
+                <h2>集合 UUID</h2>
+
+                <p>
+                    每个集合在创建时都会被分配一个不可变的 UUID（通用唯一标识符）。这个 UUID 在整个副本集和分片集群中保持一致。
+                </p>
+
+                <h3>获取集合 UUID</h3>
+                <pre><code>// 方法一：通过 listCollections
+db.runCommand({ listCollections: 1 })
+
+// 方法二：通过 getCollectionInfos
+db.getCollectionInfos({ name: "myCollection" })</code></pre>
+
+                <p>返回结果示例：</p>
+                <pre><code>{
+    "name": "myCollection",
+    "type": "collection",
+    "options": {},
+    "info": {
+        "readOnly": false,
+        "uuid": new UUID("a5c5f1d2-8e4b-4d3a-9f7e-6b2c1d8e4a3f")
+    },
+    "idIndex": { ... }
+}</code></pre>
+
+                <div class="note">
+                    <strong>UUID 的作用：</strong>
+                    <ul>
+                        <li><strong>不可变性：</strong> 集合的 UUID 在创建后无法更改，即使集合被重命名</li>
+                        <li><strong>一致性：</strong> 在副本集中，同一集合在主节点和所有从节点上具有相同的 UUID</li>
+                        <li><strong>分片集群：</strong> 集群中所有分片上的同一集合共享相同的 UUID</li>
+                        <li><strong>用途：</strong> UUID 用于内部操作和故障恢复，确保跨节点数据一致性</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 7. Capped Collection Details -->
+            <section class="concept-section" id="capped-collections">
+                <h2>固定大小集合详解</h2>
+
+                <h3>创建固定大小集合</h3>
+                <pre><code>db.createCollection("log", {
+    capped: true,
+    size: 100000,    // 字节为单位，集合最大大小为 100KB
+    max: 5000        // 最多存储 5000 条文档
+})</code></pre>
+
+                <div class="warning">
+                    <strong>参数说明：</strong> <code>size</code> 是必填参数，<code>max</code> 是可选的。当同时指定时，先达到哪个限制就触发覆盖。即使设置了 <code>max</code>，也必须指定 <code>size</code>，因为 MongoDB 需要预分配存储空间。
+                </div>
+
+                <h3>FIFO 行为</h3>
+                <p>
+                    固定大小集合采用先进先出（FIFO）策略：当集合达到大小上限时，新插入的文档会覆盖最早的文档。
+                </p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step" style="border-color: var(--primary-color);">新文档插入</div>
+                    <div class="flow-arrow">&#8595;</div>
+                    <div class="flow-step" style="border-color: #2196F3;">检查是否超出大小限制</div>
+                    <div class="flow-arrow">&#8595;</div>
+                    <div class="flow-step" style="border-color: #FF9800;">超出限制：删除最早的文档</div>
+                    <div class="flow-arrow">&#8595;</div>
+                    <div class="flow-step" style="border-color: var(--success-color);">插入新文档</div>
+                </div>
+
+                <h3>固定大小集合的限制</h3>
+                <ul>
+                    <li><strong>不能删除单个文档：</strong> 只能通过插入新文档自动覆盖，或使用 <code>db.collection.drop()</code> 删除整个集合</li>
+                    <li><strong>自然顺序即插入顺序：</strong> 文档按插入顺序物理存储，自然排序（<code>$natural</code>）等于插入顺序</li>
+                    <li><strong>不能添加二级索引：</strong> 固定大小集合不支持创建额外的索引（除默认的 <code>_id</code> 索引）</li>
+                    <li><strong>不能分片：</strong> 固定大小集合不支持分片</li>
+                    <li><strong>更新操作限制：</strong> 更新文档时，文档大小不能增加，否则操作失败</li>
+                </ul>
+
+                <h3>查询固定大小集合</h3>
+                <pre><code>// 按插入顺序查询（默认）
+db.log.find()
+
+// 按插入逆序查询（最新文档在前）
+db.log.find().sort({ $natural: -1 })
+
+// 使用 tailable cursor（类似 tail -f）
+db.log.find({}, { tailable: true })</code></pre>
+
+                <h3>检查集合是否为固定大小集合</h3>
+                <pre><code>db.log.isCapped()   // 返回 true 或 false</code></pre>
+
+                <h3>将普通集合转换为固定大小集合</h3>
+                <pre><code>db.runCommand({
+    convertToCapped: "myCollection",
+    size: 100000,
+    max: 5000
+})</code></pre>
+
+                <div class="info">
+                    <strong>使用场景示例：</strong> 固定大小集合非常适合存储系统日志、审计记录、缓存热点数据等场景，因为这些数据通常只需保留最近的内容，且写入频率很高。
+                </div>
+            </section>
+
+            <!-- 8. Hierarchy Diagram -->
+            <section class="concept-section" id="hierarchy-diagram">
+                <h2>层次结构图</h2>
+                <p>
+                    下图展示了 MongoDB 完整的数据组织层次结构，从 MongoDB 实例到文档的树形关系：
+                </p>
+
+                <div class="tree-diagram">
+                    <div class="tree-root">MongoDB 实例</div>
+                    <div class="tree-line-vertical"></div>
+                    <div class="tree-line-horizontal" style="width: 80%; max-width: 600px; margin: 0 auto;"></div>
+                    <div class="tree-branch-row" style="margin-top: 0;">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                            <div class="tree-line-vertical"></div>
+                            <div class="tree-branch" style="border-color: var(--primary-color); font-weight: 600;">数据库 A</div>
+                            <div class="tree-line-vertical"></div>
+                            <div class="tree-line-horizontal" style="width: 80%;"></div>
+                            <div style="display: flex; gap: 1rem; margin-top: 0;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                                    <div class="tree-line-vertical"></div>
+                                    <div class="tree-branch" style="border-color: #2196F3;">集合 users</div>
+                                    <div class="tree-line-vertical"></div>
+                                    <div class="tree-line-horizontal" style="width: 90%;"></div>
+                                    <div style="display: flex; gap: 0.5rem; margin-top: 0;">
+                                        <div style="display: flex; flex-direction: column; align-items: center;">
+                                            <div class="tree-line-vertical"></div>
+                                            <div class="tree-branch" style="border-color: #FF9800; font-size: 0.8rem; padding: 0.5rem 0.8rem;">{ name: "张三" }</div>
+                                        </div>
+                                        <div style="display: flex; flex-direction: column; align-items: center;">
+                                            <div class="tree-line-vertical"></div>
+                                            <div class="tree-branch" style="border-color: #FF9800; font-size: 0.8rem; padding: 0.5rem 0.8rem;">{ name: "李四" }</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                                    <div class="tree-line-vertical"></div>
+                                    <div class="tree-branch" style="border-color: #2196F3;">集合 orders</div>
+                                    <div class="tree-line-vertical"></div>
+                                    <div class="tree-line-horizontal" style="width: 90%;"></div>
+                                    <div style="display: flex; gap: 0.5rem; margin-top: 0;">
+                                        <div style="display: flex; flex-direction: column; align-items: center;">
+                                            <div class="tree-line-vertical"></div>
+                                            <div class="tree-branch" style="border-color: #FF9800; font-size: 0.8rem; padding: 0.5rem 0.8rem;">{ total: 99 }</div>
+                                        </div>
+                                        <div style="display: flex; flex-direction: column; align-items: center;">
+                                            <div class="tree-line-vertical"></div>
+                                            <div class="tree-branch" style="border-color: #FF9800; font-size: 0.8rem; padding: 0.5rem 0.8rem;">{ total: 259 }</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                            <div class="tree-line-vertical"></div>
+                            <div class="tree-branch" style="border-color: var(--primary-color); font-weight: 600;">数据库 B</div>
+                            <div class="tree-line-vertical"></div>
+                            <div class="tree-line-horizontal" style="width: 80%;"></div>
+                            <div style="display: flex; gap: 1rem; margin-top: 0;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                                    <div class="tree-line-vertical"></div>
+                                    <div class="tree-branch" style="border-color: #2196F3;">集合 products</div>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                                    <div class="tree-line-vertical"></div>
+                                    <div class="tree-branch" style="border-color: #2196F3;">集合 logs</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="h-diagram">
+                    <div class="diagram-box primary">MongoDB 实例</div>
+                    <div class="diagram-arrow">&#8594;</div>
+                    <div class="diagram-box secondary">数据库</div>
+                    <div class="diagram-arrow">&#8594;</div>
+                    <div class="diagram-box" style="background: linear-gradient(135deg, #E3F2FD 0%, #90CAF9 100%); border-color: #2196F3; color: #0D47A1;">集合</div>
+                    <div class="diagram-arrow">&#8594;</div>
+                    <div class="diagram-box accent">文档</div>
+                </div>
+            </section>
+
+            <!-- 9. MongoDB vs SQL Comparison -->
+            <section class="concept-section" id="comparison">
+                <h2>MongoDB vs SQL 术语对比</h2>
+                <p>
+                    MongoDB 与传统关系型数据库在概念上存在对应关系，但实现方式差异很大。下表帮助你快速理解两种数据库之间的术语映射：
+                </p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>MongoDB 概念</th>
+                            <th>SQL 概念</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>数据库 (Database)</strong></td>
+                            <td><strong>数据库 (Database)</strong></td>
+                            <td>两者概念一致，都是数据组织的顶层容器</td>
+                        </tr>
+                        <tr>
+                            <td><strong>集合 (Collection)</strong></td>
+                            <td><strong>表 (Table)</strong></td>
+                            <td>集合不强制模式，表需要预定义列结构</td>
+                        </tr>
+                        <tr>
+                            <td><strong>文档 (Document)</strong></td>
+                            <td><strong>行 (Row)</strong></td>
+                            <td>文档是 BSON 格式，可嵌套；行是扁平结构</td>
+                        </tr>
+                        <tr>
+                            <td><strong>字段 (Field)</strong></td>
+                            <td><strong>列 (Column)</strong></td>
+                            <td>同一集合的文档可以有不同字段；表的行共享列定义</td>
+                        </tr>
+                        <tr>
+                            <td><strong>嵌入文档</strong></td>
+                            <td><strong>JOIN 关联</strong></td>
+                            <td>MongoDB 倾向于将关联数据嵌入文档中；SQL 通过 JOIN 实现跨表查询</td>
+                        </tr>
+                        <tr>
+                            <td><strong>_id 字段</strong></td>
+                            <td><strong>主键 (Primary Key)</strong></td>
+                            <td>MongoDB 自动生成 ObjectId；SQL 需手动定义主键</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="relation-diagram">
+                    <h3>对应关系可视化</h3>
+                    <div class="diagram-container" style="flex-direction: column; gap: 1.5rem;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 3rem; flex-wrap: wrap;">
+                            <div style="text-align: center;">
+                                <div class="diagram-box primary" style="margin-bottom: 0.5rem;">MongoDB</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div class="diagram-box" style="background: linear-gradient(135deg, #001E2B 0%, #1A237E 100%); color: white; border-color: #1A237E; margin-bottom: 0.5rem;">SQL</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 3rem; flex-wrap: wrap;">
+                            <div style="text-align: center;">
+                                <div class="diagram-box secondary" style="margin-bottom: 0.3rem; font-size: 0.9rem;">Database</div>
+                            </div>
+                            <div class="diagram-arrow" style="font-size: 1.5rem;">&#8596;</div>
+                            <div style="text-align: center;">
+                                <div class="diagram-box" style="background: #E8EAF6; border-color: #3F51B5; color: #1A237E; margin-bottom: 0.3rem; font-size: 0.9rem;">Database</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 3rem; flex-wrap: wrap;">
+                            <div style="text-align: center;">
+                                <div class="diagram-box" style="background: linear-gradient(135deg, #E3F2FD 0%, #90CAF9 100%); border-color: #2196F3; color: #0D47A1; margin-bottom: 0.3rem; font-size: 0.9rem;">Collection</div>
+                            </div>
+                            <div class="diagram-arrow" style="font-size: 1.5rem;">&#8596;</div>
+                            <div style="text-align: center;">
+                                <div class="diagram-box" style="background: #E8EAF6; border-color: #3F51B5; color: #1A237E; margin-bottom: 0.3rem; font-size: 0.9rem;">Table</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 3rem; flex-wrap: wrap;">
+                            <div style="text-align: center;">
+                                <div class="diagram-box accent" style="margin-bottom: 0.3rem; font-size: 0.9rem;">Document</div>
+                            </div>
+                            <div class="diagram-arrow" style="font-size: 1.5rem;">&#8596;</div>
+                            <div style="text-align: center;">
+                                <div class="diagram-box" style="background: #E8EAF6; border-color: #3F51B5; color: #1A237E; margin-bottom: 0.3rem; font-size: 0.9rem;">Row</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 3rem; flex-wrap: wrap;">
+                            <div style="text-align: center;">
+                                <div class="diagram-box" style="background: linear-gradient(135deg, #F3E5F5 0%, #CE93D8 100%); border-color: #9C27B0; color: #4A148C; margin-bottom: 0.3rem; font-size: 0.9rem;">Field</div>
+                            </div>
+                            <div class="diagram-arrow" style="font-size: 1.5rem;">&#8596;</div>
+                            <div style="text-align: center;">
+                                <div class="diagram-box" style="background: #E8EAF6; border-color: #3F51B5; color: #1A237E; margin-bottom: 0.3rem; font-size: 0.9rem;">Column</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>核心差异：</strong> SQL 数据库要求严格的表结构定义（DDL），任何结构变更都需要 ALTER TABLE 操作。MongoDB 的灵活模式允许文档自由演进，不同文档可以有不同的字段，非常适合快速迭代的应用开发。
+                </div>
+            </section>
+
+            <!-- Quick Reference -->
+            <section class="quick-reference">
+                <h2>快速参考</h2>
+                <table class="feature-table">
+                    <thead>
+                        <tr>
+                            <th>操作</th>
+                            <th>命令</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>切换/使用数据库</td>
+                            <td><code>use &lt;db&gt;</code></td>
+                        </tr>
+                        <tr>
+                            <td>查看当前数据库</td>
+                            <td><code>db</code></td>
+                        </tr>
+                        <tr>
+                            <td>列出所有数据库</td>
+                            <td><code>show dbs</code></td>
+                        </tr>
+                        <tr>
+                            <td>删除数据库</td>
+                            <td><code>db.dropDatabase()</code></td>
+                        </tr>
+                        <tr>
+                            <td>列出集合</td>
+                            <td><code>show collections</code></td>
+                        </tr>
+                        <tr>
+                            <td>创建集合</td>
+                            <td><code>db.createCollection(name, options)</code></td>
+                        </tr>
+                        <tr>
+                            <td>删除集合</td>
+                            <td><code>db.&lt;collection&gt;.drop()</code></td>
+                        </tr>
+                        <tr>
+                            <td>检查是否为固定集合</td>
+                            <td><code>db.&lt;collection&gt;.isCapped()</code></td>
+                        </tr>
+                        <tr>
+                            <td>获取集合信息</td>
+                            <td><code>db.getCollectionInfos(name)</code></td>
+                        </tr>
+                        <tr>
+                            <td>修改集合验证规则</td>
+                            <td><code>db.runCommand({ collMod: name, validator: ... })</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+        </div>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="crud.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：CRUD 操作 →</a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>MongoDB 概念详解 | 基于 MongoDB 官方文档</p>
+            <p>数据组织层次：实例 &rarr; 数据库 &rarr; 集合 &rarr; 文档</p>
+        </div>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间序列集合 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>时间序列集合</h1>
+        <p class="subtitle">Time Series Collections - 高效存储与查询时序数据</p>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main class="container">
+<!-- 概述 -->
+        <section class="concept-section" id="overview">
+            <h2>概述</h2>
+            <p>时间序列集合（Time Series Collections）是 MongoDB 5.0 引入的专门用于存储和查询时间序列数据的集合类型。针对时序数据的特征进行了底层存储优化，在写入性能、查询效率和存储空间方面相比普通集合具有显著优势。</p>
+            <div class="note">
+                <strong>版本要求：</strong>时间序列集合从 MongoDB 5.0 开始可用。自动复合索引功能需要 6.3 及以上版本。
+            </div>
+        </section>
+
+        <!-- 数据组成 -->
+        <section class="concept-section" id="data-components">
+            <h2>数据组成</h2>
+            <p>时间序列数据由三个核心组成部分：</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box shard" style="min-width: 200px;">
+                        <strong>时间字段</strong><br>timeField<br><small>数据点的时间戳</small>
+                    </div>
+                    <div class="arch-box primary" style="min-width: 200px;">
+                        <strong>元数据字段</strong><br>metaField<br><small>数据源的标识信息</small>
+                    </div>
+                    <div class="arch-box config" style="min-width: 200px;">
+                        <strong>测量值</strong><br>Measurements<br><small>实际采集的数值</small>
+                    </div>
+                </div>
+            </div>
+            <table class="comparison-table">
+                <tr>
+                    <th>组成部分</th>
+                    <th>说明</th>
+                    <th>示例</th>
+                </tr>
+                <tr>
+                    <td>时间字段 (timeField)</td>
+                    <td>每个数据点必须包含一个时间戳，指定为 Date 类型</td>
+                    <td><code>timestamp: ISODate("2024-01-15T10:30:00Z")</code></td>
+                </tr>
+                <tr>
+                    <td>元数据字段 (metaField)</td>
+                    <td>可选。标识数据源的元信息，用于分组和过滤</td>
+                    <td><code>metadata: { sensorId: "S001", region: "east" }</code></td>
+                </tr>
+                <tr>
+                    <td>测量值</td>
+                    <td>实际采集的数值数据，存储在文档的其余字段中</td>
+                    <td><code>temperature: 23.5, humidity: 65</code></td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 创建时间序列集合 -->
+        <section class="concept-section" id="creation">
+            <h2>创建时间序列集合</h2>
+            <pre><code>// 基本创建
+db.createCollection("weather", {
+  timeseries: {
+    timeField: "timestamp",
+    metaField: "metadata",
+    granularity: "hours"
+  }
+})
+
+// 完整选项
+db.createCollection("sensorData", {
+  timeseries: {
+    timeField: "timestamp",       // 必填：时间字段名
+    metaField: "sensorMetadata",  // 可选：元数据字段名
+    granularity: "minutes",       // 可选：时间粒度 (seconds/minutes/hours)
+    bucketMaxSpanSeconds: 3600,   // 可选：桶最大时间跨度
+    bucketRoundingSeconds: 3600   // 可选：桶起始时间取整
+  },
+  expireAfterSeconds: 86400       // 可选：自动过期时间（TTL）
+})</code></pre>
+            <h3>granularity 选项说明</h3>
+            <table class="comparison-table">
+                <tr>
+                    <th>粒度值</th>
+                    <th>含义</th>
+                    <th>适用场景</th>
+                    <th>默认桶跨度</th>
+                </tr>
+                <tr>
+                    <td><code>"seconds"</code></td>
+                    <td>数据点间隔秒级</td>
+                    <td>高频采集、实时监控</td>
+                    <td>3600 秒（1 小时）</td>
+                </tr>
+                <tr>
+                    <td><code>"minutes"</code></td>
+                    <td>数据点间隔分钟级</td>
+                    <td>常规传感器、业务指标</td>
+                    <td>86400 秒（1 天）</td>
+                </tr>
+                <tr>
+                    <td><code>"hours"</code></td>
+                    <td>数据点间隔小时级</td>
+                    <td>每日统计、趋势分析</td>
+                    <td>2592000 秒（30 天）</td>
+                </tr>
+            </table>
+            <div class="warning">
+                <strong>重要：</strong><code>granularity</code> 应与实际数据采集频率匹配。设置不当会影响压缩和查询性能。如果数据入库频率与采集频率不同步，可使用 <code>bucketMaxSpanSeconds</code> 和 <code>bucketRoundingSeconds</code> 进行精细调整。
+            </div>
+        </section>
+
+        <!-- 内部存储格式 -->
+        <section class="concept-section" id="internal-storage">
+            <h2>内部存储格式</h2>
+            <p>时间序列集合在内部使用列式存储格式（columnar storage format）优化数据组织。MongoDB 将同一元数据分组和时间范围内的数据点压缩到桶（bucket）结构中，以减少存储开销并提升查询性能。</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box app" style="min-width: 260px;">
+                        <strong>写入的时序文档</strong><br>
+                        { timestamp, metadata, value1, value2 }
+                    </div>
+                </div>
+                <div class="arch-connector">&darr; 自动桶压缩</div>
+                <div class="arch-layer">
+                    <div class="arch-box shard" style="min-width: 320px;">
+                        <strong>内部桶文档 (Bucket)</strong><br>
+                        <small>
+                            meta: { sensorId: "S001" }<br>
+                            data: {<br>
+                            &nbsp;&nbsp;timestamp: [t1, t2, t3, ...],<br>
+                            &nbsp;&nbsp;temperature: [23.5, 24.1, 23.8, ...],<br>
+                            &nbsp;&nbsp;humidity: [65, 63, 64, ...]<br>
+                            }<br>
+                            control: { count: 3, min/max: ... }
+                        </small>
+                    </div>
+                </div>
+                <div class="arch-connector">&darr; 列式存储</div>
+                <div class="arch-layer">
+                    <div class="arch-box config" style="min-width: 320px;">
+                        <strong>WiredTiger 列式优化</strong><br>
+                        <small>同类型数据连续存储，提升压缩率和扫描效率</small>
+                    </div>
+                </div>
+            </div>
+            <div class="note">
+                <strong>优势：</strong>列式存储使得同类数据（如所有温度值）连续存储在磁盘上，大幅提升压缩率（通常 2-10x）和范围查询效率。
+            </div>
+        </section>
+
+        <!-- 更新限制 -->
+        <section class="concept-section" id="update-restrictions">
+            <h2>更新限制</h2>
+            <p>时间序列集合对更新操作有严格限制，以保护内部桶结构的完整性：</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>操作</th>
+                    <th>限制</th>
+                    <th>原因</th>
+                </tr>
+                <tr>
+                    <td>更新测量值字段</td>
+                    <td><span style="color:#E34234; font-weight:bold;">不允许</span></td>
+                    <td>测量值存储在桶内部，修改可能破坏桶结构</td>
+                </tr>
+                <tr>
+                    <td>更新 metaField</td>
+                    <td><span style="color:#00643B; font-weight:bold;">允许</span></td>
+                    <td>metaField 是桶的分组键，可以修改但会导致文档重新分配到新桶</td>
+                </tr>
+                <tr>
+                    <td>更新 timeField</td>
+                    <td><span style="color:#E34234; font-weight:bold;">不允许</span></td>
+                    <td>时间字段决定桶的分配，修改会破坏时间有序性</td>
+                </tr>
+                <tr>
+                    <td>删除文档</td>
+                    <td>仅能按 metaField 删除（6.0+）</td>
+                    <td>部分删除需匹配元数据条件</td>
+                </tr>
+            </table>
+            <pre><code>// 允许：更新 metaField
+db.weather.updateOne(
+  { "metadata.sensorId": "S001" },
+  { $set: { "metadata.region": "north" } }
+)
+
+// 不允许：更新测量值
+db.weather.updateOne(
+  { timestamp: ISODate("2024-01-15T10:30:00Z") },
+  { $set: { temperature: 25.0 } }  // 报错!
+)</code></pre>
+        </section>
+
+        <!-- 与普通集合对比 -->
+        <section class="concept-section" id="comparison">
+            <h2>与普通集合对比</h2>
+            <p>时间序列集合相比普通集合在时序数据场景下具有显著优势：</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>对比维度</th>
+                    <th>普通集合</th>
+                    <th>时间序列集合</th>
+                </tr>
+                <tr>
+                    <td>数据处理复杂度</td>
+                    <td>需要手动实现桶压缩和聚合逻辑</td>
+                    <td>自动桶压缩，开箱即用</td>
+                </tr>
+                <tr>
+                    <td>查询效率</td>
+                    <td>需要手动优化索引和聚合管道</td>
+                    <td>内置列式存储优化，时序查询更快</td>
+                </tr>
+                <tr>
+                    <td>磁盘空间</td>
+                    <td>每个文档独立存储元数据，冗余度高</td>
+                    <td>桶内共享元数据，压缩率 2-10x</td>
+                </tr>
+                <tr>
+                    <td>磁盘 I/O</td>
+                    <td>查询需扫描大量独立文档</td>
+                    <td>列式存储减少 IO，仅读取需要的列</td>
+                </tr>
+                <tr>
+                    <td>缓存利用率</td>
+                    <td>缓存中包含大量重复元数据</td>
+                    <td>共享元数据节省缓存空间</td>
+                </tr>
+                <tr>
+                    <td>写入性能</td>
+                    <td>逐文档写入</td>
+                    <td>批量写入桶，减少写入放大</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 索引策略 -->
+        <section class="concept-section" id="indexes">
+            <h2>索引策略</h2>
+            <p>时间序列集合的索引策略与普通集合有所不同：</p>
+
+            <h3>自动复合索引</h3>
+            <p>从 MongoDB 6.3 开始，创建时间序列集合时自动生成 <code>metaField + timeField</code> 的复合索引。</p>
+            <pre><code>// 自动创建的索引（6.3+）
+// 等价于：
+db.sensorData.createIndex({ "sensorMetadata": 1, "timestamp": 1 })</code></pre>
+
+            <h3>手动添加二级索引</h3>
+            <pre><code>// 在 metaField 子字段上添加索引
+db.sensorData.createIndex({
+  "sensorMetadata.region": 1,
+  "timestamp": 1
+})
+
+// 在测量值字段上添加索引（用于排序和范围查询）
+db.sensorData.createIndex({
+  "temperature": 1,
+  "timestamp": 1
+})</code></pre>
+
+            <div class="info">
+                <strong>建议：</strong>对于时序查询，<code>metaField + timeField</code> 复合索引通常是最有效的查询模式。如果经常按 metaField 子字段过滤，可添加对应二级索引。
+            </div>
+        </section>
+
+        <!-- 分片支持 -->
+        <section class="concept-section" id="sharding">
+            <h2>分片支持</h2>
+            <table class="comparison-table">
+                <tr>
+                    <th>分片策略</th>
+                    <th>是否支持</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>基于 metaField 哈希分片</td>
+                    <td><span style="color:#00643B; font-weight:bold;">支持</span></td>
+                    <td>推荐方式，按元数据均匀分布数据</td>
+                </tr>
+                <tr>
+                    <td>基于 metaField 范围分片</td>
+                    <td><span style="color:#00643B; font-weight:bold;">支持</span></td>
+                    <td>适用于元数据有自然分区的场景</td>
+                </tr>
+                <tr>
+                    <td>基于 timeField 分片</td>
+                    <td><span style="color:#E34234; font-weight:bold;">不支持</span></td>
+                    <td>时间单调递增会导致热块问题</td>
+                </tr>
+                <tr>
+                    <td>Zone 分片</td>
+                    <td><span style="color:#E34234; font-weight:bold;">不支持</span></td>
+                    <td>时间序列集合不支持 Zone/Tag 感知分片</td>
+                </tr>
+            </table>
+            <pre><code>// 对时间序列集合启用分片
+sh.enableSharding("mydb")
+sh.shardCollection("mydb.sensorData", { "sensorMetadata": 1 })</code></pre>
+            <div class="warning">
+                <strong>注意：</strong>Zone 分片（Zone Sharding）当前不支持时间序列集合。如果需要地理分布数据，建议在应用层实现路由逻辑。
+            </div>
+        </section>
+
+        <!-- 应用场景 -->
+        <section class="concept-section" id="use-cases">
+            <h2>应用场景</h2>
+            <table class="comparison-table">
+                <tr>
+                    <th>行业领域</th>
+                    <th>场景描述</th>
+                    <th>典型数据</th>
+                    <th>metaField 示例</th>
+                </tr>
+                <tr>
+                    <td>物联网 (IoT)</td>
+                    <td>传感器数据采集与监控</td>
+                    <td>温度、湿度、压力、位置</td>
+                    <td><code>{ sensorId, deviceId, location }</code></td>
+                </tr>
+                <tr>
+                    <td>金融</td>
+                    <td>股票行情、交易流水</td>
+                    <td>价格、成交量、汇率</td>
+                    <td><code>{ ticker, exchange, symbol }</code></td>
+                </tr>
+                <tr>
+                    <td>零售</td>
+                    <td>销售数据、库存变动</td>
+                    <td>销售额、库存量、订单数</td>
+                    <td><code>{ storeId, productId, category }</code></td>
+                </tr>
+                <tr>
+                    <td>DevOps</td>
+                    <td>系统监控、应用性能</td>
+                    <td>CPU、内存、QPS、延迟</td>
+                    <td><code>{ host, service, region }</code></td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 不适用场景 -->
+        <section class="concept-section" id="limitations">
+            <h2>不适用场景</h2>
+            <p>时间序列集合并非所有场景的最佳选择，以下情况应使用普通集合：</p>
+            <table class="comparison-table">
+                <tr>
+                    <th>不适用场景</th>
+                    <th>原因</th>
+                    <th>推荐替代方案</th>
+                </tr>
+                <tr>
+                    <td>无序数据</td>
+                    <td>时间序列集合假设数据按时间有序入库，无序数据无法有效桶压缩</td>
+                    <td>普通集合 + 索引</td>
+                </tr>
+                <tr>
+                    <td>非时间依赖数据</td>
+                    <td>没有时间维度的数据不适合时序模型</td>
+                    <td>普通集合 / 问答文档</td>
+                </tr>
+                <tr>
+                    <td>频繁更新测量值</td>
+                    <td>时序集合不允许更新测量值字段</td>
+                    <td>普通集合</td>
+                </tr>
+                <tr>
+                    <td>需要 Zone 分片</td>
+                    <td>时序集合不支持 Zone 分片</td>
+                    <td>普通集合 + Zone Sharding</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 文档结构示意 -->
+        <section class="concept-section" id="document-structure">
+            <h2>文档结构示意</h2>
+            <p>以下是时间序列集合中文档的完整结构示例：</p>
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="arch-box shard" style="min-width: 400px; text-align: left; font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                        <strong style="font-family: inherit;">时序文档结构</strong><br>
+                        {<br>
+                        &nbsp;&nbsp;<span style="color:#00643B;">timestamp</span>: ISODate("2024-01-15T10:30:00Z"), &nbsp;<span style="color:#999;">// timeField</span><br>
+                        &nbsp;&nbsp;<span style="color:#00643B;">metadata</span>: { &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#999;">// metaField</span><br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;sensorId: "S001",<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;region: "east"<br>
+                        &nbsp;&nbsp;},<br>
+                        &nbsp;&nbsp;<span style="color:#FF9800;">temperature</span>: 23.5, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#999;">// 测量值</span><br>
+                        &nbsp;&nbsp;<span style="color:#FF9800;">humidity</span>: 65 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#999;">// 测量值</span><br>
+                        }
+                    </div>
+                </div>
+                <div class="arch-connector">&darr;</div>
+                <div class="arch-layer">
+                    <div class="arch-box primary" style="min-width: 420px; text-align: left; font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                        <strong style="font-family: inherit;">内部桶文档结构 (Bucket)</strong><br>
+                        {<br>
+                        &nbsp;&nbsp;<span style="color:#00643B;">_id</span>: ObjectId("..."),<br>
+                        &nbsp;&nbsp;<span style="color:#00643B;">meta</span>: { sensorId: "S001", region: "east" },<br>
+                        &nbsp;&nbsp;<span style="color:#9C27B0;">data</span>: {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;timestamp: { <span style="color:#FF9800;">0</span>: t1, <span style="color:#FF9800;">1</span>: t2, <span style="color:#FF9800;">2</span>: t3 },<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;temperature: { <span style="color:#FF9800;">0</span>: 23.5, <span style="color:#FF9800;">1</span>: 24.1, <span style="color:#FF9800;">2</span>: 23.8 },<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;humidity: { <span style="color:#FF9800;">0</span>: 65, <span style="color:#FF9800;">1</span>: 63, <span style="color:#FF9800;">2</span>: 64 }<br>
+                        &nbsp;&nbsp;},<br>
+                        &nbsp;&nbsp;<span style="color:#2196F3;">control</span>: {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;count: 3,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;min: { timestamp: t1, temperature: 23.5 },<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;max: { timestamp: t3, temperature: 24.1 }<br>
+                        &nbsp;&nbsp;}<br>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="note">
+                <strong>关键点：</strong>对外部查询而言，时序集合与普通集合的使用体验一致。MongoDB 在查询时自动将桶文档拆解还原为原始文档格式，对应用透明。
+            </div>
+        </section>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="index.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">🏠 返回首页</a>
+        </div>
+    </main>
+
+    <footer>
+        <p>MongoDB 概念详解 | 基于官方文档整理</p>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>

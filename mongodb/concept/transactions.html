@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mongodb 事务 - MongoDB 概念详解</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z' fill='%2300ED64'/%3E%3Cpath d='M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z' fill='%2300643B'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ACID Diagram */
+        .acid-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .acid-card {
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .acid-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+        .acid-card .acid-letter {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+        }
+        .acid-card .acid-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .acid-card .acid-desc {
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .acid-card.atomicity {
+            background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+            border-color: var(--primary-color);
+        }
+        .acid-card.atomicity .acid-letter { color: var(--primary-color); }
+        .acid-card.consistency {
+            background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+            border-color: #2196F3;
+        }
+        .acid-card.consistency .acid-letter { color: #1565C0; }
+        .acid-card.isolation {
+            background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+            border-color: #FF9800;
+        }
+        .acid-card.isolation .acid-letter { color: #E65100; }
+        .acid-card.durability {
+            background: linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%);
+            border-color: #9C27B0;
+        }
+        .acid-card.durability .acid-letter { color: #6A1B9A; }
+
+        /* Transaction Lifecycle Diagram */
+        .lifecycle-flow {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 0;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        .lifecycle-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 130px;
+        }
+        .lifecycle-node {
+            border-radius: 50%;
+            width: 90px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            color: white;
+        }
+        .lifecycle-node:hover {
+            transform: scale(1.08);
+            box-shadow: var(--shadow-lg);
+        }
+        .lifecycle-node.start {
+            background: linear-gradient(135deg, #00643B, #00854A);
+        }
+        .lifecycle-node.ops {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+        }
+        .lifecycle-node.commit {
+            background: linear-gradient(135deg, #00643B, #00ED64);
+        }
+        .lifecycle-node.abort {
+            background: linear-gradient(135deg, #E34234, #C62828);
+        }
+        .lifecycle-connector {
+            display: flex;
+            align-items: center;
+            padding-top: 28px;
+        }
+        .lifecycle-connector .arrow-line {
+            width: 50px;
+            height: 3px;
+            background: var(--primary-color);
+            position: relative;
+        }
+        .lifecycle-connector .arrow-line::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: -5px;
+            border: 7px solid transparent;
+            border-left-color: var(--primary-color);
+        }
+        .lifecycle-connector.branch .arrow-line {
+            background: var(--danger-color);
+        }
+        .lifecycle-connector.branch .arrow-line::after {
+            border-left-color: var(--danger-color);
+        }
+        .lifecycle-label {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        /* API Comparison */
+        .api-comparison {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .api-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        .api-card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+        .api-card.recommended {
+            border-color: var(--success-color);
+        }
+        .api-card.recommended::before {
+            content: '\2713 推荐';
+            display: inline-block;
+            background: var(--success-color);
+            color: var(--dark-color);
+            padding: 0.15rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 0.8rem;
+        }
+        .api-card h4 {
+            color: var(--secondary-color);
+            margin-bottom: 0.8rem;
+            font-size: 1.15rem;
+        }
+        .api-card ul {
+            list-style: none;
+            margin-left: 0;
+            padding: 0;
+        }
+        .api-card li {
+            padding: 0.4rem 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .api-card li::before {
+            content: '\2022 ';
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        /* Concern Levels */
+        .concern-levels {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .concern-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem 1.2rem;
+            background: var(--light-color);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+        .concern-item .concern-label {
+            font-weight: 700;
+            color: var(--secondary-color);
+            min-width: 100px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+        }
+        .concern-item .concern-desc {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        /* Inheritance Diagram */
+        .inheritance-chain {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+        .inherit-box {
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+            font-size: 0.95rem;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+        .inherit-box:hover {
+            transform: scale(1.05);
+        }
+        .inherit-box.client {
+            background: white;
+            border: 2px solid var(--border-color);
+            color: #666;
+        }
+        .inherit-box.session {
+            background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+            border: 2px solid var(--primary-color);
+            color: var(--dark-color);
+        }
+        .inherit-box.txn {
+            background: linear-gradient(135deg, #00643B, #00854A);
+            color: white;
+            border: 2px solid #00643B;
+        }
+        .inherit-arrow {
+            color: var(--primary-color);
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+        .inherit-note {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 0.5rem;
+        }
+
+        /* Python Code Highlight */
+        .code-block-wrapper {
+            position: relative;
+            margin: 1.5rem 0;
+        }
+        .code-block-label {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--primary-color);
+            color: white;
+            padding: 0.2rem 0.8rem;
+            border-radius: 0 8px 0 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* Transaction allowed/disallowed */
+        .ops-table .allowed {
+            color: var(--success-color);
+            font-weight: 700;
+        }
+        .ops-table .not-allowed {
+            color: var(--danger-color);
+            font-weight: 700;
+        }
+
+        /* Note callouts */
+        .important-note {
+            background: linear-gradient(135deg, #FFF8E1 0%, #FFFDE7 100%);
+            border-left: 5px solid #FFC107;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .important-note .note-title {
+            font-weight: 700;
+            color: #F57F17;
+            margin-bottom: 0.5rem;
+            font-size: 1.05rem;
+        }
+        .important-note ul {
+            list-style: none;
+            margin-left: 0;
+            padding: 0;
+        }
+        .important-note li {
+            padding: 0.4rem 0;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .important-note li::before {
+            content: '\26A0 ';
+            color: #FF9800;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .acid-grid {
+                grid-template-columns: 1fr;
+            }
+            .api-comparison {
+                grid-template-columns: 1fr;
+            }
+            .lifecycle-flow {
+                flex-direction: column;
+                align-items: center;
+            }
+            .lifecycle-connector {
+                padding-top: 0;
+                transform: rotate(90deg);
+            }
+            .inheritance-chain {
+                flex-direction: column;
+            }
+            .inherit-arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><svg style="width:42px;height:42px;vertical-align:middle;margin-right:8px;" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="M32 2C32 2 18 14 18 32C18 44 24 52 32 58C32 52 32 32 32 32C32 32 32 12 32 2Z" fill="#00ED64"/><path d="M32 2C32 2 32 12 32 32C32 32 32 52 32 58C40 52 46 44 46 32C46 14 32 2 32 2Z" fill="#00643B"/><circle cx="32" cy="30" r="3" fill="white" opacity="0.6"/></svg>MongoDB 事务</h1>
+            <p class="subtitle">多文档 ACID 事务与分布式数据一致性</p>
+        </div>
+    </header>
+
+    <div id="navigation-container"></div>
+
+    <main>
+        <div class="container">
+
+            <!-- Table of Contents -->
+<!-- 1. Transaction Overview -->
+            <section class="concept-section" id="overview">
+                <h2>事务概述</h2>
+                <p>
+                    在 MongoDB 中，<strong>单文档操作</strong>天然具有原子性 —— 对单个文档的任何写操作（包括对嵌入文档和数组的更新）都是原子的，要么全部成功，要么全部回滚，无需显式开启事务。
+                </p>
+                <p>
+                    然而，当操作涉及<strong>多个文档</strong>或<strong>多个集合</strong>时，需要使用<strong>多文档 ACID 事务</strong>来保证数据的完整性和一致性。MongoDB 从 4.0 版本开始支持副本集上的多文档事务，从 4.2 版本开始支持分片集群上的分布式事务。
+                </p>
+
+                <div class="note">
+                    <strong>核心要点：</strong>
+                    <ul>
+                        <li>单文档操作是原子性的，无需事务</li>
+                        <li>多文档事务适用于跨文档、跨集合的复杂操作</li>
+                        <li>分布式事务可在副本集和分片集群上运行</li>
+                        <li>事务提供完整的 ACID 保证</li>
+                    </ul>
+                </div>
+
+                <div class="relation-diagram">
+                    <h3>事务适用范围</h3>
+                    <div class="diagram-container">
+                        <div class="diagram-box primary">单文档操作<br><small>天然原子性</small></div>
+                        <div class="diagram-arrow">&rarr;</div>
+                        <div class="diagram-box secondary">多文档事务<br><small>显式 ACID</small></div>
+                        <div class="diagram-arrow">&rarr;</div>
+                        <div class="diagram-box accent">分布式事务<br><small>跨分片一致</small></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. ACID Guarantees Diagram -->
+            <section class="concept-section" id="acid">
+                <h2>ACID 保证</h2>
+                <p>MongoDB 多文档事务提供完整的 ACID 保证，确保数据在并发和故障场景下的一致性：</p>
+
+                <div class="acid-grid">
+                    <div class="acid-card atomicity">
+                        <div class="acid-letter">A</div>
+                        <div class="acid-title">原子性 Atomicity</div>
+                        <div class="acid-desc">事务中的所有操作要么全部成功提交，要么全部失败回滚，不存在部分完成的状态。</div>
+                    </div>
+                    <div class="acid-card consistency">
+                        <div class="acid-letter">C</div>
+                        <div class="acid-title">一致性 Consistency</div>
+                        <div class="acid-desc">事务执行前后，数据库始终处于一致状态，所有约束和规则（唯一索引、文档验证等）均得到维护。</div>
+                    </div>
+                    <div class="acid-card isolation">
+                        <div class="acid-letter">I</div>
+                        <div class="acid-title">隔离性 Isolation</div>
+                        <div class="acid-desc">并发执行的事务相互隔离，不会互相干扰。MongoDB 使用快照隔离确保事务看到一致的数据视图。</div>
+                    </div>
+                    <div class="acid-card durability">
+                        <div class="acid-letter">D</div>
+                        <div class="acid-title">持久性 Durability</div>
+                        <div class="acid-desc">一旦事务提交，其修改将持久保存，即使发生系统故障也不会丢失。配合 <code>w:majority</code> 写关注确保持久性。</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Transaction API -->
+            <section class="concept-section" id="api">
+                <h2>事务 API</h2>
+                <p>MongoDB 提供两种事务 API，开发者应根据场景选择合适的方式：</p>
+
+                <div class="api-comparison">
+                    <div class="api-card recommended">
+                        <h4>Callback API（推荐）</h4>
+                        <ul>
+                            <li>自动重试 <code>TransientTransactionError</code></li>
+                            <li>自动重试 <code>UnknownTransactionCommitResult</code></li>
+                            <li>包含提交重试逻辑</li>
+                            <li>代码更简洁，减少手动错误处理</li>
+                            <li>适合大多数应用场景</li>
+                        </ul>
+                    </div>
+                    <div class="api-card">
+                        <h4>Core API（核心 API）</h4>
+                        <ul>
+                            <li>需要手动重试事务</li>
+                            <li>需要手动重试提交</li>
+                            <li>提供更细粒度的控制</li>
+                            <li>错误处理需自行实现</li>
+                            <li>适合需要精确控制的场景</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>关键规则：</strong>事务中的每个操作都必须传入 <code>session</code> 参数，否则操作将不在事务上下文中执行。
+                </div>
+
+                <h3>Python 示例：Callback API</h3>
+                <div class="code-block-wrapper">
+                    <div class="code-block-label">Python</div>
+<pre><code>from pymongo import MongoClient
+from pymongo.write_concern import WriteConcern
+from pymongo.read_concern import ReadConcern
+
+client = MongoClient("mongodb://localhost:27017")
+wc_majority = WriteConcern("majority")
+rc_snapshot = ReadConcern("snapshot")
+
+# Callback 函数：包含事务中要执行的操作
+def transfer_funds(session, from_acc, to_acc, amount):
+    db = client.get_database(
+        "bank",
+        read_concern=rc_snapshot,
+        write_concern=wc_majority
+    )
+
+    # 扣款 - 注意传入 session
+    db.accounts.update_one(
+        {"_id": from_acc},
+        {"$inc": {"balance": -amount}},
+        session=session
+    )
+
+    # 入账 - 注意传入 session
+    db.accounts.update_one(
+        {"_id": to_acc},
+        {"$inc": {"balance": amount}},
+        session=session
+    )
+
+# 使用 with_transaction 自动管理事务
+with client.start_session() as session:
+    session.with_transaction(
+        transfer_funds,
+        args=(session, "A001", "A002", 500),
+        read_concern=rc_snapshot,
+        write_concern=wc_majority
+    )
+
+print("转账完成")</code></pre>
+                </div>
+
+                <h3>Python 示例：Core API</h3>
+                <div class="code-block-wrapper">
+                    <div class="code-block-label">Python</div>
+<pre><code>from pymongo import MongoClient
+
+client = MongoClient("mongodb://localhost:27017")
+
+# 手动管理事务生命周期
+with client.start_session() as session:
+    session.start_transaction(
+        read_concern={"level": "snapshot"},
+        write_concern={"w": "majority"}
+    )
+
+    try:
+        db = client.bank
+
+        # 操作必须传入 session
+        db.accounts.update_one(
+            {"_id": "A001"},
+            {"$inc": {"balance": -500}},
+            session=session
+        )
+
+        db.accounts.update_one(
+            {"_id": "A002"},
+            {"$inc": {"balance": 500}},
+            session=session
+        )
+
+        # 手动提交
+        session.commit_transaction()
+        print("事务提交成功")
+
+    except Exception as e:
+        # 手动中止
+        session.abort_transaction()
+        print(f"事务已回滚: {e}")</code></pre>
+                </div>
+            </section>
+
+            <!-- 4. Transaction Operations Table -->
+            <section class="concept-section" id="operations">
+                <h2>事务操作一览</h2>
+                <p>并非所有操作都允许在事务中执行，下表列出了事务中允许和禁止的操作：</p>
+
+                <table class="feature-table ops-table">
+                    <thead>
+                        <tr>
+                            <th>类别</th>
+                            <th>操作</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="allowed">允许</td>
+                            <td>CRUD 操作</td>
+                            <td><code>insert</code> / <code>update</code> / <code>delete</code> / <code>find</code> 均可在事务中执行</td>
+                        </tr>
+                        <tr>
+                            <td class="allowed">允许</td>
+                            <td>创建集合与索引</td>
+                            <td>仅在非跨分片写事务中支持</td>
+                        </tr>
+                        <tr>
+                            <td class="allowed">允许</td>
+                            <td>Count / Distinct</td>
+                            <td>通过 <code>$count</code> / <code>$group</code> 聚合阶段实现</td>
+                        </tr>
+                        <tr>
+                            <td class="not-allowed">禁止</td>
+                            <td>跨分片创建集合</td>
+                            <td>事务中不能创建新的分片集合</td>
+                        </tr>
+                        <tr>
+                            <td class="not-allowed">禁止</td>
+                            <td>写入固定集合</td>
+                            <td>固定集合（Capped Collection）为只追加模式，不支持事务写操作</td>
+                        </tr>
+                        <tr>
+                            <td class="not-allowed">禁止</td>
+                            <td>分片上的 $graphLookup</td>
+                            <td>在分片集群事务中不支持 <code>$graphLookup</code> 阶段</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 5. Session and Transaction -->
+            <section class="concept-section" id="session">
+                <h2>会话与事务</h2>
+                <p>事务与<strong>会话（Session）</strong>紧密关联，理解它们的关系对正确使用事务至关重要：</p>
+
+                <ul>
+                    <li><strong>一个会话同一时间只能有一个事务</strong> —— 不能在同一个会话中嵌套事务或并行开启多个事务</li>
+                    <li><strong>会话结束时事务自动中止</strong> —— 如果会话关闭时还有未提交的事务，该事务将被自动回滚</li>
+                    <li>不同会话可以各自独立运行事务，实现并发</li>
+                    <li>建议使用 <code>with</code> 语句管理会话生命周期，确保资源正确释放</li>
+                </ul>
+
+                <div class="warning">
+                    <strong>注意：</strong>不要在事务进行中丢弃会话对象。如果会话被垃圾回收而事务尚未提交，事务将自动中止，所有修改将回滚。
+                </div>
+
+                <div class="relation-diagram">
+                    <h3>会话与事务关系</h3>
+                    <div class="diagram-container">
+                        <div class="diagram-box primary">Client<br><small>客户端连接</small></div>
+                        <div class="diagram-arrow">&rarr;</div>
+                        <div class="diagram-box">Session A<br><small>事务 1</small></div>
+                        <div class="diagram-arrow">|</div>
+                        <div class="diagram-box">Session B<br><small>事务 2</small></div>
+                        <div class="diagram-arrow">|</div>
+                        <div class="diagram-box secondary">并发执行<br><small>互不干扰</small></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. Read/Write Concern and Read Preference -->
+            <section class="concept-section" id="concerns">
+                <h2>读写关注与读偏好</h2>
+
+                <h3>读偏好（Read Preference）</h3>
+                <p>事务中的所有操作<strong>必须路由到同一个成员</strong>，因此读偏好必须为 <code>primary</code>。这确保事务中读写操作在同一节点上执行，避免跨节点数据不一致。</p>
+
+                <h3>读关注级别（Read Concern Levels）</h3>
+                <div class="concern-levels">
+                    <div class="concern-item">
+                        <span class="concern-label">local</span>
+                        <span class="concern-desc">读取最近已写入的数据，不保证已提交到大多数节点。性能最高，一致性最弱。</span>
+                    </div>
+                    <div class="concern-item">
+                        <span class="concern-label">majority</span>
+                        <span class="concern-desc">只读取已被大多数节点确认的数据。提供较强的读一致性保证。</span>
+                    </div>
+                    <div class="concern-item">
+                        <span class="concern-label">snapshot</span>
+                        <span class="concern-desc">读取事务开始时刻的一致性快照。这是事务中最常用的读关注级别，提供完整的快照隔离。</span>
+                    </div>
+                </div>
+
+                <h3>写关注（Write Concern）</h3>
+                <div class="concern-levels">
+                    <div class="concern-item">
+                        <span class="concern-label">w:1</span>
+                        <span class="concern-desc">仅主节点确认写入。提交后如果主节点故障，数据可能回滚。不保证持久性。</span>
+                    </div>
+                    <div class="concern-item">
+                        <span class="concern-label">w:majority</span>
+                        <span class="concern-desc">大多数节点确认写入。提交后即使主节点故障，数据也不会丢失。<strong>事务中推荐使用。</strong></span>
+                    </div>
+                </div>
+
+                <h3>优先级继承</h3>
+                <p>读写关注和读偏好可以在多个层级设置，优先级从高到低为：</p>
+
+                <div class="inheritance-chain">
+                    <div class="inherit-box client">Client 级别<br><small>默认配置</small></div>
+                    <div class="inherit-arrow">&rarr;</div>
+                    <div class="inherit-box session">Session 级别<br><small>覆盖 Client</small></div>
+                    <div class="inherit-arrow">&rarr;</div>
+                    <div class="inherit-box txn">Transaction 级别<br><small>覆盖 Session</small></div>
+                </div>
+                <p class="inherit-note">事务级别 &gt; 会话级别 &gt; 客户端级别</p>
+            </section>
+
+            <!-- 7. Transaction Lifecycle Diagram -->
+            <section class="concept-section" id="lifecycle">
+                <h2>事务生命周期</h2>
+                <p>一个完整的事务从开始到结束经历以下阶段：</p>
+
+                <div class="lifecycle-flow">
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-node start">开始事务<br>startTransaction</div>
+                        <div class="lifecycle-label">创建事务上下文</div>
+                    </div>
+                    <div class="lifecycle-connector">
+                        <div class="arrow-line"></div>
+                    </div>
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-node ops">执行操作<br>CRUD</div>
+                        <div class="lifecycle-label">传入 session 参数</div>
+                    </div>
+                    <div class="lifecycle-connector">
+                        <div class="arrow-line"></div>
+                    </div>
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-node commit">提交事务<br>commitTransaction</div>
+                        <div class="lifecycle-label">持久化所有修改</div>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin: 0.5rem 0; color: #888; font-size: 0.9rem;">或</div>
+
+                <div class="lifecycle-flow">
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-node ops">执行操作<br>CRUD</div>
+                    </div>
+                    <div class="lifecycle-connector branch">
+                        <div class="arrow-line"></div>
+                    </div>
+                    <div class="lifecycle-step">
+                        <div class="lifecycle-node abort">中止事务<br>abortTransaction</div>
+                        <div class="lifecycle-label">回滚所有修改</div>
+                    </div>
+                </div>
+
+                <div class="info">
+                    <strong>生命周期要点：</strong>事务提交后，所有修改对所有客户端可见。事务中止后，所有修改被丢弃，其他客户端不受影响。如果事务既未提交也未中止，会话结束时将自动中止。
+                </div>
+            </section>
+
+            <!-- 8. Comparison Table -->
+            <section class="concept-section" id="comparison">
+                <h2>单文档原子性 vs 多文档事务</h2>
+                <p>MongoDB 的单文档原子性和多文档事务各有适用场景，理解差异有助于做出正确的架构决策：</p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>单文档原子性</th>
+                            <th>多文档事务</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>原子性</td>
+                            <td>内建保证，无需显式操作</td>
+                            <td>需显式开启事务</td>
+                        </tr>
+                        <tr>
+                            <td>性能影响</td>
+                            <td>无额外开销</td>
+                            <td>有额外开销（锁、日志、协调）</td>
+                        </tr>
+                        <tr>
+                            <td>隔离级别</td>
+                            <td>文档级隔离</td>
+                            <td>快照隔离</td>
+                        </tr>
+                        <tr>
+                            <td>适用场景</td>
+                            <td>嵌入式文档模型，单文档内更新</td>
+                            <td>跨集合、跨文档的复杂操作</td>
+                        </tr>
+                        <tr>
+                            <td>锁粒度</td>
+                            <td>文档级锁</td>
+                            <td>多文档锁，可能影响并发</td>
+                        </tr>
+                        <tr>
+                            <td>重试复杂度</td>
+                            <td>简单，单操作重试</td>
+                            <td>复杂，需整体重试事务</td>
+                        </tr>
+                        <tr>
+                            <td>推荐程度</td>
+                            <td><span class="badge badge-success">优先使用</span></td>
+                            <td><span class="badge badge-warning">按需使用</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note">
+                    <strong>设计建议：</strong>优先使用嵌入式文档模型，将相关数据放在同一个文档中，利用单文档原子性避免事务开销。只有在操作确实需要跨文档/跨集合时，才使用多文档事务。
+                </div>
+            </section>
+
+            <!-- 9. Important Notes -->
+            <section class="concept-section" id="notes">
+                <h2>重要注意事项</h2>
+
+                <div class="important-note">
+                    <div class="note-title">使用事务前务必了解</div>
+                    <ul>
+                        <li>事务具有更高的性能成本，包括网络往返、锁管理和操作日志记录，应仅在必要时使用</li>
+                        <li>事务不能替代良好的 Schema 设计，合理的数据建模仍是首选方案</li>
+                        <li>反范式化（嵌入式文档/数组）仍是许多场景的最佳选择，可避免跨文档事务</li>
+                        <li>副本集事务要求 FCV（Feature Compatibility Version）>= 4.0</li>
+                        <li>分片集群事务要求 FCV >= 4.2</li>
+                        <li>主节点必须使用 WiredTiger 存储引擎</li>
+                        <li>事务默认超时时间为 60 秒，可通过 <code>transactionLifetimeLimitSeconds</code> 参数调整</li>
+                        <li>事务中创建索引是 <code>abort</code> 操作，会导致事务回滚</li>
+                    </ul>
+                </div>
+
+                <div class="warning">
+                    <strong>性能提示：</strong>长时间运行的事务会持有锁并消耗更多资源，应尽量缩短事务的执行时间。如果操作可以在事务外完成（如读操作），应放在事务之外执行。
+                </div>
+
+                <div class="danger">
+                    <strong>版本要求：</strong>
+                    <ul>
+                        <li>副本集多文档事务：MongoDB >= 4.0</li>
+                        <li>分片集群分布式事务：MongoDB >= 4.2</li>
+                        <li>如果升级后 FCV 未更新，事务功能不可用</li>
+                    </ul>
+                </div>
+
+                <div class="relation-diagram">
+                    <h3>Schema 设计优先原则</h3>
+                    <div class="diagram-container">
+                        <div class="diagram-box primary">嵌入式模型<br><small>单文档原子性</small></div>
+                        <div class="diagram-arrow">&rarr;</div>
+                        <div class="diagram-box">引用 + 事务<br><small>多文档 ACID</small></div>
+                        <div class="diagram-arrow">&rarr;</div>
+                        <div class="diagram-box accent">合理取舍<br><small>性能 vs 一致性</small></div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    
+        <div style="text-align:center; padding:2rem 0;">
+            <a href="replication.html" style="display:inline-block; background:linear-gradient(135deg,#00643B,#00ED64); color:white; padding:0.75rem 2rem; border-radius:25px; text-decoration:none; font-weight:600; font-size:1rem; transition:all 0.3s ease; box-shadow:0 2px 8px rgba(0,100,59,0.3);">继续学习：复制 →</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>MongoDB 概念详解 | 基于 MongoDB 官方文档整理</p>
+            <p>参考文档: <a href="https://www.mongodb.com/docs/manual/core/transactions/" target="_blank" rel="noopener">MongoDB Transactions</a></p>
+        </div>
+    </footer>
+
+    <script src="navigation.js"></script>
+</body>
+</html>
