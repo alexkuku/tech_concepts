@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2B × CubeSandbox 系统学习指南</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --surface:#ffffff; --surface-2:#fafbfc;
+    --border:#e3e7ec; --border-strong:#d0d6de;
+    --text:#151a21; --muted:#5c6675; --muted-2:#8a93a2;
+    --e2b:#4f46e5; --e2b-dark:#3730a3; --e2b-soft:#eef2ff; --e2b-border:#c7d2fe;
+    --cube:#0f8f83; --cube-dark:#0b6b62; --cube-soft:#ecfdf5; --cube-border:#a7f3d0;
+    --amber:#b45309; --amber-soft:#fffbeb; --amber-border:#fde68a;
+    --rose:#be123c; --rose-soft:#fff1f2; --rose-border:#fecdd3;
+    --code-bg:#f6f7f9;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 10px 30px rgba(16,24,40,.05);
+    --radius:14px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15.5px;line-height:1.75;-webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--e2b);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .layout{display:grid;grid-template-columns:256px minmax(0,1fr);max-width:1500px;margin:0 auto}
+  aside.toc{
+    position:sticky;top:0;height:100vh;overflow:auto;padding:26px 18px 48px;
+    border-right:1px solid var(--border);background:rgba(255,255,255,.74);backdrop-filter:blur(10px);
+  }
+  .toc-brand{display:flex;align-items:center;gap:9px;margin:0 8px 20px}
+  .toc-brand .dot{width:11px;height:11px;border-radius:3px;background:linear-gradient(135deg,var(--e2b),var(--cube))}
+  .toc-brand b{font-size:14px;letter-spacing:.01em}
+  .toc-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:20px 8px 6px}
+  aside.toc nav a{display:block;padding:5px 10px;border-radius:8px;font-size:13.5px;color:var(--muted);line-height:1.45}
+  aside.toc nav a:hover{background:#eef1f5;color:var(--text);text-decoration:none}
+  main{padding:44px 58px 110px;max-width:1140px;width:100%}
+  /* ---------- Hero ---------- */
+  .hero{
+    background:linear-gradient(135deg,#ffffff 0%,#f7f8ff 55%,#f0fdfa 100%);
+    border:1px solid var(--border);border-radius:22px;padding:42px 44px 36px;box-shadow:var(--shadow);
+    position:relative;overflow:hidden;
+  }
+  .hero::after{content:"";position:absolute;right:-90px;top:-90px;width:300px;height:300px;border-radius:50%;
+    background:radial-gradient(circle,rgba(79,70,229,.10),transparent 65%)}
+  .hero .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.08em;
+    color:var(--e2b-dark);background:var(--e2b-soft);border:1px solid var(--e2b-border);padding:5px 12px;border-radius:999px}
+  .hero h1{font-size:40px;line-height:1.22;margin:18px 0 12px;letter-spacing:-.02em;font-weight:800}
+  .hero h1 .e{color:var(--e2b)}
+  .hero h1 .c{color:var(--cube)}
+  .hero p.lead{font-size:16.5px;color:var(--muted);max-width:780px;margin:0 0 8px}
+  .hero .meta{display:flex;flex-wrap:wrap;gap:8px 22px;color:var(--muted-2);font-size:13px;margin-top:16px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:28px}
+  .stat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .stat b{display:block;font-size:19px;letter-spacing:-.01em}
+  .stat span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .stat.e b{color:var(--e2b-dark)} .stat.c b{color:var(--cube-dark)}
+  /* ---------- Typography ---------- */
+  section{margin-top:56px;scroll-margin-top:24px}
+  h2{font-size:26px;letter-spacing:-.015em;margin:0 0 18px;padding-left:16px;position:relative;line-height:1.35}
+  h2::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:5px;border-radius:3px;
+    background:linear-gradient(180deg,var(--e2b),var(--cube))}
+  h3{font-size:19px;margin:32px 0 12px;letter-spacing:-.01em}
+  h4{font-size:16px;margin:22px 0 8px}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 16px;padding-left:24px}
+  li{margin:5px 0}
+  strong{font-weight:700}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  code:not(pre code){
+    font-family:var(--mono);font-size:.88em;background:#eef1f5;border:1px solid #e2e7ee;
+    padding:1px 6px;border-radius:6px;color:#303845;white-space:nowrap;
+  }
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:4px solid var(--border-strong);
+    border-radius:12px;padding:16px 18px;overflow:auto;margin:14px 0 20px;line-height:1.6}
+  pre code{font-family:var(--mono);font-size:13px;color:#252c37;white-space:pre}
+  pre.py{border-left-color:var(--e2b)}
+  pre.ts{border-left-color:#3178c6}
+  pre.bash{border-left-color:#16a34a}
+  /* ---------- Callouts ---------- */
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0;border:1px solid;font-size:14.5px}
+  .callout p:last-child{margin-bottom:0}
+  .callout .t{font-weight:700;display:block;margin-bottom:3px;font-size:13.5px}
+  .callout.info{background:var(--e2b-soft);border-color:var(--e2b-border)}
+  .callout.info .t{color:var(--e2b-dark)}
+  .callout.tip{background:var(--cube-soft);border-color:var(--cube-border)}
+  .callout.tip .t{color:var(--cube-dark)}
+  .callout.warn{background:var(--amber-soft);border-color:var(--amber-border)}
+  .callout.warn .t{color:var(--amber)}
+  .callout.danger{background:var(--rose-soft);border-color:var(--rose-border)}
+  .callout.danger .t{color:var(--rose)}
+  /* ---------- Tables ---------- */
+  .table-wrap{overflow-x:auto;margin:16px 0 24px;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:var(--shadow)}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:620px}
+  caption{caption-side:top;text-align:left;font-size:13px;color:var(--muted-2);padding:10px 16px 8px;font-weight:600}
+  th,td{padding:11px 15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+  thead th{background:#f7f9fc;font-size:12.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:nth-child(even){background:#fcfcfd}
+  td code{white-space:normal}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid}
+  .tag.e{color:var(--e2b-dark);background:var(--e2b-soft);border-color:var(--e2b-border)}
+  .tag.c{color:var(--cube-dark);background:var(--cube-soft);border-color:var(--cube-border)}
+  .tag.a{color:var(--amber);background:var(--amber-soft);border-color:var(--amber-border)}
+  /* ---------- Diagram ---------- */
+  .diagram{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px 18px 14px;
+    box-shadow:var(--shadow);margin:20px 0 26px;overflow-x:auto}
+  .diagram svg{display:block;width:100%;min-width:820px;height:auto;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  .diagram .caption{font-size:12.5px;color:var(--muted-2);margin-top:10px;text-align:center}
+  /* ---------- CSS Flow ---------- */
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);
+    border-radius:12px;padding:16px 18px;margin:16px 0 22px;box-shadow:var(--shadow)}
+  .flow .box{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:9px;padding:8px 12px;font-size:13px;line-height:1.4;text-align:center}
+  .flow .box small{display:block;color:var(--muted);font-size:11.5px}
+  .flow .box.e{background:var(--e2b-soft);border-color:var(--e2b-border);color:var(--e2b-dark)}
+  .flow .box.c{background:var(--cube-soft);border-color:var(--cube-border);color:var(--cube-dark)}
+  .flow .box.a{background:var(--amber-soft);border-color:var(--amber-border);color:var(--amber)}
+  .flow .arw{color:var(--muted-2);font-weight:700;font-size:16px;padding:0 2px}
+  /* ---------- Steps ---------- */
+  .steps{list-style:none;padding:0;margin:18px 0 24px;counter-reset:s}
+  .steps>li{position:relative;padding:0 0 18px 46px;counter-increment:s}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:1px;width:28px;height:28px;border-radius:50%;
+    display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;background:var(--e2b)}
+  .steps>li::after{content:"";position:absolute;left:13.5px;top:32px;bottom:2px;width:1.5px;background:var(--border)}
+  .steps>li:last-child::after{display:none}
+  .steps>li b{display:block;font-size:14.5px}
+  .steps>li p{margin:2px 0 0;font-size:14px;color:var(--muted)}
+  .steps.cube>li::before{background:var(--cube)}
+  /* ---------- Timeline ---------- */
+  .timeline{list-style:none;padding:0;margin:22px 0}
+  .timeline li{display:grid;grid-template-columns:64px 1fr;gap:18px;padding-bottom:24px;position:relative}
+  .timeline .ph{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-weight:800;
+    font-size:15px;color:#fff;background:linear-gradient(135deg,var(--e2b),#7c6cf0);box-shadow:0 6px 16px rgba(79,70,229,.25)}
+  .timeline li:nth-child(2) .ph{background:linear-gradient(135deg,#0ea5e9,#0284c7);box-shadow:0 6px 16px rgba(2,132,199,.22)}
+  .timeline li:nth-child(3) .ph{background:linear-gradient(135deg,var(--cube),#14b8a6);box-shadow:0 6px 16px rgba(15,143,131,.22)}
+  .timeline li:nth-child(4) .ph{background:linear-gradient(135deg,#d97706,#b45309);box-shadow:0 6px 16px rgba(180,83,9,.2)}
+  .timeline li:nth-child(5) .ph{background:linear-gradient(135deg,#e11d48,#be123c);box-shadow:0 6px 16px rgba(190,18,60,.2)}
+  .timeline h4{margin:0 0 4px;font-size:16px}
+  .timeline p{margin:0;font-size:14px;color:var(--muted)}
+  .timeline .out{display:inline-block;margin-top:6px;font-size:12.5px;color:var(--muted);background:#fff;border:1px dashed var(--border-strong);border-radius:8px;padding:2px 10px}
+  /* ---------- Cards ---------- */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:18px 0 24px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .card h4{margin:0 0 6px;font-size:14.5px}
+  .card p{margin:0;font-size:13.5px;color:var(--muted)}
+  .card.e{border-top:3px solid var(--e2b)} .card.c{border-top:3px solid var(--cube)}
+  /* ---------- Layers ---------- */
+  .layers{display:flex;flex-direction:column;gap:6px;margin:18px 0 26px}
+  .layer{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:14px;background:#fff;
+    border:1px solid var(--border);border-radius:11px;padding:12px 16px;box-shadow:var(--shadow);font-size:14px}
+  .layer .n{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:13px;
+    color:#fff;background:var(--cube)}
+  .layer .name{font-weight:700}
+  .layer .desc{color:var(--muted);font-size:13px;text-align:right}
+  /* ---------- Misc ---------- */
+  .kbd{font-family:var(--mono);font-size:12px;background:#fff;border:1px solid var(--border-strong);border-bottom-width:2px;
+    border-radius:5px;padding:1px 6px}
+  .hr{height:1px;background:var(--border);margin:48px 0}
+  footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted-2);font-size:12.5px}
+  .top-link{position:fixed;right:26px;bottom:26px;width:42px;height:42px;border-radius:50%;background:#fff;
+    border:1px solid var(--border-strong);display:grid;place-items:center;color:var(--muted);box-shadow:var(--shadow);font-size:16px}
+  .top-link:hover{color:var(--e2b);text-decoration:none}
+  @media (max-width:980px){
+    .layout{grid-template-columns:1fr}
+    aside.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border);padding:18px 16px}
+    aside.toc nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px}
+    .toc-title{margin-top:12px}
+    main{padding:24px 16px 80px}
+    .hero{padding:28px 22px 24px;border-radius:16px}
+    .hero h1{font-size:28px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .layer{grid-template-columns:40px 1fr; }
+    .layer .desc{grid-column:1/-1;text-align:left;padding-left:44px}
+  }
+  @media print{
+    aside.toc,.top-link{display:none}
+    .layout{display:block}
+    main{padding:0;max-width:none}
+    section{break-inside:avoid}
+    .diagram,.table-wrap{box-shadow:none}
+    body{background:#fff}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="toc">
+  <div class="toc-brand"><span class="dot"></span><b>E2B × CubeSandbox</b></div>
+  <div class="toc-title">开始</div>
+  <nav>
+    <a href="#why">1. 为什么需要 AI 沙箱</a>
+    <a href="#mental">2. 五分钟心智模型</a>
+  </nav>
+  <div class="toc-title">E2B</div>
+  <nav>
+    <a href="#e2b">3. E2B 全景</a>
+    <a href="#e2b-arch">3.1 组件架构</a>
+    <a href="#e2b-flow">3.2 创建流程</a>
+    <a href="#e2b-iso">3.3 隔离与资源</a>
+    <a href="#e2b-state">3.4 状态与持久化</a>
+    <a href="#e2b-net">3.5 网络与访问</a>
+    <a href="#e2b-deploy">3.6 部署形态</a>
+  </nav>
+  <div class="toc-title">CubeSandbox</div>
+  <nav>
+    <a href="#cube">4. CubeSandbox 全景</a>
+    <a href="#cube-arch">4.1 组件架构</a>
+    <a href="#cube-flow">4.2 请求生命周期</a>
+    <a href="#cube-storage">4.3 存储与快照</a>
+    <a href="#cube-net">4.4 CubeVS 网络</a>
+    <a href="#cube-security">4.5 安全与出口</a>
+    <a href="#cube-ops">4.6 运维与部署</a>
+  </nav>
+  <div class="toc-title">进阶</div>
+  <nav>
+    <a href="#compare">5. 架构对比</a>
+    <a href="#deep-dive">6. 关键机制专题</a>
+    <a href="#path">7. 学习路径</a>
+    <a href="#labs">8. 动手实验</a>
+    <a href="#choose">9. 选型建议</a>
+    <a href="#faq">10. FAQ</a>
+    <a href="#glossary">11. 术语表</a>
+    <a href="#refs">12. 参考资料</a>
+  </nav>
+</aside>
+
+<main>
+
+<header class="hero">
+  <span class="eyebrow">AI Agent 基础设施 · 系统学习指南</span>
+  <h1><span class="e">E2B</span> × <span class="c">CubeSandbox</span><br>从沙箱概念到架构原理</h1>
+  <p class="lead">一份面向工程师的系统性学习材料：以两个开源项目为样本，拆解「AI 生成代码的安全执行」这一基础设施问题——从 MicroVM 隔离、微秒级快照恢复，到 Copy-on-Write 存储与零信任出口网络。</p>
+  <div class="meta">
+    <span>📚 基于 E2B 与 Tencent Cloud CubeSandbox 官方仓库/文档</span>
+    <span>🗓 整理时间：2026-11</span>
+    <span>🎯 难度：中级 → 高级</span>
+  </div>
+  <div class="stats">
+    <div class="stat e"><b>Firecracker</b><span>E2B 每沙箱一个 microVM</span></div>
+    <div class="stat c"><b>&lt; 60 ms</b><span>CubeSandbox 冷启动（官方）</span></div>
+    <div class="stat"><b>E2B API</b><span>CubeSandbox 兼容，可迁移</span></div>
+    <div class="stat"><b>Apache-2.0</b><span>两者运行时均开源</span></div>
+  </div>
+</header>
+
+<!-- ============ 1 ============ -->
+<section id="why">
+  <h2>1. 为什么需要 AI 沙箱</h2>
+  <p>当 LLM 开始「写代码并执行代码」时，执行环境就变成了一个<strong>不可信代码的运行边界</strong>。模型可能被提示注入、可能生成死循环、可能尝试读取宿主机文件或内网服务。沙箱要回答的，本质是一个安全工程问题：<em>如何在几百毫秒内，为一段来路不明的代码准备好一台可丢弃的计算机？</em></p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1000 300" role="img" aria-label="AI 生成代码的信任边界">
+      <defs>
+        <marker id="ar1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#7b8494"/>
+        </marker>
+      </defs>
+      <!-- 不可信区 -->
+      <rect x="18" y="30" width="300" height="230" rx="16" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="40" y="60" font-size="13" font-weight="700" fill="#be123c">不可信区域</text>
+      <rect x="42" y="80" width="252" height="56" rx="10" fill="#fff" stroke="#fecdd3"/>
+      <text x="168" y="104" text-anchor="middle" font-size="13.5" fill="#1f2937">LLM 生成代码 / 用户输入</text>
+      <text x="168" y="124" text-anchor="middle" font-size="12" fill="#7b8494">提示注入 · 死循环 · 恶意载荷</text>
+      <rect x="42" y="156" width="252" height="56" rx="10" fill="#fff" stroke="#fecdd3"/>
+      <text x="168" y="180" text-anchor="middle" font-size="13.5" fill="#1f2937">Agent 工具调用</text>
+      <text x="168" y="200" text-anchor="middle" font-size="12" fill="#7b8494">shell · 文件 · 浏览器 · 网络</text>
+
+      <!-- 边界 -->
+      <line x1="348" y1="20" x2="348" y2="270" stroke="#be123c" stroke-width="2.5" stroke-dasharray="8 6"/>
+      <text x="356" y="40" font-size="12" font-weight="700" fill="#be123c">信任边界</text>
+
+      <!-- 沙箱 -->
+      <rect x="390" y="30" width="592" height="230" rx="16" fill="#eef2ff" stroke="#c7d2fe"/>
+      <text x="412" y="60" font-size="13" font-weight="700" fill="#3730a3">沙箱（MicroVM）：可丢弃的计算机</text>
+      <rect x="414" y="82" width="168" height="60" rx="10" fill="#fff" stroke="#c7d2fe"/>
+      <text x="498" y="108" text-anchor="middle" font-size="13" fill="#1f2937">独立内核</text>
+      <text x="498" y="127" text-anchor="middle" font-size="11.5" fill="#7b8494">KVM / microVM</text>
+      <rect x="602" y="82" width="168" height="60" rx="10" fill="#fff" stroke="#c7d2fe"/>
+      <text x="686" y="108" text-anchor="middle" font-size="13" fill="#1f2937">CoW 文件系统</text>
+      <text x="686" y="127" text-anchor="middle" font-size="11.5" fill="#7b8494">秒级克隆 / 快照</text>
+      <rect x="790" y="82" width="168" height="60" rx="10" fill="#fff" stroke="#c7d2fe"/>
+      <text x="874" y="108" text-anchor="middle" font-size="13" fill="#1f2937">网络策略</text>
+      <text x="874" y="127" text-anchor="middle" font-size="11.5" fill="#7b8494">默认拒绝 · L7 出口</text>
+      <rect x="414" y="162" width="544" height="70" rx="10" fill="#fff" stroke="#c7d2fe"/>
+      <text x="686" y="188" text-anchor="middle" font-size="13" fill="#1f2937">生命周期：创建 → 执行 → 暂停 → 恢复 → 销毁</text>
+      <text x="686" y="210" text-anchor="middle" font-size="11.5" fill="#7b8494">既要有状态（变量、文件），又要隔离（内存、网络、内核）</text>
+
+      <!-- 箭头 -->
+      <line x1="300" y1="145" x2="386" y2="145" stroke="#7b8494" stroke-width="1.8" marker-end="url(#ar1)"/>
+      <text x="343" y="136" text-anchor="middle" font-size="11" fill="#7b8494">执行</text>
+      <text x="916" y="40" font-size="11" fill="#7b8494">宿主机零信任</text>
+    </svg>
+    <div class="caption">图 1 · AI 代码执行的信任边界：不可信代码必须被限制在一台独立、可丢弃的 MicroVM 内</div>
+  </div>
+
+  <h3>1.1 六个核心需求</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>沙箱平台必须同时满足的需求（也是评价任何实现的六个维度）</caption>
+      <thead>
+        <tr><th>需求</th><th>为什么重要</th><th>典型实现手段</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>强隔离</strong></td><td>防止内核逃逸与多租户横向移动</td><td>MicroVM（独立内核）、seccomp、cgroup、netns</td></tr>
+        <tr><td><strong>极快启动</strong></td><td>Agent 每轮工具调用都可能新建沙箱，等待会被放大</td><td>预启动内存快照 + 恢复、CoW 根文件系统</td></tr>
+        <tr><td><strong>状态保持</strong></td><td>代码解释器需要跨多次调用保留变量与文件</td><td>Jupyter 内核、暂停/恢复、持久卷</td></tr>
+        <tr><td><strong>受控网络</strong></td><td>既允许访问依赖，又阻止内网探测与数据外泄</td><td>端口路由、eBPF/nftables 策略、L7 出口代理</td></tr>
+        <tr><td><strong>高密度低成本</strong></td><td>单机承载成百上千沙箱，内存/磁盘不能全量复制</td><td>reflink/CoW、共享只读镜像、惰性内存加载</td></tr>
+        <tr><td><strong>可运维</strong></td><td>多节点调度、观测、审计、故障恢复</td><td>无状态控制面、Redis 元数据、OpenTelemetry</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <span class="t">学习提示</span>
+    <p>后文所有架构细节，都可以回溯到上面六个需求。读每个组件时问自己：<strong>它是在解决哪个需求？用了什么代价？</strong>这样两个项目就不会学成两堆名词。</p>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="mental">
+  <h2>2. 五分钟心智模型</h2>
+  <p>E2B 与 CubeSandbox 虽然实现不同，但抽象层次高度一致：它们都把「运行一段代码」拆成了<strong>控制面（决定在哪跑）</strong>、<strong>数据面（真正跑起来）</strong>和<strong>边缘面（流量怎么进出）</strong>。先建立这张映射表，后面看任何组件都不会迷路。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>同一套概念，两种实现：E2B ↔ CubeSandbox 概念映射</caption>
+      <thead>
+        <tr><th>抽象概念</th><th>E2B 的对应物</th><th>CubeSandbox 的对应物</th><th>作用</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>沙箱实例</td><td>Sandbox</td><td>Cube Sandbox</td><td>一台按需创建、可暂停恢复的 Linux VM</td></tr>
+        <tr><td>环境模板</td><td>Template（Docker 镜像 + 构建步骤）</td><td>Template（OCI 镜像 → rootfs + 内存快照）</td><td>定义沙箱启动时的文件系统与预装依赖</td></tr>
+        <tr><td>控制面 API</td><td>API（REST）</td><td>CubeAPI（Rust/Axum，E2B 兼容）</td><td>对外暴露创建/暂停/恢复/销毁等生命周期接口</td></tr>
+        <tr><td>调度器</td><td>Orchestrator 的放置逻辑</td><td>CubeMaster（Go）</td><td>按资源选择节点、下发调度指令</td></tr>
+        <tr><td>节点代理</td><td>Orchestrator（每节点）</td><td>Cubelet（Go）</td><td>管理本机 VM 生命周期与资源</td></tr>
+        <tr><td>运行时桥接</td><td>直接管理 Firecracker 进程</td><td>CubeShim（containerd Shim v2）+ CubeHypervisor</td><td>把容器运行时抽象接到 MicroVM 上</td></tr>
+        <tr><td>VMM</td><td>Firecracker</td><td>RustVMM + KVM</td><td>创建 vCPU/内存/设备，启动与恢复 VM</td></tr>
+        <tr><td>VM 内代理</td><td>envd（进程/PTY/文件/端口转发）</td><td>vsock 上的沙箱内服务</td><td>SDK 与沙箱内部交互的入口</td></tr>
+        <tr><td>边缘路由</td><td>Client Proxy</td><td>CubeProxy（OpenResty）</td><td>把 <code>&lt;port&gt;-&lt;id&gt;</code> 形式的 URL 路由到沙箱</td></tr>
+        <tr><td>存储</td><td>对象存储 + CoW rootfs + 持久卷</td><td>CubeCoW（reflink/FICLONE）</td><td>O(1) 克隆、快照、增量</td></tr>
+        <tr><td>网络数据面</td><td>nftables + 命名空间</td><td>CubeVS（eBPF）</td><td>NAT、连接跟踪、策略执行</td></tr>
+        <tr><td>出口安全</td><td>nftables 域名规则</td><td>CubeEgress（L7 MITM 代理）</td><td>域名白名单、凭据注入、审计</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>2.1 三层请求路径</h3>
+  <div class="flow">
+    <div class="box e">SDK / Client<small>create / run / pause</small></div>
+    <span class="arw">→</span>
+    <div class="box">控制面 API<small>鉴权 · 配额 · 放置</small></div>
+    <span class="arw">→</span>
+    <div class="box">调度器<small>选节点 · 下发任务</small></div>
+    <span class="arw">→</span>
+    <div class="box c">节点代理<small>准备 rootfs · 启 VM</small></div>
+    <span class="arw">→</span>
+    <div class="box c">MicroVM<small>独立内核 · 执行代码</small></div>
+    <span class="arw">→</span>
+    <div class="box a">边缘代理<small>端口 URL → 沙箱</small></div>
+  </div>
+  <p class="small muted">控制流（创建/销毁）与数据流（HTTP 访问沙箱端口）是<strong>分离</strong>的两条路径：前者经过控制面，后者从边缘代理直达节点。这是两者共同的设计，也是高并发场景的关键。</p>
+
+  <div class="callout tip">
+    <span class="t">一句话记住两个项目</span>
+    <p><strong>E2B</strong> 是「AI 代码执行沙箱」这一品类的开源原厂实现，生态与 SDK 最完整；<strong>CubeSandbox</strong> 是腾讯开源的、<strong>E2B API 兼容</strong>的自托管替代品，重点优化冷启动、密度与 eBPF 网络。</p>
+  </div>
+</section>
+
+<!-- ============ 3 E2B ============ -->
+<section id="e2b">
+  <h2>3. E2B 全景</h2>
+  <p>E2B（<span class="tag e">Apache-2.0 Runtime</span>）提供「安全隔离的云沙箱」来运行 AI 生成的代码，既提供 E2B Cloud，也开源了可自托管的 runtime。它的核心抽象非常克制：<strong>Sandbox（一台按需 Linux VM）+ Template（环境定义）+ SDK（Python/JS）</strong>。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>E2B 的四类 SDK 与能力边界</caption>
+      <thead>
+        <tr><th>SDK</th><th>包名</th><th>能力</th><th>典型场景</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>基础 SDK（Python）</td><td><code>e2b</code></td><td>创建沙箱、执行 shell、文件读写、端口访问</td><td>Agent 的工具执行层</td></tr>
+        <tr><td>基础 SDK（JS/TS）</td><td><code>e2b</code></td><td>同上，Node/浏览器端调用</td><td>Web Agent、Next.js 应用</td></tr>
+        <tr><td>Code Interpreter（Python）</td><td><code>e2b-code-interpreter</code></td><td>有状态代码执行，变量跨调用保留，返回图表等结果</td><td>数据分析、计算、画图</td></tr>
+        <tr><td>Code Interpreter（JS/TS）</td><td><code>@e2b/code-interpreter</code></td><td>同上</td><td>前端数据助手</td></tr>
+        <tr><td>Desktop（Python/JS）</td><td><code>e2b-desktop</code> / <code>@e2b/desktop</code></td><td>鼠标、键盘、截图、启动应用、桌面流</td><td>Computer-use Agent</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre class="py"><code># 最小示例：创建沙箱并在其中执行 shell 命令
+from e2b import Sandbox
+
+with Sandbox.create() as sbx:
+    result = sbx.commands.run("python3 -c 'print(6 * 7)'")
+    print(result.stdout)          # 42
+
+    sbx.files.write("/tmp/hello.txt", "hi from agent")
+    print(sbx.files.read("/tmp/hello.txt"))</code></pre>
+
+  <pre class="py"><code># Code Interpreter：变量在同一内核中跨调用保留
+from e2b_code_interpreter import Sandbox
+
+with Sandbox.create() as sbx:
+    sbx.run_code("x = 41")
+    execution = sbx.run_code("x + 1")
+    print(execution.text)         # 42
+    # execution 还可以带出 stdout、stderr、图表、错误等结果</code></pre>
+
+  <div class="callout info">
+    <span class="t">关键区别</span>
+    <p><code>e2b</code> 的 <code>commands.run</code> 每次都是独立进程；<code>e2b-code-interpreter</code> 则维护一个有状态的 Jupyter 内核，因此变量、导入的模块、内存中的 DataFrame 都能跨调用保留——这正是「代码解释器」与「执行 shell」的本质差异。</p>
+  </div>
+</section>
+
+<!-- ============ 3.1 ============ -->
+<section id="e2b-arch">
+  <h2>3.1 E2B 组件架构</h2>
+  <p>E2B Runtime（Go 实现）由控制面、节点执行层与边缘路由三部分组成。下图把官方描述的组件放进一个分层视图：</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 690" role="img" aria-label="E2B 组件架构图">
+      <defs>
+        <marker id="ae" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/>
+        </marker>
+      </defs>
+
+      <!-- 客户端层 -->
+      <rect x="30" y="18" width="980" height="70" rx="14" fill="#eef2ff" stroke="#c7d2fe"/>
+      <text x="52" y="46" font-size="13" font-weight="700" fill="#3730a3">客户端层</text>
+      <text x="52" y="69" font-size="13" fill="#374151">Python SDK · JavaScript/TypeScript SDK · Code Interpreter SDK · Desktop SDK（通过 E2B_API_KEY 鉴权）</text>
+
+      <line x1="520" y1="88" x2="520" y2="116" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ae)"/>
+
+      <!-- 边缘 -->
+      <rect x="30" y="118" width="980" height="72" rx="14" fill="#ffffff" stroke="#e3e7ec"/>
+      <text x="52" y="146" font-size="13" font-weight="700" fill="#111827">Client Proxy（边缘路由）</text>
+      <text x="52" y="169" font-size="13" fill="#4b5563">解析 https://&lt;port&gt;-&lt;sandboxId&gt;.domain → 定位节点；流量到达时自动唤醒已暂停的沙箱</text>
+
+      <line x1="520" y1="190" x2="520" y2="218" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ae)"/>
+
+      <!-- 控制面 -->
+      <rect x="30" y="220" width="980" height="90" rx="14" fill="#f7f8ff" stroke="#c7d2fe"/>
+      <text x="52" y="248" font-size="13" font-weight="700" fill="#3730a3">控制面 API</text>
+      <text x="52" y="271" font-size="13" fill="#4b5563">沙箱生命周期（create / pause / resume / kill）· 放置（placement）· 鉴权 · 配额 · 模板管理</text>
+      <text x="52" y="293" font-size="12" fill="#7b8494">无状态：元数据在 PostgreSQL，事件与指标在 ClickHouse，模板与快照在对象存储</text>
+
+      <line x1="520" y1="310" x2="520" y2="338" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ae)"/>
+
+      <!-- 计算节点 -->
+      <rect x="30" y="340" width="980" height="212" rx="14" fill="#ffffff" stroke="#e3e7ec" stroke-dasharray="6 5"/>
+      <text x="52" y="366" font-size="13" font-weight="700" fill="#111827">计算节点（Kubernetes Node / 裸机）</text>
+
+      <rect x="50" y="382" width="286" height="148" rx="11" fill="#fafbfc" stroke="#d0d6de"/>
+      <text x="68" y="406" font-size="13" font-weight="700" fill="#111827">Orchestrator（每节点）</text>
+      <text x="68" y="429" font-size="12" fill="#4b5563">Firecracker VM 生命周期：</text>
+      <text x="68" y="449" font-size="12" fill="#4b5563">create / pause / resume / kill / checkpoint</text>
+      <text x="68" y="476" font-size="12" fill="#4b5563">Template Manager 角色：Docker 镜像 +</text>
+      <text x="68" y="496" font-size="12" fill="#4b5563">构建步骤 → 模板，分层缓存</text>
+      <text x="68" y="519" font-size="11.5" fill="#7b8494">宿主机侧：cgroup 隔离、网络命名空间</text>
+
+      <!-- MicroVM -->
+      <rect x="360" y="382" width="630" height="148" rx="11" fill="#eef2ff" stroke="#c7d2fe"/>
+      <text x="380" y="406" font-size="13" font-weight="700" fill="#3730a3">Firecracker MicroVM（每沙箱一台）</text>
+
+      <rect x="380" y="420" width="186" height="52" rx="8" fill="#fff" stroke="#c7d2fe"/>
+      <text x="473" y="441" text-anchor="middle" font-size="12.5" fill="#1f2937">envd</text>
+      <text x="473" y="459" text-anchor="middle" font-size="11" fill="#7b8494">进程 / PTY / 文件 / 端口</text>
+
+      <rect x="582" y="420" width="186" height="52" rx="8" fill="#fff" stroke="#c7d2fe"/>
+      <text x="675" y="441" text-anchor="middle" font-size="12.5" fill="#1f2937">独立内核 + cgroups</text>
+      <text x="675" y="459" text-anchor="middle" font-size="11" fill="#7b8494">资源上限 / 隔离</text>
+
+      <rect x="784" y="420" width="186" height="52" rx="8" fill="#fff" stroke="#c7d2fe"/>
+      <text x="877" y="441" text-anchor="middle" font-size="12.5" fill="#1f2937">netns</text>
+      <text x="877" y="459" text-anchor="middle" font-size="11" fill="#7b8494">独立网络栈</text>
+
+      <rect x="380" y="482" width="590" height="34" rx="8" fill="#fff" stroke="#c7d2fe"/>
+      <text x="675" y="504" text-anchor="middle" font-size="12" fill="#4b5563">rootfs：只读镜像 + Copy-on-Write 层；内存通过 userfaultfd 惰性加载</text>
+
+      <!-- 存储 -->
+      <line x1="570" y1="552" x2="570" y2="578" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ae)"/>
+
+      <rect x="30" y="580" width="980" height="92" rx="14" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="52" y="606" font-size="13" font-weight="700" fill="#111827">数据与存储层</text>
+      <rect x="52" y="618" width="206" height="38" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="155" y="642" text-anchor="middle" font-size="12" fill="#374151">PostgreSQL（元数据）</text>
+      <rect x="274" y="618" width="206" height="38" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="377" y="642" text-anchor="middle" font-size="12" fill="#374151">Redis（缓存 / 协调）</text>
+      <rect x="496" y="618" width="206" height="38" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="599" y="642" text-anchor="middle" font-size="12" fill="#374151">ClickHouse（事件 / 指标）</text>
+      <rect x="718" y="618" width="270" height="38" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="853" y="642" text-anchor="middle" font-size="12" fill="#374151">对象存储（模板 / 快照）</text>
+    </svg>
+    <div class="caption">图 2 · E2B 分层架构：SDK → Client Proxy → API → Orchestrator → Firecracker MicroVM，旁挂数据存储</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>E2B 核心组件职责</caption>
+      <thead>
+        <tr><th>组件</th><th>实现</th><th>职责</th><th>关键设计</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>API</strong></td><td>Go（REST）</td><td>控制面：生命周期、放置、鉴权、配额</td><td>无状态，可水平扩展</td></tr>
+        <tr><td><strong>Orchestrator</strong></td><td>Go</td><td>节点级 VM 管理：创建/暂停/恢复/杀死/检查点</td><td>直接管理 Firecracker 进程</td></tr>
+        <tr><td><strong>Template Manager</strong></td><td>Orchestrator 角色</td><td>从 Docker 镜像 + 构建步骤生成模板</td><td>分层缓存，加速重复构建</td></tr>
+        <tr><td><strong>Client Proxy</strong></td><td>Go</td><td>边缘路由：沙箱 URL → 节点</td><td>流量到达时自动 resume</td></tr>
+        <tr><td><strong>envd</strong></td><td>VM 内 Go 服务</td><td>进程、PTY、文件系统、文件监听、端口转发</td><td>Connect RPC + REST</td></tr>
+        <tr><td><strong>Firecracker</strong></td><td>AWS 开源 VMM（Rust）</td><td>提供 microVM：vCPU、内存、virtio 设备</td><td>极简设备模型，攻击面小</td></tr>
+        <tr><td><strong>数据层</strong></td><td>PostgreSQL / Redis / ClickHouse / 对象存储</td><td>元数据、缓存、事件指标、模板与快照</td><td>控制面与数据面解耦</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">注意</span>
+    <p>E2B 的公开 README 只列出组件与职责，未给出每个服务的端口、部署拓扑细节。若要做生产部署，应以 <code>e2b-dev/infra</code> 仓库的 Helm/Terraform 与 docs.e2b.dev 为准。</p>
+  </div>
+</section>
+<!-- ============ 3.2 ============ -->
+<section id="e2b-flow">
+  <h2>3.2 创建沙箱的完整流程</h2>
+  <p>一次 <code>Sandbox.create()</code> 在 E2B 内部会经过边缘、控制面、调度、节点四层。理解这条链路，就理解了「控制流」与「数据流」为何分离。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 250" role="img" aria-label="E2B 创建沙箱时序">
+      <defs>
+        <marker id="af" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5"/>
+        </marker>
+      </defs>
+      <!-- lifelines -->
+      <g font-size="12" fill="#4b5563" text-anchor="middle">
+        <rect x="20" y="16" width="150" height="42" rx="9" fill="#eef2ff" stroke="#c7d2fe"/><text x="95" y="42" font-size="12.5" fill="#3730a3">SDK / Client</text>
+        <rect x="200" y="16" width="150" height="42" rx="9" fill="#fff" stroke="#d0d6de"/><text x="275" y="42">API（控制面）</text>
+        <rect x="380" y="16" width="160" height="42" rx="9" fill="#fff" stroke="#d0d6de"/><text x="460" y="42">Orchestrator</text>
+        <rect x="570" y="16" width="160" height="42" rx="9" fill="#fff" stroke="#d0d6de"/><text x="650" y="42">Template Manager</text>
+        <rect x="760" y="16" width="160" height="42" rx="9" fill="#ecfdf5" stroke="#a7f3d0"/><text x="840" y="42" fill="#0b6b62">Firecracker VM</text>
+        <rect x="930" y="16" width="90" height="42" rx="9" fill="#fafbfc" stroke="#d0d6de"/><text x="975" y="42">存储</text>
+      </g>
+      <g stroke="#d9dee6" stroke-width="1">
+        <line x1="95" y1="58" x2="95" y2="238"/>
+        <line x1="275" y1="58" x2="275" y2="238"/>
+        <line x1="460" y1="58" x2="460" y2="238"/>
+        <line x1="650" y1="58" x2="650" y2="238"/>
+        <line x1="840" y1="58" x2="840" y2="238"/>
+        <line x1="975" y1="58" x2="975" y2="238"/>
+      </g>
+      <g stroke="#4f46e5" stroke-width="1.7" marker-end="url(#af)" font-size="11.5" fill="#3730a3">
+        <line x1="95" y1="82" x2="270" y2="82"/><text x="182" y="76" text-anchor="middle">POST /sandboxes（+ 模板）</text>
+        <line x1="275" y1="112" x2="455" y2="112"/><text x="365" y="106" text-anchor="middle">选择节点 / 放置</text>
+        <line x1="460" y1="142" x2="645" y2="142"/><text x="552" y="136" text-anchor="middle">解析模板（必要时构建）</text>
+        <line x1="650" y1="172" x2="835" y2="172"/><text x="742" y="166" text-anchor="middle">CoW 克隆 rootfs + 恢复快照</text>
+        <line x1="840" y1="202" x2="975" y2="202"/><text x="907" y="196" text-anchor="middle">持久化元数据</text>
+      </g>
+      <path d="M840 222 L95 222" stroke="#0f8f83" stroke-width="1.7" stroke-dasharray="5 4" marker-end="url(#af)" fill="none"/>
+      <text x="470" y="240" text-anchor="middle" font-size="11.5" fill="#0b6b62">返回 sandboxId + 访问地址（HTTP 201）</text>
+    </svg>
+    <div class="caption">图 3 · E2B 创建沙箱时序（简化）：控制面负责放置，节点负责 CoW + 快照恢复</div>
+  </div>
+
+  <ol class="steps">
+    <li><b>SDK 发起创建</b><p>携带模板与资源参数，调用控制面 REST API，使用 <code>E2B_API_KEY</code> 鉴权。</p></li>
+    <li><b>API 做准入与放置</b><p>校验配额、租户与模板，选出资源合适的节点。</p></li>
+    <li><b>Orchestrator 准备根文件系统</b><p>基于模板的只读镜像做 Copy-on-Write 克隆，几乎不复制数据。</p></li>
+    <li><b>Firecracker 从快照恢复</b><p>启动 microVM 并从预启动内存快照恢复；内存页通过 <code>userfaultfd</code> 惰性拉取。</p></li>
+    <li><b>envd 就绪</b><p>VM 内服务开始监听，SDK 后续的 shell/文件/代码执行都走 envd。</p></li>
+    <li><b>返回 sandboxId</b><p>控制面登记元数据，返回 ID 与可访问的端口 URL。</p></li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="t">为什么能快</span>
+    <p>三个关键点叠加：<strong>预启动快照</strong>（跳过内核引导与用户态初始化）+ <strong>CoW 根文件系统</strong>（跳过镜像解压）+ <strong>惰性内存加载</strong>（只拉取真正访问到的页）。这也是所有 MicroVM 沙箱的通用公式。</p>
+  </div>
+</section>
+
+<!-- ============ 3.3 ============ -->
+<section id="e2b-iso">
+  <h2>3.3 隔离与资源模型</h2>
+  <p>E2B 的隔离不是单一机制，而是「VM 边界 + 内核资源控制 + 网络命名空间」的叠加。理解每一层各防什么，是安全评审的基础。</p>
+
+  <div class="layers">
+    <div class="layer"><span class="n">1</span><span class="name">Firecracker MicroVM</span><span class="desc">独立内核，硬件虚拟化边界，防内核逃逸</span></div>
+    <div class="layer"><span class="n">2</span><span class="name">cgroups</span><span class="desc">CPU / 内存 / I/O 限额，防资源耗尽（noisy neighbor）</span></div>
+    <div class="layer"><span class="n">3</span><span class="name">Network Namespace</span><span class="desc">每沙箱独立网络栈，配合 nftables 做出口域名策略</span></div>
+    <div class="layer"><span class="n">4</span><span class="name">Rootfs CoW</span><span class="desc">只读镜像 + 写时复制，沙箱间不共享可写数据</span></div>
+    <div class="layer"><span class="n">5</span><span class="name">Secrets 控制面隔离</span><span class="desc">密钥只存在于控制面元数据；工作负载用短期身份令牌</span></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>E2B 隔离层次与威胁模型</caption>
+      <thead>
+        <tr><th>层</th><th>隔离对象</th><th>防御的威胁</th><th>失效后果</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>MicroVM</td><td>内核、地址空间、设备</td><td>内核漏洞提权、容器逃逸</td><td>跨租户代码执行</td></tr>
+        <tr><td>cgroups</td><td>CPU / 内存 / I/O</td><td>fork 炸弹、内存耗尽、磁盘打满</td><td>同节点其他沙箱被拖垮</td></tr>
+        <tr><td>netns + nftables</td><td>网络栈与出口</td><td>内网探测、数据外泄、C2 回连</td><td>横向移动</td></tr>
+        <tr><td>CoW rootfs</td><td>文件系统</td><td>污染模板、读取他人数据</td><td>数据泄露 / 供应链污染</td></tr>
+        <tr><td>Secrets 隔离</td><td>凭据</td><td>模型上下文泄露密钥</td><td>云资源被滥用</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">安全评审要点</span>
+    <p>评审沙箱平台时，不要只看「是否用了 Firecracker」。要同时确认：<strong>设备模型是否最小化</strong>（virtio 越少越好）、<strong>seccomp 是否收紧</strong>、<strong>出口是否默认拒绝</strong>、<strong>密钥是否进入 VM</strong>。任何一项缺失，VM 边界都可能被绕过。</p>
+  </div>
+</section>
+
+<!-- ============ 3.4 ============ -->
+<section id="e2b-state">
+  <h2>3.4 状态、暂停与持久化</h2>
+  <p>E2B 把沙箱的生命周期做成了「暂停 / 恢复」的一等公民：<strong>暂停会同时保存内存与磁盘的差异</strong>，恢复时优先选择缓存了这些数据的节点。这意味着 Agent 可以「挂起」一个长任务，稍后继续，而不用重新初始化环境。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>E2B 生命周期操作与语义</caption>
+      <thead>
+        <tr><th>操作</th><th>保存内容</th><th>资源占用</th><th>典型用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>create</code></td><td>新建 VM + CoW rootfs</td><td>运行态资源</td><td>每轮工具调用</td></tr>
+        <tr><td><code>pause</code></td><td>内存 + 磁盘 diff</td><td>快照存储，释放计算</td><td>长任务挂起、降本</td></tr>
+        <tr><td><code>resume</code></td><td>恢复内存与文件系统</td><td>重新占用计算</td><td>继续任务；优先有缓存的节点</td></tr>
+        <tr><td><code>kill</code></td><td>销毁 VM 与临时数据</td><td>释放全部资源</td><td>任务结束、回收</td></tr>
+        <tr><td>持久卷</td><td>独立于沙箱生命周期的存储</td><td>按卷计费</td><td>跨沙箱共享代码/数据</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>内存快照为什么能「懒加载」</h4>
+  <div class="diagram">
+    <svg viewBox="0 0 1000 230" role="img" aria-label="userfaultfd 惰性加载内存">
+      <defs>
+        <marker id="au" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/>
+        </marker>
+      </defs>
+      <rect x="20" y="26" width="220" height="70" rx="12" fill="#eef2ff" stroke="#c7d2fe"/>
+      <text x="130" y="56" text-anchor="middle" font-size="13" font-weight="700" fill="#3730a3">预启动快照</text>
+      <text x="130" y="78" text-anchor="middle" font-size="11.5" fill="#7b8494">完整内存镜像（对象存储）</text>
+
+      <rect x="300" y="26" width="220" height="70" rx="12" fill="#fff" stroke="#d0d6de"/>
+      <text x="410" y="56" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">恢复 VM</text>
+      <text x="410" y="78" text-anchor="middle" font-size="11.5" fill="#7b8494">仅建立页表映射，不读数据</text>
+
+      <rect x="580" y="26" width="200" height="70" rx="12" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="680" y="56" text-anchor="middle" font-size="13" font-weight="700" fill="#b45309">首次访问缺页</text>
+      <text x="680" y="78" text-anchor="middle" font-size="11.5" fill="#7b8494">userfaultfd 触发</text>
+
+      <rect x="840" y="26" width="140" height="70" rx="12" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="910" y="56" text-anchor="middle" font-size="13" font-weight="700" fill="#0b6b62">按页拉取</text>
+      <text x="910" y="78" text-anchor="middle" font-size="11.5" fill="#7b8494">仅加载热页</text>
+
+      <line x1="240" y1="61" x2="296" y2="61" stroke="#6b7280" stroke-width="1.7" marker-end="url(#au)"/>
+      <line x1="520" y1="61" x2="576" y2="61" stroke="#6b7280" stroke-width="1.7" marker-end="url(#au)"/>
+      <line x1="780" y1="61" x2="836" y2="61" stroke="#6b7280" stroke-width="1.7" marker-end="url(#au)"/>
+
+      <rect x="20" y="132" width="960" height="76" rx="12" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="42" y="160" font-size="12.5" font-weight="700" fill="#111827">收益</text>
+      <text x="42" y="182" font-size="12" fill="#4b5563">冷启动时间与「镜像大小」解耦：只支付真正访问页的 I/O。代价是首次访问存在缺页延迟，且依赖宿主机页缓存预热。</text>
+      <text x="42" y="200" font-size="12" fill="#4b5563">同一节点上恢复多个沙箱时，共享的只读页可被页缓存复用，密度越高摊薄越明显。</text>
+    </svg>
+    <div class="caption">图 4 · 基于 userfaultfd 的惰性内存恢复：恢复快、首访慢，适合「创建后很快只用一小部分内存」的 Agent 负载</div>
+  </div>
+
+  <div class="callout info">
+    <span class="t">与 CubeSandbox 的差异</span>
+    <p>CubeSandbox 同样采用「内存快照 + 恢复」，但额外强调<strong>增量脏页跟踪</strong>：暂停时只持久化被修改的匿名页，未修改页通过 reflink 共享，从而降低写放大与快照体积。两者的目标一致，实现路径不同。</p>
+  </div>
+</section>
+
+<!-- ============ 3.5 ============ -->
+<section id="e2b-net">
+  <h2>3.5 网络与访问模型</h2>
+  <p>沙箱里的服务（Jupyter、Web 应用、数据库）需要能被外部访问。E2B 采用<strong>「端口子域名」</strong>模型：每个沙箱的每个监听端口都映射为一个 HTTPS 子域。</p>
+
+  <pre class="bash"><code># 沙箱内监听 3000 端口后，外部可直接访问：
+https://3000-&lt;sandboxId&gt;.&lt;your-domain&gt;
+
+# 访问链路（数据面）：
+Client → Client Proxy（边缘） → Orchestrator Proxy（节点） → envd → 沙箱内进程</code></pre>
+
+  <div class="table-wrap">
+    <table>
+      <caption>E2B 网络设计要点</caption>
+      <thead>
+        <tr><th>维度</th><th>做法</th><th>效果</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>入站寻址</td><td><code>&lt;port&gt;-&lt;sandboxId&gt;.domain</code></td><td>无需为每端口分配公网 IP；通配 DNS + TLS</td></tr>
+        <tr><td>访问控制</td><td>每沙箱访问令牌</td><td>URL 泄露不等于可访问</td></tr>
+        <tr><td>代理链</td><td>Client Proxy → Orchestrator Proxy → envd</td><td>边缘可做限流、鉴权、自动唤醒</td></tr>
+        <tr><td>出口策略</td><td>nftables 域名允许/拒绝（SNI 或 Host）</td><td>阻止内网访问与任意外联</td></tr>
+        <tr><td>控制/数据分离</td><td>API 只做放置；沙箱流量直达节点</td><td>避免控制面成为数据面瓶颈</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">常见坑</span>
+    <p>「沙箱能访问外网」不等于「出口安全」。仅靠安全组或出站 IP 白名单，无法阻止<strong>域名前置（domain fronting）</strong>与<strong>SNI 伪装</strong>。生产环境应使用 L7 出口代理做基于域名的允许列表，并对 TLS 做可控检查。</p>
+  </div>
+</section>
+
+<!-- ============ 3.6 ============ -->
+<section id="e2b-deploy">
+  <h2>3.6 部署形态与自托管</h2>
+  <p>E2B 提供从托管云到单机、再到多云 Terraform 的完整光谱。选型时先明确「数据能否出域」与「是否需要 KVM」两个约束。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>E2B 部署选项</caption>
+      <thead>
+        <tr><th>形态</th><th>适用场景</th><th>前置条件</th><th>运维复杂度</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>E2B Cloud</td><td>最快上线、无自建需求</td><td>API Key</td><td><span class="tag c">低</span></td></tr>
+        <tr><td>Embed（单机）</td><td>本地开发、私有化验证、边缘部署</td><td>Linux + KVM + Docker Compose</td><td><span class="tag a">中</span></td></tr>
+        <tr><td>Terraform（GCP/AWS/Azure）</td><td>云上生产、多可用区</td><td>云账号、网络与配额</td><td><span class="tag a">中高</span></td></tr>
+        <tr><td>Kubernetes Manifest</td><td>已有 K8s 平台、需要统一调度</td><td>支持嵌套虚拟化的节点</td><td><span class="tag e">高</span></td></tr>
+        <tr><td>Enterprise（客户云账号）</td><td>强合规、数据驻留</td><td>商务 + 专属支持</td><td><span class="tag e">高</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cards">
+    <div class="card e"><h4>Observability</h4><p>全链路 OpenTelemetry；生命周期事件、宿主机统计与指标写入 ClickHouse，可对接现有监控体系。</p></div>
+    <div class="card e"><h4>Secrets</h4><p>密钥只作为控制面元数据存在；VM 内工作负载通过 workload identity 获取短期令牌，避免长期凭据落盘。</p></div>
+    <div class="card e"><h4>Runtime 语言</h4><p>控制面与节点代理以 Go 为主，适合与现有云原生栈集成；Firecracker 本身为 Rust。</p></div>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">小结</span>
+    <p>E2B 的设计哲学可以概括为：<strong>「VM 边界 + 快照恢复 + 边缘路由 + 托管优先」</strong>。它把复杂性留给平台，把极简的 SDK 留给应用开发者。</p>
+  </div>
+</section>
+<!-- ============ 4 Cube ============ -->
+<section id="cube">
+  <h2>4. CubeSandbox 全景</h2>
+  <p>CubeSandbox 是腾讯开源的 AI Agent 基础设施（<span class="tag c">Apache-2.0</span>），基于 <strong>RustVMM + KVM</strong> 启动硬件隔离的 MicroVM，官方宣称冷启动 <strong>60 ms 以内</strong>、单机可承载数千沙箱，并提供 <strong>E2B 兼容的 REST API</strong>。它的定位不是「简单工具执行」，而是<strong>长生命周期、有状态</strong>的 Agent 与服务工作负载（持久开发环境、Web 服务、数据库）。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>CubeSandbox 六条设计原则（官方）</caption>
+      <thead>
+        <tr><th>原则</th><th>具体实现</th><th>解决的核心矛盾</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Agent 优先</strong></td><td>生命周期语义、SDK 形态、自动暂停/恢复、快速克隆/回滚</td><td>Agent 任务跨越多次调用，需要「长期存活」</td></tr>
+        <tr><td><strong>硬件隔离</strong></td><td>每个沙箱在 KVM MicroVM 中运行独立内核</td><td>多租户下的内核逃逸面</td></tr>
+        <tr><td><strong>毫秒级启动</strong></td><td>预快照模板 + RustVMM 恢复路径</td><td>Agent 工具调用的等待放大</td></tr>
+        <tr><td><strong>零信任出口</strong></td><td>出站流量经 CubeEgress（L7 MITM 代理），域名需显式放行</td><td>数据外泄与内网探测</td></tr>
+        <tr><td><strong>无状态控制面</strong></td><td>CubeAPI / CubeMaster 不存本地状态，协调走 Redis</td><td>水平扩展与故障转移</td></tr>
+        <tr><td><strong>高效存储</strong></td><td>CubeCoW 利用内核 <code>FICLONE</code> 实现 O(1) 快照与克隆，不复制数据</td><td>高密度下的磁盘与 I/O 成本</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <span class="t">关键卖点：E2B 兼容</span>
+    <p>CubeSandbox 对外暴露 E2B 兼容的 REST API。从 E2B Cloud 迁移，通常只需修改 API 地址/域名等环境变量，再替换 <code>E2B_API_KEY</code>，业务侧 SDK 代码基本不动。这是它作为「开源替代」最重要的工程决策。</p>
+  </div>
+
+  <pre class="python"><code>import os
+from e2b import Sandbox
+
+# 指向自托管的 CubeSandbox
+os.environ["E2B_API_KEY"] = "your-cube-api-key"
+os.environ["E2B_API_URL"] = "http://&lt;control-node-ip&gt;:&lt;api-port&gt;"
+# 部分 SDK 版本使用 E2B_DOMAIN；以所用 SDK 版本文档为准
+
+with Sandbox.create() as sbx:
+    print(sbx.commands.run("uname -a").stdout)</code></pre>
+
+  <p class="small muted">说明：不同版本 E2B SDK 的自托管接入方式略有差异（<code>E2B_API_URL</code> / <code>E2B_DOMAIN</code>），请以 CubeSandbox Quick Start 与对应 SDK 文档为准。</p>
+</section>
+
+<!-- ============ 4.1 ============ -->
+<section id="cube-arch">
+  <h2>4.1 组件架构</h2>
+  <p>CubeSandbox 的组件划分比 E2B 更「云原生」：它把运行时抽象接入了 <strong>containerd Shim v2</strong>，因此可以复用容器镜像与 CRI 生态。整体分为<strong>控制面</strong>与<strong>数据面</strong>。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1100 800" role="img" aria-label="CubeSandbox 组件架构图">
+      <defs>
+        <marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#0f8f83"/>
+        </marker>
+        <marker id="acg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a93a2"/>
+        </marker>
+      </defs>
+
+      <!-- 客户端 -->
+      <rect x="360" y="14" width="320" height="54" rx="12" fill="#eef2ff" stroke="#c7d2fe"/>
+      <text x="520" y="38" text-anchor="middle" font-size="13" font-weight="700" fill="#3730a3">Client / E2B SDK</text>
+      <text x="520" y="57" text-anchor="middle" font-size="11.5" fill="#7b8494">Python · JS/TS · 兼容 E2B 接口</text>
+
+      <!-- 控制面 -->
+      <rect x="24" y="96" width="756" height="228" rx="16" fill="#f7fffd" stroke="#a7f3d0" stroke-dasharray="7 5"/>
+      <text x="44" y="122" font-size="12" font-weight="700" fill="#0b6b62" letter-spacing=".06em">控制面 CONTROL PLANE（无状态）</text>
+
+      <rect x="44" y="136" width="214" height="82" rx="11" fill="#ffffff" stroke="#0f8f83"/>
+      <text x="151" y="161" text-anchor="middle" font-size="13" font-weight="700" fill="#0b6b62">CubeAPI</text>
+      <text x="151" y="180" text-anchor="middle" font-size="11.5" fill="#4b5563">Rust · Axum</text>
+      <text x="151" y="199" text-anchor="middle" font-size="11.5" fill="#4b5563">E2B 兼容 REST 网关</text>
+
+      <rect x="282" y="136" width="214" height="82" rx="11" fill="#ffffff" stroke="#0f8f83"/>
+      <text x="389" y="161" text-anchor="middle" font-size="13" font-weight="700" fill="#0b6b62">CubeMaster</text>
+      <text x="389" y="180" text-anchor="middle" font-size="11.5" fill="#4b5563">Go · 集群调度器</text>
+      <text x="389" y="199" text-anchor="middle" font-size="11.5" fill="#4b5563">创建 / 暂停 / 恢复 / 销毁</text>
+
+      <rect x="520" y="136" width="238" height="82" rx="11" fill="#ffffff" stroke="#0f8f83"/>
+      <text x="639" y="161" text-anchor="middle" font-size="13" font-weight="700" fill="#0b6b62">Redis</text>
+      <text x="639" y="180" text-anchor="middle" font-size="11.5" fill="#4b5563">沙箱元数据 · 生命周期事件</text>
+      <text x="639" y="199" text-anchor="middle" font-size="11.5" fill="#4b5563">路由表 · 分布式锁</text>
+
+      <rect x="282" y="232" width="214" height="66" rx="11" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="389" y="256" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">WebUI :12088</text>
+      <text x="389" y="275" text-anchor="middle" font-size="11" fill="#7b8494">沙箱 · 模板 · 节点 · 版本矩阵</text>
+
+      <rect x="520" y="232" width="238" height="66" rx="11" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="639" y="256" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">cube-lifecycle-manager</text>
+      <text x="639" y="275" text-anchor="middle" font-size="11" fill="#7b8494">空闲暂停 · 请求到达恢复</text>
+
+      <!-- 边缘代理 -->
+      <rect x="812" y="136" width="264" height="162" rx="14" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="944" y="162" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">CubeProxy</text>
+      <text x="944" y="181" text-anchor="middle" font-size="11.5" fill="#4b5563">OpenResty · nginx + Lua</text>
+      <text x="944" y="203" text-anchor="middle" font-size="11" fill="#7b8494">Host 模式：</text>
+      <text x="944" y="220" text-anchor="middle" font-size="11" fill="#374151">&lt;port&gt;-&lt;id&gt;.domain</text>
+      <text x="944" y="243" text-anchor="middle" font-size="11" fill="#7b8494">Path 模式：</text>
+      <text x="944" y="260" text-anchor="middle" font-size="11" fill="#374151">/sandbox/&lt;id&gt;/&lt;port&gt;/...</text>
+      <text x="944" y="283" text-anchor="middle" font-size="11" fill="#7b8494">Redis 注册表发现副本</text>
+
+      <!-- 数据面 -->
+      <rect x="24" y="352" width="1052" height="420" rx="16" fill="#fafeff" stroke="#a7f3d0" stroke-dasharray="7 5"/>
+      <text x="44" y="378" font-size="12" font-weight="700" fill="#0b6b62" letter-spacing=".06em">数据面 DATA PLANE（每节点本地）</text>
+
+      <rect x="44" y="392" width="200" height="78" rx="11" fill="#ffffff" stroke="#0f8f83"/>
+      <text x="144" y="417" text-anchor="middle" font-size="13" font-weight="700" fill="#0b6b62">Cubelet</text>
+      <text x="144" y="436" text-anchor="middle" font-size="11.5" fill="#4b5563">Go · 节点调度代理</text>
+      <text x="144" y="455" text-anchor="middle" font-size="11" fill="#7b8494">run / pause / resume / snapshot</text>
+
+      <rect x="276" y="392" width="200" height="78" rx="11" fill="#ffffff" stroke="#0f8f83"/>
+      <text x="376" y="417" text-anchor="middle" font-size="13" font-weight="700" fill="#0b6b62">CubeShim</text>
+      <text x="376" y="436" text-anchor="middle" font-size="11.5" fill="#4b5563">Rust · Shim v2</text>
+      <text x="376" y="455" text-anchor="middle" font-size="11" fill="#7b8494">rootfs / 内存文件 / vsock</text>
+
+      <rect x="508" y="392" width="210" height="78" rx="11" fill="#ffffff" stroke="#0f8f83"/>
+      <text x="613" y="417" text-anchor="middle" font-size="13" font-weight="700" fill="#0b6b62">CubeHypervisor</text>
+      <text x="613" y="436" text-anchor="middle" font-size="11.5" fill="#4b5563">RustVMM + KVM</text>
+      <text x="613" y="455" text-anchor="middle" font-size="11" fill="#7b8494">vCPU / 内存 / virtio · seccomp</text>
+
+      <rect x="750" y="392" width="300" height="78" rx="11" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="900" y="417" text-anchor="middle" font-size="13" font-weight="700" fill="#0b6b62">Sandbox MicroVM</text>
+      <text x="900" y="436" text-anchor="middle" font-size="11.5" fill="#4b5563">独立内核 · 独立 TAP 设备</text>
+      <text x="900" y="455" text-anchor="middle" font-size="11" fill="#7b8494">无共享内核逃逸面</text>
+
+      <!-- VM 细节 -->
+      <rect x="44" y="494" width="1006" height="88" rx="11" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="68" y="518" font-size="12" font-weight="700" fill="#111827">MicroVM 内部</text>
+      <rect x="68" y="530" width="180" height="36" rx="7" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="158" y="553" text-anchor="middle" font-size="11.5" fill="#374151">独立 Linux 内核</text>
+      <rect x="264" y="530" width="180" height="36" rx="7" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="354" y="553" text-anchor="middle" font-size="11.5" fill="#374151">vCPU / 内存</text>
+      <rect x="460" y="530" width="180" height="36" rx="7" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="550" y="553" text-anchor="middle" font-size="11.5" fill="#374151">virtio 设备</text>
+      <rect x="656" y="530" width="180" height="36" rx="7" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="746" y="553" text-anchor="middle" font-size="11.5" fill="#374151">vsock 控制通道</text>
+      <rect x="852" y="530" width="180" height="36" rx="7" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="942" y="553" text-anchor="middle" font-size="11.5" fill="#374151">TAP 网络接口</text>
+
+      <!-- 底层组件 -->
+      <rect x="44" y="618" width="230" height="72" rx="11" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="159" y="643" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">CubeCoW</text>
+      <text x="159" y="662" text-anchor="middle" font-size="11" fill="#4b5563">Rust · reflink / FICLONE</text>
+      <text x="159" y="679" text-anchor="middle" font-size="11" fill="#7b8494">O(1) 快照与克隆</text>
+
+      <rect x="300" y="618" width="210" height="72" rx="11" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="405" y="643" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">CubeVS</text>
+      <text x="405" y="662" text-anchor="middle" font-size="11" fill="#4b5563">eBPF 数据面</text>
+      <text x="405" y="679" text-anchor="middle" font-size="11" fill="#7b8494">NAT · 连接跟踪 · 策略</text>
+
+      <rect x="536" y="618" width="230" height="72" rx="11" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="651" y="643" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">CubeEgress</text>
+      <text x="651" y="662" text-anchor="middle" font-size="11" fill="#4b5563">OpenResty + Lua</text>
+      <text x="651" y="679" text-anchor="middle" font-size="11" fill="#7b8494">L7 MITM · 审计 · 凭据注入</text>
+
+      <rect x="792" y="618" width="258" height="72" rx="11" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="921" y="643" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">containerd · Buildkit</text>
+      <text x="921" y="662" text-anchor="middle" font-size="11" fill="#4b5563">镜像拉取 / rootfs 构建</text>
+      <text x="921" y="679" text-anchor="middle" font-size="11" fill="#7b8494">Shim v2 运行时注册</text>
+
+      <!-- 箭头：控制面 -->
+      <line x1="520" y1="68" x2="151" y2="132" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#ac)"/>
+      <text x="300" y="86" text-anchor="middle" font-size="11" fill="#0b6b62">REST</text>
+      <line x1="258" y1="177" x2="278" y2="177" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#ac)"/>
+      <text x="268" y="167" text-anchor="middle" font-size="10" fill="#0b6b62">gRPC</text>
+      <line x1="496" y1="177" x2="516" y2="177" stroke="#8a93a2" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#acg)"/>
+      <line x1="900" y1="68" x2="944" y2="132" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#ac)"/>
+      <text x="950" y="88" text-anchor="middle" font-size="11" fill="#0b6b62">HTTP</text>
+
+      <!-- 箭头：控制面 → 数据面 -->
+      <line x1="389" y1="218" x2="150" y2="388" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#ac)"/>
+      <text x="240" y="300" text-anchor="middle" font-size="11" fill="#0b6b62">RunCubeSandbox（gRPC）</text>
+
+      <!-- 箭头：数据面横向 -->
+      <line x1="244" y1="431" x2="272" y2="431" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#ac)"/>
+      <text x="258" y="421" text-anchor="middle" font-size="10" fill="#0b6b62">Shim v2</text>
+      <line x1="476" y1="431" x2="504" y2="431" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#ac)"/>
+      <text x="490" y="421" text-anchor="middle" font-size="10" fill="#0b6b62">ioctl</text>
+      <line x1="718" y1="431" x2="746" y2="431" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#ac)"/>
+      <text x="732" y="421" text-anchor="middle" font-size="10" fill="#0b6b62">KVM</text>
+
+      <!-- 箭头：VM → 细节 -->
+      <line x1="900" y1="470" x2="900" y2="490" stroke="#8a93a2" stroke-width="1.6" marker-end="url(#acg)"/>
+
+      <!-- 箭头：数据面 → 底层 -->
+      <line x1="144" y1="470" x2="144" y2="614" stroke="#8a93a2" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#acg)"/>
+      <line x1="405" y1="582" x2="405" y2="614" stroke="#8a93a2" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#acg)"/>
+      <line x1="651" y1="582" x2="651" y2="614" stroke="#8a93a2" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#acg)"/>
+
+      <!-- 边缘 → 沙箱（路由） -->
+      <path d="M1076 298 L1076 742 L600 742 L600 582" fill="none" stroke="#0f8f83" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#ac)"/>
+      <text x="1060" y="470" text-anchor="end" font-size="11" fill="#0b6b62">路由到沙箱端口</text>
+
+      <!-- 出口 -->
+      <line x1="651" y1="690" x2="651" y2="736" stroke="#8a93a2" stroke-width="1.6" marker-end="url(#acg)"/>
+      <text x="694" y="727" font-size="11" fill="#7b8494">出口 → Internet（SNAT / TPROXY）</text>
+    </svg>
+    <div class="caption">图 5 · CubeSandbox 组件架构：控制面（CubeAPI / CubeMaster / Redis）+ 数据面（Cubelet → CubeShim → CubeHypervisor → MicroVM）</div>
+  </div>
+
+  <h3>4.1.1 控制面 vs 数据面</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>CubeSandbox 分层职责</caption>
+      <thead>
+        <tr><th>层</th><th>组件</th><th>职责</th><th>扩展方式</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="tag c">控制面</span></td><td>CubeAPI、CubeMaster、WebUI、Redis</td><td>API 网关、调度、状态协调、运维面板</td><td>无状态 + Redis，可水平扩展</td></tr>
+        <tr><td><span class="tag c">数据面</span></td><td>Cubelet、CubeShim、CubeHypervisor、CubeCoW、CubeVS、CubeEgress、CubeProxy</td><td>VM 生命周期、存储、网络、安全执行、请求路由</td><td>随节点扩展，节点本地自治</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.1.2 核心组件速查</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>CubeSandbox 组件职责与语言</caption>
+      <thead>
+        <tr><th>组件</th><th>语言 / 技术</th><th>角色</th><th>值得关注的实现细节</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>CubeAPI</strong></td><td>Rust · Axum</td><td>E2B 兼容 REST 网关</td><td>鉴权回调、请求转换、转发 CubeMaster</td></tr>
+        <tr><td><strong>CubeMaster</strong></td><td>Go</td><td>集群级编排调度器</td><td>按资源选择节点，发布生命周期事件到 Redis</td></tr>
+        <tr><td><strong>CubeProxy</strong></td><td>OpenResty（nginx + Lua）</td><td>反向代理与请求路由</td><td>Host / Path 双模式；Redis 元数据驱动</td></tr>
+        <tr><td><strong>Cubelet</strong></td><td>Go</td><td>节点本地调度代理</td><td>create / run / pause / resume / snapshot / destroy</td></tr>
+        <tr><td><strong>CubeShim</strong></td><td>Rust</td><td>containerd Shim v2</td><td>rootfs、内存文件、内核、vsock、原地快照</td></tr>
+        <tr><td><strong>CubeHypervisor</strong></td><td>RustVMM + KVM</td><td>轻量 VMM</td><td>vCPU、内存、virtio、启动/暂停/快照/恢复；seccomp 加固</td></tr>
+        <tr><td><strong>CubeVS</strong></td><td>eBPF</td><td>内核态网络数据面</td><td>NAT、连接跟踪、策略、ARP 代理</td></tr>
+        <tr><td><strong>CubeCoW</strong></td><td>Rust 库</td><td>瘦供给卷管理</td><td>XFS reflink + <code>FICLONE</code>，O(1) 快照/克隆</td></tr>
+        <tr><td><strong>CubeEgress</strong></td><td>OpenResty + Lua</td><td>每宿主透明 L7 出口代理</td><td>域名过滤、凭据注入、审计日志</td></tr>
+        <tr><td><strong>WebUI</strong></td><td>浏览器控制台（<code>:12088</code>）</td><td>无 CLI 运维</td><td>沙箱、模板、节点、版本矩阵管理</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <span class="t">与 E2B 的结构差异</span>
+    <p>E2B 的 Orchestrator 直接管理 Firecracker 进程；CubeSandbox 则在 <strong>Cubelet 与 VMM 之间插入了 containerd Shim v2</strong>（CubeShim）。好处是复用容器运行时抽象与镜像生态，代价是多一层进程与协议开销。</p>
+  </div>
+</section>
+
+<!-- ============ 4.2 ============ -->
+<section id="cube-flow">
+  <h2>4.2 请求生命周期（11 步）</h2>
+  <p>下面是官方文档描述的 <code>Sandbox.create()</code> 完整链路。注意第 5 步的 <strong>CoW 克隆</strong>与第 7 步的 <strong>快照恢复</strong>——这是「毫秒级」与「高密度」的两个支点。</p>
+
+  <ol class="steps cube">
+    <li><b>Client → CubeAPI</b><p>SDK 发送 E2B 兼容的 <code>POST /sandboxes</code> 请求。</p></li>
+    <li><b>CubeAPI → CubeMaster</b><p>通过 gRPC 转发内部请求，完成鉴权与参数转换。</p></li>
+    <li><b>CubeMaster 选择节点</b><p>基于资源可用性（CPU / 内存 / 模板本地缓存）做放置。</p></li>
+    <li><b>CubeMaster → Cubelet</b><p>发送 <code>RunCubeSandbox</code> gRPC 指令到目标节点。</p></li>
+    <li><b>Cubelet 准备 rootfs</b><p>通过 CubeCoW 从模板做 O(1) 克隆，不复制数据。</p></li>
+    <li><b>Cubelet → CubeShim</b><p>经 containerd Shim v2 接口创建并启动 task。</p></li>
+    <li><b>CubeShim → CubeHypervisor</b><p>启动 VMM，创建 VM，并从内存快照恢复。</p></li>
+    <li><b>VM 就绪</b><p>CubeHypervisor 报告 ready，vsock 开始监听。</p></li>
+    <li><b>网络接入</b><p>Cubelet 通过 CubeVS 挂载 TAP 设备与过滤器（策略、NAT）。</p></li>
+    <li><b>发布事件</b><p>CubeMaster 将生命周期事件写入 Redis，供路由与自动暂停使用。</p></li>
+    <li><b>返回结果</b><p>CubeAPI 返回 sandbox ID 与元数据（HTTP 201）。</p></li>
+  </ol>
+
+  <div class="flow">
+    <div class="box e">POST /sandboxes</div><span class="arw">→</span>
+    <div class="box">CubeAPI<small>Rust</small></div><span class="arw">→</span>
+    <div class="box">CubeMaster<small>选节点</small></div><span class="arw">→</span>
+    <div class="box c">Cubelet<small>CoW 克隆</small></div><span class="arw">→</span>
+    <div class="box c">CubeShim<small>Shim v2</small></div><span class="arw">→</span>
+    <div class="box c">CubeHypervisor<small>restore</small></div><span class="arw">→</span>
+    <div class="box c">MicroVM<small>vsock ready</small></div>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">观察点</span>
+    <p>整条链路中，只有 <strong>CoW 元数据操作</strong>与 <strong>内存快照恢复</strong>是「重活」。这也是为什么「模板预热」比「镜像拉取」重要：模板一旦在节点上预热，后续创建几乎只剩元数据操作。</p>
+  </div>
+</section>
+<!-- ============ 4.3 ============ -->
+<section id="cube-storage">
+  <h2>4.3 存储与快照：CubeCoW</h2>
+  <p>高密度的前提是<strong>不为每个沙箱复制一份根文件系统</strong>。CubeCoW 利用 XFS 的 reflink 与内核 <code>FICLONE</code> ioctl，实现「元数据级」的克隆与快照——无论卷多大，操作都是 O(1)。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1000 360" role="img" aria-label="CubeCoW 写时复制树">
+      <defs>
+        <marker id="acow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#0f8f83"/>
+        </marker>
+      </defs>
+      <!-- 模板 -->
+      <rect x="360" y="20" width="280" height="62" rx="12" fill="#ecfdf5" stroke="#0f8f83"/>
+      <text x="500" y="46" text-anchor="middle" font-size="13.5" font-weight="700" fill="#0b6b62">Template（只读基础镜像）</text>
+      <text x="500" y="66" text-anchor="middle" font-size="11.5" fill="#4b5563">OCI 镜像 → Buildkit → rootfs + 冷启动 → 内存快照</text>
+
+      <!-- 沙箱卷 -->
+      <rect x="360" y="140" width="280" height="58" rx="12" fill="#ffffff" stroke="#0f8f83"/>
+      <text x="500" y="165" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">Sandbox rootfs 卷（CoW）</text>
+      <text x="500" y="184" text-anchor="middle" font-size="11" fill="#7b8494">FICLONE：共享 extent，不复制数据</text>
+      <line x1="500" y1="84" x2="500" y2="136" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#acow)"/>
+      <text x="560" y="114" font-size="11" fill="#0b6b62">FICLONE</text>
+
+      <!-- 快照/克隆 -->
+      <rect x="70" y="258" width="240" height="58" rx="12" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="190" y="283" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">Snapshot A</text>
+      <text x="190" y="302" text-anchor="middle" font-size="11" fill="#7b8494">元数据 + 共享 extent</text>
+
+      <rect x="380" y="258" width="240" height="58" rx="12" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="500" y="283" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">Clone 1</text>
+      <text x="500" y="302" text-anchor="middle" font-size="11" fill="#7b8494">独立可写层</text>
+
+      <rect x="690" y="258" width="240" height="58" rx="12" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="810" y="283" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">Clone 2</text>
+      <text x="810" y="302" text-anchor="middle" font-size="11" fill="#7b8494">独立可写层</text>
+
+      <line x1="430" y1="198" x2="210" y2="254" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#acow)"/>
+      <line x1="500" y1="198" x2="500" y2="254" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#acow)"/>
+      <line x1="570" y1="198" x2="790" y2="254" stroke="#0f8f83" stroke-width="1.8" marker-end="url(#acow)"/>
+      <text x="300" y="230" font-size="11" fill="#0b6b62">FICLONE</text>
+      <text x="640" y="230" font-size="11" fill="#0b6b62">FICLONE</text>
+
+      <text x="70" y="348" font-size="11.5" fill="#7b8494">平面（flat）快照模型：删除任一快照不影响其他快照；脏页跟踪只持久化被修改的匿名内存页。</text>
+    </svg>
+    <div class="caption">图 6 · CubeCoW 存储树：模板 → 沙箱卷 → 快照/克隆，全程 reflink 共享，O(1) 操作</div>
+  </div>
+
+  <h3>4.3.1 从镜像到模板</h3>
+  <div class="flow">
+    <div class="box">OCI 镜像</div><span class="arw">→</span>
+    <div class="box">Buildkit 构建</div><span class="arw">→</span>
+    <div class="box">rootfs</div><span class="arw">→</span>
+    <div class="box">冷启动</div><span class="arw">→</span>
+    <div class="box c">内存快照</div><span class="arw">→</span>
+    <div class="box c">注册模板</div>
+  </div>
+  <p class="small muted">模板 = 只读 rootfs + 预启动内存快照。创建沙箱时只需「克隆 rootfs + 恢复快照」，跳过镜像解压与系统初始化。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>CubeCoW 关键行为</caption>
+      <thead>
+        <tr><th>行为</th><th>实现</th><th>复杂度 / 收益</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>克隆 rootfs</td><td><code>FICLONE</code> 复制文件 extent 引用</td><td>O(1)；几乎不占额外空间</td></tr>
+        <tr><td>创建快照</td><td>仅元数据 + 共享 extent</td><td>O(1)；秒级完成</td></tr>
+        <tr><td>平面快照</td><td>快照之间相互独立</td><td>删除 A 不影响 B</td></tr>
+        <tr><td>脏页跟踪</td><td>只持久化变更的匿名内存页</td><td>降低写放大与快照体积</td></tr>
+        <tr><td>回滚</td><td>切回旧快照的元数据映射</td><td>快速、可重复</td></tr>
+        <tr><td>跨节点恢复</td><td>共享存储/对象存储上的快照可被其他节点恢复</td><td>支持迁移与容灾</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.3.2 与常见快照方案对比</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>不同存储快照机制对比</caption>
+      <thead>
+        <tr><th>方案</th><th>机制</th><th>快照耗时</th><th>空间占用</th><th>适用</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>全量复制 <code>cp</code></td><td>逐字节复制</td><td>O(数据量)</td><td>完整副本</td><td>小镜像、离线</td></tr>
+        <tr><td>overlayfs</td><td>目录分层合并</td><td>快</td><td>中（层数多时膨胀）</td><td>容器根文件系统</td></tr>
+        <tr><td>LVM 快照</td><td>块层 CoW</td><td>快</td><td>中</td><td>传统虚拟机</td></tr>
+        <tr><td>reflink / <code>FICLONE</code></td><td>文件系统 extent 共享</td><td>O(1) 元数据</td><td>增量</td><td><strong>CubeCoW</strong></td></tr>
+        <tr><td>内存快照</td><td>脏页跟踪 + 共享只读页</td><td>取决于脏页</td><td>中</td><td>E2B / CubeSandbox 暂停</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">前提条件</span>
+    <p>reflink 依赖支持该特性的文件系统（如 XFS 开启 reflink、Btrfs）。部署前必须确认数据盘文件系统与内核版本，否则会退化为全量复制，冷启动与密度优势将消失。</p>
+  </div>
+</section>
+
+<!-- ============ 4.4 ============ -->
+<section id="cube-net">
+  <h2>4.4 CubeVS 网络模型</h2>
+  <p>CubeVS 是 CubeSandbox 最有技术含量的部分：它<strong>完全用 eBPF 替代了 iptables、Linux bridge 与 OVS</strong>。每个沙箱拥有独立 TAP 设备，三个 eBPF 程序分别挂在出站、入站与代理回包三个边界上。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>三个 eBPF 程序</caption>
+      <thead>
+        <tr><th>程序</th><th>挂载点</th><th>方向</th><th>职责</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>from_cube</code></td><td>TAP 的 TC ingress</td><td>沙箱 → 宿主</td><td>策略执行、DNS 检查、SNAT、会话创建、ARP 代理</td></tr>
+        <tr><td><code>from_world</code></td><td>宿主网卡的 TC ingress</td><td>外部 → 宿主</td><td>反向 NAT、端口映射 DNAT</td></tr>
+        <tr><td><code>from_envoy</code></td><td><code>cube-dev</code> 的 TC egress</td><td>代理 → 沙箱</td><td>DNAT、透明代理回包、宿主探针</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 500" role="img" aria-label="CubeVS 网络包路径">
+      <defs>
+        <marker id="an" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#0f8f83"/>
+        </marker>
+        <marker id="ang" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a93a2"/>
+        </marker>
+      </defs>
+
+      <!-- Lane A -->
+      <text x="18" y="52" font-size="12.5" font-weight="700" fill="#0b6b62">① 出站 Egress</text>
+      <rect x="150" y="30" width="140" height="56" rx="9" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="220" y="53" text-anchor="middle" font-size="12" fill="#111827">沙箱</text>
+      <text x="220" y="72" text-anchor="middle" font-size="10.5" fill="#7b8494">169.254.68.6</text>
+
+      <rect x="322" y="30" width="92" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="368" y="61" text-anchor="middle" font-size="12" fill="#111827">TAP</text>
+
+      <rect x="446" y="30" width="150" height="56" rx="9" fill="#fff" stroke="#0f8f83"/>
+      <text x="521" y="53" text-anchor="middle" font-size="12" font-weight="700" fill="#0b6b62">from_cube</text>
+      <text x="521" y="72" text-anchor="middle" font-size="10.5" fill="#7b8494">TC ingress</text>
+
+      <rect x="628" y="30" width="150" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="703" y="53" text-anchor="middle" font-size="12" fill="#111827">策略 / DNS / 会话</text>
+      <text x="703" y="72" text-anchor="middle" font-size="10.5" fill="#7b8494">LPM trie</text>
+
+      <rect x="810" y="30" width="100" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="860" y="61" text-anchor="middle" font-size="12" fill="#111827">SNAT</text>
+
+      <rect x="942" y="30" width="80" height="56" rx="9" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="982" y="55" text-anchor="middle" font-size="11.5" fill="#111827">host NIC</text>
+      <text x="982" y="72" text-anchor="middle" font-size="10.5" fill="#7b8494">→ Internet</text>
+
+      <g stroke="#0f8f83" stroke-width="1.7" marker-end="url(#an)">
+        <line x1="290" y1="58" x2="318" y2="58"/>
+        <line x1="414" y1="58" x2="442" y2="58"/>
+        <line x1="596" y1="58" x2="624" y2="58"/>
+        <line x1="778" y1="58" x2="806" y2="58"/>
+        <line x1="910" y1="58" x2="938" y2="58"/>
+      </g>
+
+      <!-- 网关分支 -->
+      <rect x="446" y="112" width="576" height="46" rx="9" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="734" y="140" text-anchor="middle" font-size="11.5" fill="#b45309">若目的地址 = 网关 169.254.68.5 → 重定向到 cube-dev → from_envoy（见 ③）</text>
+      <path d="M521 86 L521 108" stroke="#b45309" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ang)"/>
+
+      <!-- Lane B -->
+      <text x="18" y="206" font-size="12.5" font-weight="700" fill="#0b6b62">② 入站 Ingress</text>
+      <rect x="942" y="184" width="80" height="56" rx="9" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="982" y="216" text-anchor="middle" font-size="11.5" fill="#111827">Internet</text>
+
+      <rect x="800" y="184" width="110" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="855" y="215" text-anchor="middle" font-size="12" fill="#111827">host NIC</text>
+
+      <rect x="628" y="184" width="140" height="56" rx="9" fill="#fff" stroke="#0f8f83"/>
+      <text x="698" y="207" text-anchor="middle" font-size="12" font-weight="700" fill="#0b6b62">from_world</text>
+      <text x="698" y="226" text-anchor="middle" font-size="10.5" fill="#7b8494">TC ingress</text>
+
+      <rect x="470" y="184" width="126" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="533" y="207" text-anchor="middle" font-size="12" fill="#111827">反向 NAT</text>
+      <text x="533" y="226" text-anchor="middle" font-size="10.5" fill="#7b8494">ingress_sessions</text>
+
+      <rect x="330" y="184" width="94" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="377" y="215" text-anchor="middle" font-size="12" fill="#111827">TAP</text>
+
+      <rect x="150" y="184" width="140" height="56" rx="9" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="220" y="207" text-anchor="middle" font-size="12" fill="#111827">沙箱</text>
+      <text x="220" y="226" text-anchor="middle" font-size="10.5" fill="#7b8494">端口映射 10000–19999</text>
+
+      <g stroke="#0f8f83" stroke-width="1.7" marker-end="url(#an)">
+        <line x1="938" y1="212" x2="914" y2="212"/>
+        <line x1="796" y1="212" x2="772" y2="212"/>
+        <line x1="624" y1="212" x2="600" y2="212"/>
+        <line x1="466" y1="212" x2="428" y2="212"/>
+        <line x1="326" y1="212" x2="294" y2="212"/>
+      </g>
+
+      <!-- Lane C -->
+      <text x="18" y="360" font-size="12.5" font-weight="700" fill="#0b6b62">③ 宿主 / 代理 → 沙箱</text>
+      <rect x="150" y="338" width="170" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="235" y="361" text-anchor="middle" font-size="11.5" fill="#111827">CubeEgress / 宿主探针</text>
+      <text x="235" y="380" text-anchor="middle" font-size="10.5" fill="#7b8494">TPROXY</text>
+
+      <rect x="350" y="338" width="120" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="410" y="369" text-anchor="middle" font-size="12" fill="#111827">cube-dev</text>
+
+      <rect x="500" y="338" width="150" height="56" rx="9" fill="#fff" stroke="#0f8f83"/>
+      <text x="575" y="361" text-anchor="middle" font-size="12" font-weight="700" fill="#0b6b62">from_envoy</text>
+      <text x="575" y="380" text-anchor="middle" font-size="10.5" fill="#7b8494">TC egress</text>
+
+      <rect x="680" y="338" width="190" height="56" rx="9" fill="#fff" stroke="#d0d6de"/>
+      <text x="775" y="361" text-anchor="middle" font-size="11.5" fill="#111827">DNAT → 169.254.68.6</text>
+      <text x="775" y="380" text-anchor="middle" font-size="10.5" fill="#7b8494">保留远端源 IP</text>
+
+      <rect x="900" y="338" width="122" height="56" rx="9" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="961" y="361" text-anchor="middle" font-size="12" fill="#111827">TAP</text>
+      <text x="961" y="380" text-anchor="middle" font-size="10.5" fill="#7b8494">→ 沙箱</text>
+
+      <g stroke="#0f8f83" stroke-width="1.7" marker-end="url(#an)">
+        <line x1="320" y1="366" x2="346" y2="366"/>
+        <line x1="470" y1="366" x2="496" y2="366"/>
+        <line x1="650" y1="366" x2="676" y2="366"/>
+        <line x1="870" y1="366" x2="896" y2="366"/>
+      </g>
+
+      <!-- 说明 -->
+      <rect x="30" y="424" width="992" height="58" rx="10" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="50" y="447" font-size="11.5" fill="#4b5563">无 iptables、无 Linux bridge、无 OVS：所有 NAT 与策略都在 eBPF map 中完成，按 TAP ifindex 隔离不同沙箱。</text>
+      <text x="50" y="467" font-size="11.5" fill="#4b5563">ARP 代理：from_cube 以 cube-dev 的 MAC 代答沙箱网关 169.254.68.5 的 ARP，使 TAP 链路呈「点对点」形态。</text>
+    </svg>
+    <div class="caption">图 7 · CubeVS 三条包路径：出站 SNAT、入站反向 NAT、宿主/代理 DNAT</div>
+  </div>
+
+  <h3>4.4.1 SNAT 与端口分配</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>CubeVS 地址与端口规划</caption>
+      <thead>
+        <tr><th>项目</th><th>规则</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>沙箱 IP</td><td><code>169.254.68.6</code></td><td>每沙箱点对点地址</td></tr>
+        <tr><td>沙箱网关</td><td><code>169.254.68.5</code></td><td>由 ARP 代理代答，流量重定向到 <code>cube-dev</code></td></tr>
+        <tr><td>SNAT 源 IP</td><td>最多 4 个，<code>jhash(sandbox_ip) % 4</code> 确定性选择</td><td>分散端口压力，便于排障</td></tr>
+        <tr><td>SNAT 源端口</td><td>每 IP 水位从 30000 起</td><td>BPF spin lock 保护，冲突时有限重试</td></tr>
+        <tr><td>宿主临时端口</td><td><code>10000–19999</code></td><td>入站端口映射</td></tr>
+        <tr><td>CubeProxy → 沙箱端口</td><td><code>20000–29999</code></td><td>边缘代理回源</td></tr>
+        <tr><td>SNAT 源端口段</td><td><code>30000–65535</code></td><td>避免与监听端口冲突</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.4.2 连接跟踪状态机</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>CubeVS 会话超时（类 conntrack 语义）</caption>
+      <thead>
+        <tr><th>状态</th><th>超时</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>SYN_SENT</code> / <code>SYN_RECV</code></td><td>1 分钟</td><td>握手未完成</td></tr>
+        <tr><td><code>ESTABLISHED</code></td><td>3 小时</td><td>长连接（如 WebSocket）友好</td></tr>
+        <tr><td><code>FIN_WAIT</code></td><td>2 分钟</td><td>主动关闭</td></tr>
+        <tr><td><code>LAST_ACK</code></td><td>30 秒</td><td>被动关闭收尾</td></tr>
+        <tr><td><code>TIME_WAIT</code></td><td>2 分钟</td><td>防止乱序包</td></tr>
+        <tr><td>UDP 未响应 / 已响应</td><td>30 秒 / 180 秒</td><td>简化状态机</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">Go 侧 reaper 每 5 秒扫描并清理两张会话表（<code>egress_sessions</code> / <code>ingress_sessions</code>）。</p>
+
+  <h3>4.4.3 网络策略</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>CubeVS 策略执行</caption>
+      <thead>
+        <tr><th>策略类型</th><th>数据结构</th><th>执行逻辑</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>CIDR 允许</td><td><code>allow_out_v2</code>（LPM trie）</td><td>匹配允许网段，可带过期时间</td></tr>
+        <tr><td>CIDR 拒绝</td><td><code>deny_out</code>（LPM trie）</td><td>匹配拒绝网段</td></tr>
+        <tr><td>域名允许</td><td><code>dns_allow</code> + <code>dns_query_track</code></td><td>DNS 检查，Cubelet 学习 A 记录并写入允许表</td></tr>
+        <tr><td>默认私网拒绝</td><td>硬编码 CIDR</td><td><code>10/8</code>、<code>127/8</code>、<code>169.254/16</code>、<code>172.16/12</code>、<code>192.168/16</code></td></tr>
+        <tr><td>评估顺序</td><td>—</td><td>网关放行 → 命中允许 → 命中拒绝 → 默认允许</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <span class="t">为什么不用 iptables</span>
+    <p>iptables 的规则是线性链式匹配，规则数一多（数千沙箱 × 每沙箱多条规则）就会显著退化；且每次变更都要重建链。eBPF 用 hash/LPM map 查找，天然支持热更新与 per-sandbox 隔离，还能在同一程序里做 DNS 检查、会话跟踪与 ARP 代理。</p>
+  </div>
+</section>
+
+<!-- ============ 4.5 ============ -->
+<section id="cube-security">
+  <h2>4.5 安全体系与出口控制</h2>
+  <p>CubeSandbox 的安全是「六层纵深」：从硬件虚拟化一直到 L7 出口代理。任何单层被绕过，仍有多层兜底。</p>
+
+  <div class="layers">
+    <div class="layer"><span class="n">1</span><span class="name">硬件隔离</span><span class="desc">KVM MicroVM，每沙箱独立内核</span></div>
+    <div class="layer"><span class="n">2</span><span class="name">网络隔离</span><span class="desc">CubeVS 默认拒绝私网/链路本地，per-sandbox 策略</span></div>
+    <div class="layer"><span class="n">3</span><span class="name">出口控制</span><span class="desc">CubeEgress L7 代理 + 域名允许列表</span></div>
+    <div class="layer"><span class="n">4</span><span class="name">凭据保险箱</span><span class="desc">Header 重写注入，密钥不进入沙箱与模型上下文</span></div>
+    <div class="layer"><span class="n">5</span><span class="name">Seccomp</span><span class="desc">CubeHypervisor 仅保留最小系统调用白名单</span></div>
+    <div class="layer"><span class="n">6</span><span class="name">认证</span><span class="desc">CubeAPI 支持可插拔认证回调</span></div>
+  </div>
+
+  <h3>4.5.1 CubeEgress：L7 出口代理</h3>
+  <p>CubeEgress 通过 <code>TPROXY</code> 拦截沙箱的出站 HTTP/HTTPS，做中间人（MITM）式的 L7 检查。模板内预置了 CubeEgress 的根 CA，因此 TLS 可以被透明解密与审计。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1000 300" role="img" aria-label="CubeEgress 出口代理流程">
+      <defs>
+        <marker id="aeg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#0f8f83"/>
+        </marker>
+      </defs>
+      <rect x="20" y="40" width="170" height="70" rx="11" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="105" y="68" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">沙箱进程</text>
+      <text x="105" y="88" text-anchor="middle" font-size="10.5" fill="#7b8494">curl / SDK / 浏览器</text>
+
+      <rect x="230" y="40" width="150" height="70" rx="11" fill="#fff" stroke="#d0d6de"/>
+      <text x="305" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">TPROXY</text>
+      <text x="305" y="88" text-anchor="middle" font-size="10.5" fill="#7b8494">透明拦截</text>
+
+      <rect x="420" y="40" width="180" height="70" rx="11" fill="#fff" stroke="#0f8f83"/>
+      <text x="510" y="64" text-anchor="middle" font-size="12" font-weight="700" fill="#0b6b62">CubeEgress</text>
+      <text x="510" y="84" text-anchor="middle" font-size="10.5" fill="#7b8494">OpenResty + Lua</text>
+
+      <rect x="640" y="20" width="150" height="50" rx="9" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="715" y="41" text-anchor="middle" font-size="11" fill="#b45309">域名允许列表</text>
+      <text x="715" y="58" text-anchor="middle" font-size="10" fill="#b45309">SNI / Host / Method / Path</text>
+
+      <rect x="640" y="82" width="150" height="50" rx="9" fill="#eef2ff" stroke="#c7d2fe"/>
+      <text x="715" y="103" text-anchor="middle" font-size="11" fill="#3730a3">凭据注入</text>
+      <text x="715" y="120" text-anchor="middle" font-size="10" fill="#3730a3">Authorization / Header 重写</text>
+
+      <rect x="830" y="40" width="150" height="70" rx="11" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="905" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">外部服务</text>
+      <text x="905" y="88" text-anchor="middle" font-size="10.5" fill="#7b8494">Internet / SaaS API</text>
+
+      <line x1="190" y1="75" x2="226" y2="75" stroke="#0f8f83" stroke-width="1.7" marker-end="url(#aeg)"/>
+      <line x1="380" y1="75" x2="416" y2="75" stroke="#0f8f83" stroke-width="1.7" marker-end="url(#aeg)"/>
+      <line x1="600" y1="75" x2="636" y2="45" stroke="#0f8f83" stroke-width="1.6" marker-end="url(#aeg)"/>
+      <line x1="600" y1="75" x2="636" y2="107" stroke="#0f8f83" stroke-width="1.6" marker-end="url(#aeg)"/>
+      <line x1="790" y1="75" x2="826" y2="75" stroke="#0f8f83" stroke-width="1.7" marker-end="url(#aeg)"/>
+
+      <rect x="20" y="170" width="960" height="100" rx="12" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="42" y="196" font-size="12" font-weight="700" fill="#111827">审计与凭据</text>
+      <text x="42" y="219" font-size="11.5" fill="#4b5563">· 每宿主 JSONL 审计日志：请求域名、方法、路径、状态码、耗时，可用于合规与异常检测。</text>
+      <text x="42" y="239" font-size="11.5" fill="#4b5563">· 凭据通过 Header 重写在代理侧注入，沙箱内进程与模型上下文都拿不到明文密钥。</text>
+      <text x="42" y="259" font-size="11.5" fill="#4b5563">· 模板内置 CubeEgress 根 CA，实现透明 TLS 解密；因此模板与 CA 的轮换必须纳入运维流程。</text>
+    </svg>
+    <div class="caption">图 8 · CubeEgress：TPROXY 拦截 → 域名策略 → 凭据注入 → 转发 + 审计</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>出口安全能力对比</caption>
+      <thead>
+        <tr><th>能力</th><th>E2B</th><th>CubeSandbox</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>域名允许/拒绝</td><td>nftables，基于 SNI 或 Host</td><td>CubeEgress，基于 SNI / Host / Method / Scheme / Path</td></tr>
+        <tr><td>TLS 检查</td><td>—（由 nftables 规则层控制）</td><td>MITM 透明解密（模板内置根 CA）</td></tr>
+        <tr><td>凭据注入</td><td>Secrets 仅在控制面，短期令牌下发</td><td>Header 重写注入，沙箱不可见</td></tr>
+        <tr><td>审计</td><td>OpenTelemetry + ClickHouse</td><td>每宿主 JSONL 审计日志</td></tr>
+        <tr><td>私网防护</td><td>出口策略</td><td>默认拒绝私网/链路本地 CIDR</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 4.6 ============ -->
+<section id="cube-ops">
+  <h2>4.6 运维、自动暂停与部署</h2>
+  <p>CubeSandbox 把「有状态 Agent」做进了产品语义：<code>cube-lifecycle-manager</code> 监听生命周期事件，自动暂停空闲沙箱，并在请求到达时恢复。CubeProxy 副本通过 Redis 注册表发现彼此，无需静态配置。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>运维能力清单</caption>
+      <thead>
+        <tr><th>能力</th><th>实现</th><th>价值</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>自动暂停 / 恢复</td><td>lifecycle-manager + Redis 生命周期事件 + 分布式锁</td><td>空闲不占计算，请求即恢复</td></tr>
+        <tr><td>快照 / 回滚 / 克隆</td><td>CubeCoW + 模板</td><td>调试复现、A/B、迁移</td></tr>
+        <tr><td>跨节点恢复</td><td>共享存储上的快照</td><td>节点故障转移、扩容</td></tr>
+        <tr><td>Web 控制台</td><td><code>http://&lt;control-node&gt;:12088</code></td><td>无 CLI 管理沙箱、模板、节点、版本矩阵</td></tr>
+        <tr><td>调度插件</td><td>可插拔 scheduler</td><td>按业务自定义放置策略</td></tr>
+        <tr><td>可观测</td><td>指标、日志、审计</td><td>容量规划与安全审计</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>CubeSandbox 部署选项</caption>
+      <thead>
+        <tr><th>形态</th><th>适用场景</th><th>前置条件</th><th>备注</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>PVM / 云虚拟机（推荐）</td><td>快速验证与生产</td><td>x86_64 Linux + KVM</td><td>需开启嵌套虚拟化</td></tr>
+        <tr><td>裸金属</td><td>高密度、低延迟</td><td>KVM、支持 reflink 的数据盘</td><td>性能最佳</td></tr>
+        <tr><td>开发环境</td><td>本地调试</td><td>—</td><td>官方不推荐用于生产</td></tr>
+        <tr><td>Terraform（腾讯云）</td><td>云上自动化部署</td><td>腾讯云账号</td><td>基础设施即代码</td></tr>
+        <tr><td>Kubernetes（预览）</td><td>已有 K8s 平台</td><td>支持 KVM 的节点</td><td>预览阶段</td></tr>
+        <tr><td>ARM64</td><td>国产化 / ARM 服务器</td><td>ARM64 内核与用户态</td><td>原生 ARM64 工作流</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">小结</span>
+    <p>CubeSandbox 的设计哲学是：<strong>「MicroVM 隔离 + CoW 存储 + eBPF 网络 + L7 出口 + E2B 兼容」</strong>。它把「高密度自托管」作为第一目标，同时用 API 兼容降低迁移成本。</p>
+  </div>
+</section>
+<!-- ============ 5 对比 ============ -->
+<section id="compare">
+  <h2>5. 架构对比：E2B vs CubeSandbox</h2>
+  <p>两者都是「MicroVM 沙箱」，但工程取舍截然不同。下表从十四个维度并排比较，随后给出逐项解读。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>十四维对比总表（截至 2026-11 的公开文档）</caption>
+      <thead>
+        <tr><th>维度</th><th><span class="tag e">E2B</span></th><th><span class="tag c">CubeSandbox</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>定位</strong></td><td>AI 代码执行沙箱的原厂实现，Cloud + 自托管 Runtime</td><td>面向前沿 Agent 的开源自托管沙箱，E2B 兼容替代</td></tr>
+        <tr><td><strong>语言栈</strong></td><td>Go（控制面/节点）、Rust（Firecracker）、TypeScript（SDK）</td><td>Rust（API/Shim/VMM/CoW）、Go（Master/Let）、Lua（Proxy/Egress）、eBPF（网络）</td></tr>
+        <tr><td><strong>隔离技术</strong></td><td>Firecracker MicroVM + cgroups + netns</td><td>RustVMM + KVM MicroVM + seccomp</td></tr>
+        <tr><td><strong>启动优化</strong></td><td>预启动快照 + <code>userfaultfd</code> 惰性内存 + CoW rootfs</td><td>预快照模板 + RustVMM 恢复 + reflink CoW；官方 &lt;60ms</td></tr>
+        <tr><td><strong>API 兼容</strong></td><td>自有 REST + 官方 SDK（Python/JS）</td><td>E2B 兼容 REST（改 endpoint/环境变量即可迁移）</td></tr>
+        <tr><td><strong>调度架构</strong></td><td>API → Orchestrator（节点）</td><td>CubeAPI → CubeMaster → Cubelet → CubeShim → Hypervisor</td></tr>
+        <tr><td><strong>运行时抽象</strong></td><td>直接管理 Firecracker 进程</td><td>containerd Shim v2（复用容器生态）</td></tr>
+        <tr><td><strong>存储</strong></td><td>对象存储存模板/快照；CoW rootfs；持久卷跨沙箱存活</td><td>CubeCoW（XFS reflink + <code>FICLONE</code>）O(1) 快照/克隆；平面快照</td></tr>
+        <tr><td><strong>网络数据面</strong></td><td>nftables + netns + 代理链</td><td>CubeVS（eBPF，无 iptables/bridge/OVS）+ 连接跟踪</td></tr>
+        <tr><td><strong>出口安全</strong></td><td>nftables 域名允许/拒绝（SNI/Host）</td><td>CubeEgress L7 MITM + 域名策略 + 凭据注入 + JSONL 审计</td></tr>
+        <tr><td><strong>状态管理</strong></td><td>pause 保存内存+磁盘；resume 优先缓存节点</td><td>自动暂停/恢复、快照/回滚/克隆、跨节点恢复</td></tr>
+        <tr><td><strong>可观测</strong></td><td>OpenTelemetry → ClickHouse（事件/指标）</td><td>WebUI、指标、审计日志</td></tr>
+        <tr><td><strong>部署</strong></td><td>Cloud / Embed 单机 / Terraform（GCP/AWS/Azure）/ K8s</td><td>PVM/裸机 / Terraform（腾讯云）/ K8s 预览 / ARM64</td></tr>
+        <tr><td><strong>生态</strong></td><td>官方 SDK、Cookbook、Desktop、企业版</td><td>复用 E2B SDK；OpenClaw、RL 训练等示例</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>5.1 逐项解读</h3>
+
+  <div class="cards">
+    <div class="card e">
+      <h4>① 同源异构的 VMM</h4>
+      <p>E2B 用 AWS 的 Firecracker；CubeSandbox 用 RustVMM（Firecracker 同源技术栈的通用 VMM 库）。两者都基于 KVM、都只暴露最少 virtio 设备，因此安全边界与启动性能在同一量级。</p>
+    </div>
+    <div class="card c">
+      <h4>② 控制面的「厚度」</h4>
+      <p>E2B 的 Orchestrator 直接管进程，链路短；CubeSandbox 多了 CubeMaster（集群调度）与 CubeShim（Shim v2）两层，换来更好的多节点扩展性与容器生态复用。</p>
+    </div>
+    <div class="card e">
+      <h4>③ 网络哲学</h4>
+      <p>E2B 偏「成熟内核组件」：nftables + netns + 代理。CubeSandbox 偏「可编程数据面」：eBPF 自建 NAT/连接跟踪/策略，规则规模与热更新更友好，但调试门槛更高。</p>
+    </div>
+    <div class="card c">
+      <h4>④ 出口安全深度</h4>
+      <p>CubeEgress 是完整的 L7 MITM 代理，支持按 SNI/Host/Method/Path 过滤、凭据注入与审计；E2B 主要依赖 nftables 域名规则，L7 能力较弱但部署更简单。</p>
+    </div>
+    <div class="card e">
+      <h4>⑤ 状态与数据</h4>
+      <p>E2B 的持久卷与暂停语义更面向「应用开发者」；CubeSandbox 的 CoW 快照/克隆/回滚更面向「平台运维」，适合做开发环境、数据库等有状态服务。</p>
+    </div>
+    <div class="card c">
+      <h4>⑥ 迁移成本</h4>
+      <p>由于 API 兼容，从 E2B 迁到 CubeSandbox 主要是改 endpoint 与密钥；反向迁移同样容易。这降低了两者的锁定风险，也让「本地开发 + 云上生产」可以混用。</p>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <span class="t">如何客观评价「谁更好」</span>
+    <p>不存在绝对优劣：<strong>E2B</strong> 胜在生态成熟、SDK 完善、托管省心；<strong>CubeSandbox</strong> 胜在自托管密度、冷启动数字与 eBPF/L7 安全深度。真正的选型变量是「数据能否出域」「是否需要 KVM」「团队能否维护内核级组件」。</p>
+  </div>
+</section>
+
+<!-- ============ 6 专题 ============ -->
+<section id="deep-dive">
+  <h2>6. 关键机制专题</h2>
+  <p>这一章把两个项目共用的底层原理抽出来讲透。掌握这些，你就能读懂任何 MicroVM 沙箱的实现。</p>
+
+  <h3>6.1 MicroVM 技术栈对比</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>容器 vs 用户态内核 vs 轻量 VM vs MicroVM</caption>
+      <thead>
+        <tr><th>方案</th><th>隔离边界</th><th>启动时间</th><th>兼容性</th><th>攻击面</th><th>代表</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>容器（runc）</td><td>namespace + cgroup</td><td>~ms</td><td>极高（原生 syscall）</td><td>共享内核，逃逸面大</td><td>Docker、containerd</td></tr>
+        <tr><td>gVisor</td><td>用户态内核拦截 syscall</td><td>~几十 ms</td><td>中（部分 syscall 不支持）</td><td>小（用户态）</td><td>GKE Sandbox</td></tr>
+        <tr><td>Kata Containers</td><td>轻量 VM + 容器接口</td><td>~100–200 ms</td><td>高</td><td>中</td><td>OpenStack / K8s</td></tr>
+        <tr><td>Firecracker</td><td>KVM MicroVM，极简设备模型</td><td>官方基准约 125 ms</td><td>中（virtio）</td><td>很小</td><td><strong>E2B</strong>、AWS Lambda</td></tr>
+        <tr><td>RustVMM</td><td>KVM MicroVM，可裁剪设备</td><td>恢复路径可 &lt;60 ms</td><td>中（virtio）</td><td>很小</td><td><strong>CubeSandbox</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small muted">启动时间为量级参考，实际取决于镜像、快照与硬件；Firecracker 的 125ms 为其官方公开基准。</p>
+
+  <h3>6.2 快照与恢复的两条路线</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>内存恢复策略</caption>
+      <thead>
+        <tr><th>策略</th><th>原理</th><th>优点</th><th>代价</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>全量预读</td><td>恢复时把整个内存镜像读入</td><td>首访无缺页</td><td>启动慢、内存放大</td></tr>
+        <tr><td>惰性加载（userfaultfd）</td><td>缺页时按需拉取</td><td>启动快、内存省</td><td>首访延迟、依赖页缓存</td></tr>
+        <tr><td>脏页增量</td><td>只持久化变更页，其余共享</td><td>快照小、写放大低</td><td>实现复杂、需追踪</td></tr>
+        <tr><td>混合</td><td>热页预读 + 冷页惰性</td><td>兼顾首访与启动</td><td>需要热度模型</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.3 CoW 与 reflink 的本质</h3>
+  <p>传统复制是「复制数据块」；reflink 是「复制块的引用」。写时复制（CoW）则在此基础上，只有当某一方<strong>修改</strong>某个块时，才为该方分配新块。因此：</p>
+  <ul>
+    <li><strong>创建沙箱</strong>：克隆模板 rootfs 的元数据，O(1)。</li>
+    <li><strong>快照</strong>：记录当前元数据映射，O(1)。</li>
+    <li><strong>写入</strong>：只复制被修改的块，空间随写入量增长。</li>
+    <li><strong>删除</strong>：释放该快照独占的块；共享块由引用计数管理。</li>
+  </ul>
+  <div class="callout warn">
+    <span class="t">工程陷阱</span>
+    <p>reflink 的「O(1)」只在<strong>支持 reflink 的文件系统</strong>上成立。若数据盘是 ext4 或未开启 reflink 的 XFS，克隆会退化为全量复制，冷启动与密度优势瞬间消失。这是自托管最常见的性能事故。</p>
+  </div>
+
+  <h3>6.4 eBPF 数据面 vs 传统网络栈</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>网络数据面实现对比</caption>
+      <thead>
+        <tr><th>维度</th><th>iptables / nftables</th><th>Linux bridge / OVS</th><th>eBPF（CubeVS）</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>规则查找</td><td>链式/线性，规则多时退化</td><td>流表，功能重</td><td>hash / LPM trie，O(1) 级</td></tr>
+        <tr><td>热更新</td><td>重建链，可能丢包</td><td>重配置</td><td>map 原地更新</td></tr>
+        <tr><td>连接跟踪</td><td>conntrack 内核模块</td><td>依赖 conntrack</td><td>自建 session map，可定制超时</td></tr>
+        <tr><td>可观测</td><td>有限</td><td>有限</td><td>per-flow 可编程</td></tr>
+        <tr><td>调试门槛</td><td>低</td><td>中</td><td>高（需 BPF 工具链）</td></tr>
+        <tr><td>多租户隔离</td><td>需配合 netns</td><td>需配合 netns</td><td>按 TAP ifindex 天然隔离</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.5 有状态代码解释器</h3>
+  <p>「代码解释器」不是简单地 <code>exec</code> 一段代码，而是维护一个<strong>长期存活的内核</strong>（通常是 Jupyter kernel）。这带来三个关键语义：</p>
+  <div class="table-wrap">
+    <table>
+      <caption>代码解释器的状态语义</caption>
+      <thead>
+        <tr><th>语义</th><th>行为</th><th>实现要点</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>变量保持</td><td>第二次调用能访问第一次的变量</td><td>同一内核进程，内存不释放</td></tr>
+        <tr><td>导入缓存</td><td>模块只导入一次</td><td><code>sys.modules</code> 持久化</td></tr>
+        <tr><td>富结果</td><td>返回图表、HTML、DataFrame</td><td>MIME bundle 协议</td></tr>
+        <tr><td>错误隔离</td><td>异常不杀死内核</td><td>执行单元包装、超时中断</td></tr>
+        <tr><td>资源控制</td><td>内存/CPU 上限</td><td>cgroup + 内核级超时</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.6 一次请求经过哪些层</h3>
+  <div class="flow">
+    <div class="box e">SDK 调用</div><span class="arw">→</span>
+    <div class="box">API 鉴权</div><span class="arw">→</span>
+    <div class="box">调度放置</div><span class="arw">→</span>
+    <div class="box c">CoW 克隆</div><span class="arw">→</span>
+    <div class="box c">快照恢复</div><span class="arw">→</span>
+    <div class="box c">网络接入</div><span class="arw">→</span>
+    <div class="box">envd / vsock</div><span class="arw">→</span>
+    <div class="box a">执行结果</div>
+  </div>
+  <p class="small muted">把这张图和第 3.2、4.2 节的时序图对照看，你会发现两个项目的链路几乎一一对应——只是组件名字不同。</p>
+</section>
+<!-- ============ 7 学习路径 ============ -->
+<section id="path">
+  <h2>7. 学习路径：从概念到生产</h2>
+  <p>下面的 6 个阶段按「先跑通、再读懂、最后改造」组织。每个阶段都有明确的产出物，避免「看完了但什么都没留下」。</p>
+
+  <ol class="timeline">
+    <li>
+      <div class="ph">0</div>
+      <div>
+        <h4>建立问题意识（0.5 天）</h4>
+        <p>读第 1–2 章：理解信任边界、六个核心需求，以及 E2B / CubeSandbox 的概念映射。不要急着装环境。</p>
+        <span class="out">产出：能白板上画出「不可信代码 → 沙箱 → 受控出口」的边界图</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">1</div>
+      <div>
+        <h4>跑通最小闭环（1 天）</h4>
+        <p>用 E2B 官方 SDK 创建沙箱、执行 shell、跑 Code Interpreter、上传下载文件。观察暂停/恢复后状态是否保留。</p>
+        <span class="out">产出：一个能「写代码 → 执行 → 读结果」的 Agent 小 demo</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">2</div>
+      <div>
+        <h4>读懂架构（2 天）</h4>
+        <p>对照第 3、4 章的架构图，逐组件看官方文档：E2B 的 Orchestrator / envd，CubeSandbox 的 CubeMaster / Cubelet / CubeShim。重点看「创建沙箱」的调用链。</p>
+        <span class="out">产出：亲手画一张两个项目的架构图，并标注数据流与控制流</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">3</div>
+      <div>
+        <h4>吃透底层原理（3 天）</h4>
+        <p>第 6 章专题：MicroVM 隔离、userfaultfd 快照、reflink CoW、eBPF 网络、有状态内核。配合内核文档与源码阅读。</p>
+        <span class="out">产出：一份原理笔记，能解释「为什么冷启动能 &lt;60ms」「为什么 CoW 是 O(1)」</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">4</div>
+      <div>
+        <h4>单机自托管（2–3 天）</h4>
+        <p>在支持 KVM 的 Linux 上部署 E2B Embed 或 CubeSandbox 单机，打开 WebUI，创建模板与沙箱，验证 E2B SDK 指向自建 endpoint。</p>
+        <span class="out">产出：一套可用的私有沙箱服务 + 部署记录</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">5</div>
+      <div>
+        <h4>生产化改造（1–2 周）</h4>
+        <p>多节点集群、调度策略、出口安全（域名白名单 / 凭据注入）、可观测（指标 / 审计）、容量与冷启动压测、故障演练。</p>
+        <span class="out">产出：一份生产方案设计（SLO、容量、安全、应急）</span>
+      </div>
+    </li>
+  </ol>
+
+  <div class="table-wrap">
+    <table>
+      <caption>按角色的学习重点</caption>
+      <thead>
+        <tr><th>角色</th><th>优先章节</th><th>可以跳过</th><th>关键问题</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>应用 / Agent 开发者</td><td>1、2、3、7、8</td><td>4.4、6.4</td><td>SDK 语义、状态保持、超时与配额</td></tr>
+        <tr><td>平台工程师</td><td>3、4、5、6、7</td><td>—</td><td>调度、密度、冷启动、存储</td></tr>
+        <tr><td>安全工程师</td><td>1、3.3、4.4、4.5、6</td><td>SDK 细节</td><td>隔离边界、出口策略、凭据管理</td></tr>
+        <tr><td>架构师 / 技术选型</td><td>2、5、9</td><td>6.4 细节</td><td>自托管成本、锁定风险、合规</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 8 实验 ============ -->
+<section id="labs">
+  <h2>8. 动手实验（Labs）</h2>
+  <p>建议按顺序完成。每个实验都对应一个可验证的问题，做完能直接回答。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>实验清单</caption>
+      <thead>
+        <tr><th>#</th><th>实验</th><th>验证的问题</th><th>难度</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>E2B 执行 shell 与文件读写</td><td>SDK 基本语义</td><td><span class="tag c">入门</span></td></tr>
+        <tr><td>2</td><td>Code Interpreter 变量跨调用</td><td>有状态内核</td><td><span class="tag c">入门</span></td></tr>
+        <tr><td>3</td><td>pause → resume 后保留文件与内存</td><td>快照恢复语义</td><td><span class="tag a">进阶</span></td></tr>
+        <tr><td>4</td><td>端口转发访问沙箱内 Web 服务</td><td>端口 URL 路由</td><td><span class="tag a">进阶</span></td></tr>
+        <tr><td>5</td><td>部署 E2B Embed 单机</td><td>KVM 自托管链路</td><td><span class="tag e">高级</span></td></tr>
+        <tr><td>6</td><td>部署 CubeSandbox 并打开 WebUI</td><td>模板 / 沙箱 / 节点管理</td><td><span class="tag e">高级</span></td></tr>
+        <tr><td>7</td><td>把 E2B SDK 指向 CubeSandbox</td><td>API 兼容性与迁移成本</td><td><span class="tag a">进阶</span></td></tr>
+        <tr><td>8</td><td>抓包观察出口域名策略</td><td>CubeEgress / nftables 行为</td><td><span class="tag e">高级</span></td></tr>
+        <tr><td>9</td><td>冷启动与密度压测</td><td>性能数字与容量规划</td><td><span class="tag e">高级</span></td></tr>
+        <tr><td>10</td><td>快照 / 克隆 / 回滚</td><td>CoW 语义与故障恢复</td><td><span class="tag e">高级</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>实验 1：最小可运行示例</h3>
+  <pre class="bash"><code>pip install e2b e2b-code-interpreter
+export E2B_API_KEY="your-key"</code></pre>
+  <pre class="python"><code>from e2b import Sandbox
+
+with Sandbox.create() as sbx:
+    # 1) 执行 shell
+    print(sbx.commands.run("echo hello && uname -a").stdout)
+
+    # 2) 文件读写
+    sbx.files.write("/home/user/demo.txt", "agent wrote this")
+    print(sbx.files.read("/home/user/demo.txt"))
+
+    # 3) 列出进程
+    print(sbx.commands.run("ps aux | head").stdout)</code></pre>
+
+  <h3>实验 2：验证状态保持</h3>
+  <pre class="python"><code>from e2b_code_interpreter import Sandbox
+
+with Sandbox.create() as sbx:
+    sbx.run_code("import math\nx = 41")
+    r1 = sbx.run_code("print(x, math.sqrt(1764))")   # 41 42.0
+    print("".join(r1.logs.stdout))
+
+    # 新沙箱：变量不存在，验证「状态属于沙箱而非 SDK」
+    with Sandbox.create() as sbx2:
+        try:
+            sbx2.run_code("print(x)")
+        except Exception as e:
+            print("isolated:", type(e).__name__)</code></pre>
+
+  <h3>实验 3：暂停与恢复</h3>
+  <pre class="python"><code>from e2b import Sandbox
+
+sbx = Sandbox.create()
+sbx.files.write("/tmp/state.txt", "before-pause")
+
+sandbox_id = sbx.sandbox_id
+sbx.pause()
+# 此时沙箱不再占用计算资源，但元数据仍在
+
+sbx = Sandbox.connect(sandbox_id)          # 恢复连接（部分版本提供 resume）
+print(sbx.files.read("/tmp/state.txt"))    # before-pause
+sbx.kill()</code></pre>
+
+  <h3>实验 7：E2B SDK → CubeSandbox</h3>
+  <pre class="python"><code>import os
+os.environ["E2B_API_KEY"] = "cube-api-key"
+os.environ["E2B_API_URL"] = "http://&lt;control-node-ip&gt;:&lt;api-port&gt;"
+# 若 SDK 使用域名模式，改用 E2B_DOMAIN
+
+from e2b import Sandbox
+with Sandbox.create() as sbx:
+    print(sbx.commands.run("hostname").stdout)</code></pre>
+
+  <div class="callout tip">
+    <span class="t">实验记录模板</span>
+    <p>每个实验记录四件事：<strong>操作</strong>（做了什么）、<strong>观察</strong>（输出/指标）、<strong>解释</strong>（对应哪个组件）、<strong>疑问</strong>（下一步查什么）。这套笔记在面试与评审中非常有用。</p>
+  </div>
+</section>
+
+<!-- ============ 9 选型 ============ -->
+<section id="choose">
+  <h2>9. 选型建议</h2>
+  <p>没有「最好的沙箱」，只有「最合适的约束组合」。先回答三个问题：数据能否出域？是否需要 KVM？团队能否维护内核级组件？</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>典型场景与推荐</caption>
+      <thead>
+        <tr><th>场景</th><th>推荐</th><th>理由</th><th>注意事项</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>快速验证 / 小团队</td><td><span class="tag e">E2B Cloud</span></td><td>零运维、SDK 完善、按量付费</td><td>数据出域、成本随量增长</td></tr>
+        <tr><td>强数据驻留 / 私有化</td><td><span class="tag c">CubeSandbox</span> 或 E2B 自托管</td><td>可在自有云账号/裸金属运行</td><td>需要 KVM 与运维投入</td></tr>
+        <tr><td>高密度 / 极致冷启动</td><td><span class="tag c">CubeSandbox</span></td><td>官方 &lt;60ms、eBPF 数据面、CoW</td><td>内核/文件系统调优门槛高</td></tr>
+        <tr><td>已有 E2B 代码</td><td><span class="tag c">CubeSandbox</span></td><td>API 兼容，迁移成本低</td><td>验证 SDK 版本兼容性</td></tr>
+        <tr><td>Computer-use / 桌面自动化</td><td><span class="tag e">E2B Desktop</span></td><td>官方鼠标/键盘/截图/流</td><td>资源消耗较大</td></tr>
+        <tr><td>强审计 / 凭据不落沙箱</td><td><span class="tag c">CubeSandbox</span></td><td>CubeEgress L7 + Header 注入 + JSONL 审计</td><td>需管理根 CA 轮换</td></tr>
+        <tr><td>长任务 / 有状态服务</td><td>两者均可</td><td>暂停恢复 + 快照 + 持久卷</td><td>明确空闲回收策略</td></tr>
+        <tr><td>K8s 原生平台</td><td>两者均可</td><td>E2B 有 K8s manifest；Cube 有 K8s 预览</td><td>需支持嵌套虚拟化</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>9.1 决策清单</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>上线前必答问题</caption>
+      <thead>
+        <tr><th>类别</th><th>问题</th><th>不满足的后果</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>硬件</td><td>节点是否支持 KVM / 嵌套虚拟化？</td><td>无法启动 MicroVM</td></tr>
+        <tr><td>存储</td><td>数据盘是否支持 reflink（XFS/Btrfs）？</td><td>CoW 退化为全量复制，冷启动变慢</td></tr>
+        <tr><td>网络</td><td>是否允许 TAP / eBPF / TPROXY？</td><td>沙箱无法联网或策略失效</td></tr>
+        <tr><td>安全</td><td>出口是否默认拒绝？凭据是否进入沙箱？</td><td>数据外泄、密钥泄露</td></tr>
+        <tr><td>容量</td><td>单机目标密度与内存超卖比？</td><td>OOM、noisy neighbor</td></tr>
+        <tr><td>可观测</td><td>是否接入指标、日志、追踪、审计？</td><td>故障无法定位、合规缺口</td></tr>
+        <tr><td>可靠性</td><td>节点故障时沙箱如何迁移/重建？</td><td>长任务丢失</td></tr>
+        <tr><td>成本</td><td>冷启动、快照存储、出口流量的计费模型？</td><td>预算失控</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 10 FAQ ============ -->
+<section id="faq">
+  <h2>10. 常见问题 FAQ</h2>
+
+  <h4>Q1：E2B 和 CubeSandbox 是竞品吗？</h4>
+  <p>可以视为同一品类的两种实现。CubeSandbox 明确以 E2B 兼容 API 为卖点，定位是「开源、可自托管的替代」。E2B 生态更成熟（官方 SDK、Cloud、Desktop、企业支持），CubeSandbox 更强调自托管密度、冷启动与 eBPF/L7 安全。两者可以混用：本地开发用 E2B，生产用 CubeSandbox，或反之。</p>
+
+  <h4>Q2：为什么不用 Docker 容器，而要用 MicroVM？</h4>
+  <p>容器共享宿主内核，任何内核漏洞都可能导致跨租户逃逸；且容器无法提供「独立内核」级别的强隔离。MicroVM 每沙箱一个内核，攻击面小得多，代价是启动与内存开销。对于「执行来路不明的 AI 代码」这一场景，MicroVM 是更合适的默认选择。</p>
+
+  <h4>Q3：为什么能 &lt;60ms 冷启动？</h4>
+  <p>不是「从零启动 Linux」，而是「恢复预启动快照」：模板阶段已完成内核引导与用户态初始化并生成内存快照；创建沙箱时只做 CoW 克隆 rootfs + 恢复内存快照，内存页还可惰性加载。三个优化叠加，才有官方数字。</p>
+
+  <h4>Q4：内存和磁盘怎么省？</h4>
+  <p>磁盘靠 reflink/CoW 共享只读镜像，只有写入才产生新块；内存靠页共享（相同只读页）、惰性加载与脏页增量快照。密度越高，共享收益越大。</p>
+
+  <h4>Q5：沙箱里的服务怎么被外部访问？</h4>
+  <p>E2B 用 <code>https://&lt;port&gt;-&lt;sandboxId&gt;.domain</code> 的子域模型；CubeSandbox 的 CubeProxy 同时支持 Host 模式与 Path 模式（<code>/sandbox/&lt;id&gt;/&lt;port&gt;/...</code>），后者适合无法配置通配 DNS/TLS 的环境。</p>
+
+  <h4>Q6：出口安全到底防什么？</h4>
+  <p>防三件事：<strong>内网探测</strong>（访问私网/元数据服务）、<strong>数据外泄</strong>（把密钥/数据发到未授权域名）、<strong>供应链回连</strong>（C2）。手段是默认拒绝 + 域名允许列表 + L7 审计 + 凭据不进沙箱。</p>
+
+  <h4>Q7：能不能跑浏览器和桌面？</h4>
+  <p>E2B 提供官方 Desktop SDK（鼠标、键盘、截图、应用启动、桌面流）；CubeSandbox 仓库也提供浏览器自动化示例。两者都基于同一个 MicroVM 隔离模型，桌面只是更重的模板。</p>
+
+  <h4>Q8：自托管需要什么？</h4>
+  <p>最低：x86_64 Linux + KVM + 支持 reflink 的数据盘 + Docker/容器运行时。生产还需要多节点调度、Redis、对象存储、监控与出口代理。E2B 有 Embed/Terraform/K8s 路径；CubeSandbox 有 PVM/裸机/Terraform/K8s 预览。</p>
+
+  <h4>Q9：迁移成本高吗？</h4>
+  <p>由于 API 兼容，主要是改 endpoint 与密钥，业务代码基本不动。但要注意 SDK 版本差异（<code>E2B_API_URL</code> vs <code>E2B_DOMAIN</code>）、模板格式、以及各自特有的能力（如 E2B Desktop、CubeEgress 策略）。</p>
+
+  <h4>Q10：如何评估性能？</h4>
+  <p>至少测四个指标：<strong>冷启动 P50/P99</strong>、<strong>单机密度</strong>（内存超卖下的稳定并发）、<strong>恢复延迟</strong>（暂停后首次请求）、<strong>出口代理开销</strong>（RTT 增量）。压测时用真实模板与真实负载，不要用空镜像。</p>
+</section>
+
+<!-- ============ 11 术语 ============ -->
+<section id="glossary">
+  <h2>11. 术语表</h2>
+  <div class="table-wrap">
+    <table>
+      <caption>核心术语速查</caption>
+      <thead>
+        <tr><th>术语</th><th>英文</th><th>含义</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>微虚拟机</td><td>MicroVM</td><td>只保留最小设备的轻量虚拟机，启动快、攻击面小</td></tr>
+        <tr><td>虚拟机监视器</td><td>VMM</td><td>创建与运行 VM 的软件，如 Firecracker、RustVMM</td></tr>
+        <tr><td>写时复制</td><td>CoW</td><td>修改时才复制数据，读共享、写独立</td></tr>
+        <tr><td>重链接</td><td>reflink / <code>FICLONE</code></td><td>文件系统级 extent 共享，O(1) 克隆</td></tr>
+        <tr><td>缺页处理</td><td><code>userfaultfd</code></td><td>用户态接管缺页，实现惰性内存加载</td></tr>
+        <tr><td>客户机内代理</td><td>envd</td><td>E2B 在 VM 内暴露进程/文件/端口 API 的服务</td></tr>
+        <tr><td>运行时垫片</td><td>Shim v2</td><td>containerd 的运行时接口，CubeShim 以此接入 MicroVM</td></tr>
+        <tr><td>透明代理</td><td>TPROXY</td><td>内核级透明拦截出站连接，供 L7 代理处理</td></tr>
+        <tr><td>中间人检查</td><td>MITM</td><td>代理持有根 CA，解密并检查 TLS 流量</td></tr>
+        <tr><td>最长前缀匹配</td><td>LPM trie</td><td>eBPF 中高效匹配 CIDR 的数据结构</td></tr>
+        <tr><td>连接跟踪</td><td>conntrack</td><td>记录 NAT 会话状态，支持回包正确路由</td></tr>
+        <tr><td>快照</td><td>Snapshot</td><td>某一时刻的磁盘/内存状态，可恢复或克隆</td></tr>
+        <tr><td>模板</td><td>Template</td><td>预构建的 rootfs + 内存快照，沙箱的起点</td></tr>
+        <tr><td>沙箱 ID</td><td>sandboxId</td><td>沙箱的唯一标识，用于路由与生命周期操作</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 12 参考 ============ -->
+<section id="refs">
+  <h2>12. 参考资料</h2>
+  <div class="table-wrap">
+    <table>
+      <caption>官方来源</caption>
+      <thead>
+        <tr><th>项目</th><th>内容</th><th>链接</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>E2B</td><td>主仓库、SDK、Cookbook</td><td><a href="https://github.com/e2b-dev/E2B" target="_blank" rel="noopener">github.com/e2b-dev/E2B</a></td></tr>
+        <tr><td>E2B</td><td>Runtime（Go 后端、自托管）</td><td><a href="https://github.com/e2b-dev/infra" target="_blank" rel="noopener">github.com/e2b-dev/infra</a></td></tr>
+        <tr><td>E2B</td><td>文档</td><td><a href="https://docs.e2b.dev/" target="_blank" rel="noopener">docs.e2b.dev</a></td></tr>
+        <tr><td>CubeSandbox</td><td>仓库与 README</td><td><a href="https://github.com/TencentCloud/CubeSandbox" target="_blank" rel="noopener">github.com/TencentCloud/CubeSandbox</a></td></tr>
+        <tr><td>CubeSandbox</td><td>架构总览</td><td><a href="https://github.com/TencentCloud/CubeSandbox/blob/master/docs/architecture/overview.md" target="_blank" rel="noopener">docs/architecture/overview.md</a></td></tr>
+        <tr><td>CubeSandbox</td><td>网络模型（CubeVS）</td><td><a href="https://github.com/TencentCloud/CubeSandbox/blob/master/docs/architecture/network.md" target="_blank" rel="noopener">docs/architecture/network.md</a></td></tr>
+        <tr><td>CubeSandbox</td><td>Quick Start</td><td><a href="https://github.com/TencentCloud/CubeSandbox/blob/master/docs/guide/quickstart.md" target="_blank" rel="noopener">docs/guide/quickstart.md</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">时效性声明</span>
+    <p>本文基于 2026 年 11 月抓取的公开仓库与文档整理。两个项目仍在快速演进，组件名、端口、环境变量、性能数字均可能变化，落地前请以官方最新文档为准。</p>
+  </div>
+
+  <div class="hr"></div>
+  <footer>
+    <p><strong>E2B × CubeSandbox 系统学习指南</strong> · 单文件 HTML · 可用浏览器直接打开或打印为 PDF。</p>
+    <p>阅读顺序建议：第 1–2 章建立框架 → 第 3–4 章精读实现 → 第 5–6 章横向对比 → 第 7–8 章动手验证 → 第 9 章做选型。</p>
+  </footer>
+</section>
+</main>
+</div>
+<a class="top-link" href="#" aria-label="返回顶部">↑</a>
+</body>
+</html>
