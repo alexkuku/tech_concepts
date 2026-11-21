@@ -239,7 +239,7 @@
 <header class="hero">
   <span class="eyebrow">Linux Kernel IO · Snapshot Engineering</span>
   <h1><span class="k">Linux 内核 IO 栈</span> × <span class="s">快照</span><br>面向 CubeSandbox 的深度学习指南</h1>
-  <p class="lead">领导给的路线是对的：<strong>先理解内存管理，再理解文件系统与块设备，最后才谈快照</strong>。这份指南按这条依赖链展开，每一章都标注「这个概念在 CubeSandbox 快照里对应什么」，最后给出可直接落地的改造任务与实验。</p>
+  <p class="lead">正确的学习路线是：<strong>先理解内存管理，再理解文件系统与块设备，最后才谈快照</strong>。这份指南按这条依赖链展开，每一章都标注「这个概念在 CubeSandbox 快照里对应什么」，最后给出可直接落地的改造任务与实验。</p>
   <div class="meta">
     <span>📚 基于 Linux 内核文档、XFS/FICLONE、Firecracker/RustVMM 与 CubeSandbox 架构文档</span>
     <span>🗓 整理时间：2026-11</span>
@@ -260,7 +260,7 @@
 
   <div class="table-wrap">
     <table>
-      <caption>领导那句话的拆解：为什么顺序是「内存 → 文件系统/块设备 → 快照」</caption>
+      <caption>为什么顺序是「内存 → 文件系统/块设备 → 快照」</caption>
       <thead>
         <tr><th>层次</th><th>你要回答的问题</th><th>答不上来的后果</th><th>CubeSandbox 对应</th></tr>
       </thead>
@@ -401,7 +401,7 @@
   </div>
 
   <div class="callout tip">
-    <span class="t">给领导的汇报口径</span>
+    <span class="t">一句话总结</span>
     <p>「快照的难点不在复制数据，而在<strong>定义一致点</strong>。一致点由三层共同决定：内存脏页是否回写、文件系统日志是否提交、设备写缓存是否刷出。所以我先补内存管理，再补文件系统/块设备，最后做快照。」</p>
   </div>
 </section>
