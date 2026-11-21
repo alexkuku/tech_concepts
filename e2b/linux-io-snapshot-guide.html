@@ -1,0 +1,2946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux 内核 IO 栈 × 快照 · 面向 CubeSandbox 的学习指南</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+  :root{
+    --bg:#f4f6f8; --surface:#ffffff; --surface-2:#fafbfc;
+    --border:#e3e7ec; --border-strong:#d0d6de;
+    --text:#151a21; --muted:#5c6675; --muted-2:#8a93a2;
+    --kern:#1d4ed8; --kern-dark:#1e3a8a; --kern-soft:#eff6ff; --kern-border:#bfdbfe;
+    --snap:#b45309; --snap-dark:#92400e; --snap-soft:#fffbeb; --snap-border:#fde68a;
+    --green:#0f766e; --green-soft:#ecfdf5; --green-border:#a7f3d0;
+    --rose:#be123c; --rose-soft:#fff1f2; --rose-border:#fecdd3;
+    --code-bg:#f6f7f9;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 10px 30px rgba(16,24,40,.05);
+    --radius:14px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15.5px;line-height:1.75;-webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--kern);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .layout{display:grid;grid-template-columns:264px minmax(0,1fr);max-width:1500px;margin:0 auto}
+  aside.toc{
+    position:sticky;top:0;height:100vh;overflow:auto;padding:24px 16px 48px;
+    border-right:1px solid var(--border);background:rgba(255,255,255,.74);backdrop-filter:blur(10px);
+  }
+  .toc-brand{display:flex;align-items:center;gap:9px;margin:0 8px 18px}
+  .toc-brand .dot{width:11px;height:11px;border-radius:3px;background:linear-gradient(135deg,var(--kern),var(--snap))}
+  .toc-brand b{font-size:13.5px;letter-spacing:.01em}
+  .toc-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin:18px 8px 5px}
+  aside.toc nav a{display:block;padding:4px 10px;border-radius:8px;font-size:13.2px;color:var(--muted);line-height:1.45}
+  aside.toc nav a:hover{background:#eef1f5;color:var(--text);text-decoration:none}
+  main{padding:42px 56px 110px;max-width:1160px;width:100%}
+  .hero{
+    background:linear-gradient(135deg,#ffffff 0%,#f5f9ff 55%,#fffaf0 100%);
+    border:1px solid var(--border);border-radius:22px;padding:40px 42px 34px;box-shadow:var(--shadow);
+    position:relative;overflow:hidden;
+  }
+  .hero::after{content:"";position:absolute;right:-100px;top:-100px;width:320px;height:320px;border-radius:50%;
+    background:radial-gradient(circle,rgba(29,78,216,.10),transparent 65%)}
+  .hero .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.08em;
+    color:var(--kern-dark);background:var(--kern-soft);border:1px solid var(--kern-border);padding:5px 12px;border-radius:999px}
+  .hero h1{font-size:38px;line-height:1.24;margin:18px 0 12px;letter-spacing:-.02em;font-weight:800}
+  .hero h1 .k{color:var(--kern)}
+  .hero h1 .s{color:var(--snap)}
+  .hero p.lead{font-size:16.5px;color:var(--muted);max-width:820px;margin:0 0 8px}
+  .hero .meta{display:flex;flex-wrap:wrap;gap:8px 22px;color:var(--muted-2);font-size:13px;margin-top:16px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
+  .stat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .stat b{display:block;font-size:18px;letter-spacing:-.01em}
+  .stat span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .stat.k b{color:var(--kern-dark)} .stat.s b{color:var(--snap-dark)}
+  section{margin-top:54px;scroll-margin-top:24px}
+  h2{font-size:26px;letter-spacing:-.015em;margin:0 0 18px;padding-left:16px;position:relative;line-height:1.35}
+  h2::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:5px;border-radius:3px;
+    background:linear-gradient(180deg,var(--kern),var(--snap))}
+  h3{font-size:19px;margin:30px 0 12px;letter-spacing:-.01em}
+  h4{font-size:16px;margin:22px 0 8px}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 16px;padding-left:24px}
+  li{margin:5px 0}
+  strong{font-weight:700}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  code:not(pre code){
+    font-family:var(--mono);font-size:.88em;background:#eef1f5;border:1px solid #e2e7ee;
+    padding:1px 6px;border-radius:6px;color:#303845;white-space:nowrap;
+  }
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:4px solid var(--border-strong);
+    border-radius:12px;padding:16px 18px;overflow:auto;margin:14px 0 20px;line-height:1.62}
+  pre code{font-family:var(--mono);font-size:12.8px;color:#252c37;white-space:pre}
+  pre.bash{border-left-color:#16a34a}
+  pre.c{border-left-color:#7c3aed}
+  pre.txt{border-left-color:var(--snap)}
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0;border:1px solid;font-size:14.5px}
+  .callout p:last-child{margin-bottom:0}
+  .callout .t{font-weight:700;display:block;margin-bottom:3px;font-size:13.5px}
+  .callout.info{background:var(--kern-soft);border-color:var(--kern-border)}
+  .callout.info .t{color:var(--kern-dark)}
+  .callout.tip{background:var(--green-soft);border-color:var(--green-border)}
+  .callout.tip .t{color:var(--green)}
+  .callout.warn{background:var(--snap-soft);border-color:var(--snap-border)}
+  .callout.warn .t{color:var(--snap)}
+  .callout.danger{background:var(--rose-soft);border-color:var(--rose-border)}
+  .callout.danger .t{color:var(--rose)}
+  .table-wrap{overflow-x:auto;margin:16px 0 24px;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:var(--shadow)}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+  caption{caption-side:top;text-align:left;font-size:13px;color:var(--muted-2);padding:10px 16px 8px;font-weight:600}
+  th,td{padding:10px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+  thead th{background:#f7f9fc;font-size:12.3px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:nth-child(even){background:#fcfcfd}
+  td code{white-space:normal}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid}
+  .tag.k{color:var(--kern-dark);background:var(--kern-soft);border-color:var(--kern-border)}
+  .tag.s{color:var(--snap-dark);background:var(--snap-soft);border-color:var(--snap-border)}
+  .tag.g{color:var(--green);background:var(--green-soft);border-color:var(--green-border)}
+  .diagram{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px 18px 14px;
+    box-shadow:var(--shadow);margin:20px 0 26px;overflow-x:auto}
+  .diagram svg{display:block;width:100%;min-width:840px;height:auto;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  .diagram .caption{font-size:12.5px;color:var(--muted-2);margin-top:10px;text-align:center}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);
+    border-radius:12px;padding:15px 17px;margin:16px 0 22px;box-shadow:var(--shadow)}
+  .flow .box{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:9px;padding:7px 11px;font-size:12.8px;line-height:1.4;text-align:center}
+  .flow .box small{display:block;color:var(--muted);font-size:11.3px}
+  .flow .box.k{background:var(--kern-soft);border-color:var(--kern-border);color:var(--kern-dark)}
+  .flow .box.s{background:var(--snap-soft);border-color:var(--snap-border);color:var(--snap-dark)}
+  .flow .box.g{background:var(--green-soft);border-color:var(--green-border);color:var(--green)}
+  .flow .arw{color:var(--muted-2);font-weight:700;font-size:16px;padding:0 2px}
+  .steps{list-style:none;padding:0;margin:18px 0 24px;counter-reset:s}
+  .steps>li{position:relative;padding:0 0 18px 46px;counter-increment:s}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:1px;width:28px;height:28px;border-radius:50%;
+    display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;background:var(--kern)}
+  .steps>li::after{content:"";position:absolute;left:13.5px;top:32px;bottom:2px;width:1.5px;background:var(--border)}
+  .steps>li:last-child::after{display:none}
+  .steps>li b{display:block;font-size:14.5px}
+  .steps>li p{margin:2px 0 0;font-size:14px;color:var(--muted)}
+  .steps.snap>li::before{background:var(--snap)}
+  .timeline{list-style:none;padding:0;margin:22px 0}
+  .timeline li{display:grid;grid-template-columns:72px 1fr;gap:18px;padding-bottom:24px;position:relative}
+  .timeline .ph{width:56px;height:56px;border-radius:15px;display:grid;place-items:center;font-weight:800;
+    font-size:14px;color:#fff;background:linear-gradient(135deg,var(--kern),#3b82f6);box-shadow:0 6px 16px rgba(29,78,216,.25);text-align:center;line-height:1.2}
+  .timeline li:nth-child(2) .ph{background:linear-gradient(135deg,#0891b2,#0e7490);box-shadow:0 6px 16px rgba(8,145,178,.22)}
+  .timeline li:nth-child(3) .ph{background:linear-gradient(135deg,var(--green),#14b8a6);box-shadow:0 6px 16px rgba(15,118,110,.22)}
+  .timeline li:nth-child(4) .ph{background:linear-gradient(135deg,#d97706,var(--snap));box-shadow:0 6px 16px rgba(180,83,9,.2)}
+  .timeline li:nth-child(5) .ph{background:linear-gradient(135deg,#db2777,#be185d);box-shadow:0 6px 16px rgba(190,24,93,.2)}
+  .timeline li:nth-child(6) .ph{background:linear-gradient(135deg,#7c3aed,#6d28d9);box-shadow:0 6px 16px rgba(124,58,237,.2)}
+  .timeline h4{margin:0 0 4px;font-size:16px}
+  .timeline p{margin:0;font-size:14px;color:var(--muted)}
+  .timeline .out{display:inline-block;margin-top:6px;font-size:12.5px;color:var(--muted);background:#fff;border:1px dashed var(--border-strong);border-radius:8px;padding:2px 10px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:18px 0 24px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .card h4{margin:0 0 6px;font-size:14.5px}
+  .card p{margin:0;font-size:13.5px;color:var(--muted)}
+  .card.k{border-top:3px solid var(--kern)} .card.s{border-top:3px solid var(--snap)}
+  .layers{display:flex;flex-direction:column;gap:6px;margin:18px 0 26px}
+  .layer{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:14px;background:#fff;
+    border:1px solid var(--border);border-radius:11px;padding:11px 15px;box-shadow:var(--shadow);font-size:14px}
+  .layer .n{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:13px;
+    color:#fff;background:var(--kern)}
+  .layer .name{font-weight:700}
+  .layer .desc{color:var(--muted);font-size:12.8px;text-align:right}
+  .hr{height:1px;background:var(--border);margin:48px 0}
+  footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted-2);font-size:12.5px}
+  .top-link{position:fixed;right:26px;bottom:26px;width:42px;height:42px;border-radius:50%;background:#fff;
+    border:1px solid var(--border-strong);display:grid;place-items:center;color:var(--muted);box-shadow:var(--shadow);font-size:16px}
+  .top-link:hover{color:var(--kern);text-decoration:none}
+  @media (max-width:980px){
+    .layout{grid-template-columns:1fr}
+    aside.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border);padding:16px}
+    aside.toc nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px}
+    main{padding:24px 16px 80px}
+    .hero{padding:26px 20px 22px;border-radius:16px}
+    .hero h1{font-size:27px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .layer{grid-template-columns:44px 1fr}
+    .layer .desc{grid-column:1/-1;text-align:left;padding-left:44px}
+  }
+  @media print{
+    aside.toc,.top-link{display:none}
+    .layout{display:block}
+    main{padding:0;max-width:none}
+    section{break-inside:avoid}
+    .diagram,.table-wrap{box-shadow:none}
+    thead{display:table-header-group}
+    tr,td,th{break-inside:avoid}
+    h2,h3,h4{break-after:avoid}
+    body{background:#fff}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="toc">
+  <div class="toc-brand"><span class="dot"></span><b>Linux IO × Snapshot</b></div>
+  <div class="toc-title">起点</div>
+  <nav>
+    <a href="#why">1. 为什么快照要懂 IO 栈</a>
+    <a href="#map">2. 全景地图</a>
+  </nav>
+  <div class="toc-title">内存管理（前提）</div>
+  <nav>
+    <a href="#mm">3. 虚拟内存与物理页</a>
+    <a href="#pagecache">4. Page Cache 与 address_space</a>
+    <a href="#fault">5. 缺页·回收·回写</a>
+    <a href="#memcg">6. memcg 与 userfaultfd</a>
+  </nav>
+  <div class="toc-title">文件系统</div>
+  <nav>
+    <a href="#vfs">7. VFS 对象模型</a>
+    <a href="#fs">8. 文件系统与日志</a>
+    <a href="#reflink">9. reflink 与写时复制</a>
+    <a href="#freeze">10. 一致性与 freeze</a>
+  </nav>
+  <div class="toc-title">块设备</div>
+  <nav>
+    <a href="#blk">11. 块设备抽象</a>
+    <a href="#bio">12. bio 与 blk-mq</a>
+    <a href="#dm">13. device-mapper</a>
+    <a href="#flush">14. 屏障·缓存·丢弃</a>
+  </nav>
+  <div class="toc-title">IO 全链路</div>
+  <nav>
+    <a href="#path">15. 读/写/fsync/mmap 路径</a>
+  </nav>
+  <div class="toc-title">快照</div>
+  <nav>
+    <a href="#snap">16. 快照技术全景</a>
+    <a href="#vm">17. VM 快照与脏页</a>
+    <a href="#consist">18. 一致性设计</a>
+    <a href="#perf">19. 性能与空间</a>
+    <a href="#fail">20. 故障与运维</a>
+  </nav>
+  <div class="toc-title">CubeSandbox 落地</div>
+  <nav>
+    <a href="#cube">21. 快照架构映射</a>
+    <a href="#tasks">22. 改造任务拆解</a>
+    <a href="#path-learn">23. 学习路径</a>
+    <a href="#labs">24. 动手实验</a>
+    <a href="#debug">25. 排障手册</a>
+    <a href="#cheatsheet">26. 一页速查</a>
+    <a href="#glossary">27. 术语表</a>
+    <a href="#refs">28. 参考资料</a>
+  </nav>
+</aside>
+
+<main>
+
+<header class="hero">
+  <span class="eyebrow">Linux Kernel IO · Snapshot Engineering</span>
+  <h1><span class="k">Linux 内核 IO 栈</span> × <span class="s">快照</span><br>面向 CubeSandbox 的深度学习指南</h1>
+  <p class="lead">领导给的路线是对的：<strong>先理解内存管理，再理解文件系统与块设备，最后才谈快照</strong>。这份指南按这条依赖链展开，每一章都标注「这个概念在 CubeSandbox 快照里对应什么」，最后给出可直接落地的改造任务与实验。</p>
+  <div class="meta">
+    <span>📚 基于 Linux 内核文档、XFS/FICLONE、Firecracker/RustVMM 与 CubeSandbox 架构文档</span>
+    <span>🗓 整理时间：2026-11</span>
+    <span>🎯 难度：中高级 → 内核级</span>
+  </div>
+  <div class="stats">
+    <div class="stat k"><b>Page Cache</b><span>文件页与匿名页的统一缓存抽象</span></div>
+    <div class="stat k"><b>VFS + Block</b><span>文件系统与块设备的分界线</span></div>
+    <div class="stat s"><b>FICLONE</b><span>XFS reflink 的 O(1) 克隆入口</span></div>
+    <div class="stat s"><b>Dirty Page</b><span>增量快照与惰性恢复的核心</span></div>
+  </div>
+</header>
+
+<!-- ============ 1 ============ -->
+<section id="why">
+  <h2>1. 为什么做快照必须先懂 IO 栈</h2>
+  <p>「快照」听起来只是「把当前状态存一份」，但在内核里它至少涉及三个独立的问题：<strong>内存里的页是什么状态</strong>、<strong>文件系统是否处于一致点</strong>、<strong>块设备上的写缓存是否已落盘</strong>。任何一层没对齐，快照要么不一致，要么恢复后数据错乱，要么性能完全不可用。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>领导那句话的拆解：为什么顺序是「内存 → 文件系统/块设备 → 快照」</caption>
+      <thead>
+        <tr><th>层次</th><th>你要回答的问题</th><th>答不上来的后果</th><th>CubeSandbox 对应</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>内存管理</strong></td><td>哪些页是文件页？哪些是匿名页？谁脏了？脏页什么时候回写？</td><td>快照漏页、内存镜像与磁盘不一致、恢复后进程崩溃</td><td>VM 内存快照、增量脏页跟踪、userfaultfd 惰性恢复</td></tr>
+        <tr><td><strong>文件系统</strong></td><td>inode 与数据块如何映射？日志提交到哪？reflink 共享了哪些 extent？</td><td>克隆退化为全量复制、元数据损坏、空间无法回收</td><td>CubeCoW 的 rootfs 克隆与快照（XFS + <code>FICLONE</code>）</td></tr>
+        <tr><td><strong>块设备</strong></td><td>bio 如何下发？写缓存何时刷？flush/FUA 语义是什么？</td><td>掉电丢数据、快照顺序错乱、<code>fsync</code> 不生效</td><td>底层 XFS 数据盘、可能的 dm-thin / 云盘后端</td></tr>
+        <tr><td><strong>快照</strong></td><td>在哪个静止点拍？拍哪些状态？如何恢复与 GC？</td><td>快照不可用、链式依赖、空间泄漏</td><td>CubeShim 原地快照、模板、暂停/恢复、跨节点迁移</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <span class="t">一句话原则</span>
+    <p><strong>快照的一致性上限，由你最不了解的那一层决定。</strong>只懂 <code>cp</code> 的人做出来的是「文件副本」；懂页缓存与 writeback 的人做出来的是「崩溃一致快照」；懂 freeze 与设备 flush 的人才能做出「应用一致快照」。</p>
+  </div>
+
+  <h3>1.1 学习依赖链</h3>
+  <div class="flow">
+    <div class="box k">内存管理<small>页 · 页表 · 页缓存</small></div><span class="arw">→</span>
+    <div class="box k">VFS<small>inode · dentry · file</small></div><span class="arw">→</span>
+    <div class="box g">文件系统<small>ext4 / XFS · 日志</small></div><span class="arw">→</span>
+    <div class="box g">块设备<small>bio · blk-mq · dm</small></div><span class="arw">→</span>
+    <div class="box s">快照<small>一致点 · 克隆 · 恢复</small></div><span class="arw">→</span>
+    <div class="box s">CubeSandbox<small>CubeCoW · CubeShim</small></div>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">常见误区</span>
+    <p>「快照 = 复制磁盘」是错的。对运行中的沙箱，磁盘只是状态的一部分：<strong>内存里的脏页、CPU 寄存器、设备队列、vsock 连接</strong>同样是状态。CubeSandbox 的模板之所以包含「冷启动后的内存快照」，正是因为只克隆 rootfs 无法恢复一个「已经跑起来」的环境。</p>
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="map">
+  <h2>2. 全景地图：一次 IO 经过哪些层</h2>
+  <p>先把整张图刻进脑子。后面每一章都是在放大这张图的某一段。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 660" role="img" aria-label="Linux IO 栈全景图">
+      <defs>
+        <marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="24" y="14" width="700" height="66" rx="13" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="44" y="40" font-size="12.5" font-weight="700" fill="#1e3a8a">用户态</text>
+      <text x="44" y="62" font-size="12.5" fill="#374151">应用：read / write / mmap / fsync / open · 数据库 · Agent 进程</text>
+
+      <line x1="374" y1="80" x2="374" y2="104" stroke="#64748b" stroke-width="1.6" marker-end="url(#am)"/>
+      <text x="404" y="98" font-size="11" fill="#64748b">系统调用（syscall）</text>
+
+      <rect x="24" y="106" width="700" height="66" rx="13" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="44" y="132" font-size="12.5" font-weight="700" fill="#111827">VFS（虚拟文件系统）</text>
+      <text x="44" y="154" font-size="12.5" fill="#4b5563">file · dentry · inode · super_block · mount · 路径解析 · 权限</text>
+
+      <line x1="374" y1="172" x2="374" y2="196" stroke="#64748b" stroke-width="1.6" marker-end="url(#am)"/>
+
+      <rect x="24" y="198" width="700" height="112" rx="13" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="44" y="224" font-size="12.5" font-weight="700" fill="#0f766e">Page Cache（页缓存）· address_space</text>
+      <rect x="44" y="238" width="200" height="52" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="144" y="260" text-anchor="middle" font-size="12" fill="#111827">文件页（file-backed）</text>
+      <text x="144" y="278" text-anchor="middle" font-size="10.5" fill="#7b8494">inode + offset → folio</text>
+      <rect x="260" y="238" width="200" height="52" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="360" y="260" text-anchor="middle" font-size="12" fill="#111827">匿名页（anonymous）</text>
+      <text x="360" y="278" text-anchor="middle" font-size="10.5" fill="#7b8494">栈 / 堆 / mmap private</text>
+      <rect x="476" y="238" width="228" height="52" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="590" y="260" text-anchor="middle" font-size="12" fill="#111827">回写（writeback）</text>
+      <text x="590" y="278" text-anchor="middle" font-size="10.5" fill="#7b8494">脏页 → bio</text>
+
+      <line x1="374" y1="310" x2="374" y2="334" stroke="#64748b" stroke-width="1.6" marker-end="url(#am)"/>
+
+      <rect x="24" y="336" width="700" height="104" rx="13" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="44" y="362" font-size="12.5" font-weight="700" fill="#111827">文件系统（ext4 / XFS / btrfs）</text>
+      <text x="44" y="384" font-size="12.5" fill="#4b5563">逻辑块 → 物理块映射 · 延迟分配 · extent 树 · 日志（journal）· 校验</text>
+      <text x="44" y="408" font-size="11.5" fill="#7b8494">iomap / buffer_head · <tspan font-family="monospace">address_space_operations</tspan> · fiemap</text>
+      <text x="44" y="428" font-size="11.5" fill="#7b8494">reflink / CoW：extent 共享 + 引用计数</text>
+
+      <line x1="374" y1="440" x2="374" y2="464" stroke="#64748b" stroke-width="1.6" marker-end="url(#am)"/>
+
+      <rect x="24" y="466" width="700" height="98" rx="13" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="44" y="492" font-size="12.5" font-weight="700" fill="#92400e">块层（block layer）</text>
+      <text x="44" y="514" font-size="12.5" fill="#4b5563">bio · request · blk-mq 软件/硬件队列 · IO 调度器 · 合并与排序</text>
+      <text x="44" y="536" font-size="11.5" fill="#7b8494">device-mapper（dm-linear / snapshot / thin）· md RAID · 分区</text>
+      <text x="44" y="555" font-size="11.5" fill="#7b8494">flush / FUA / discard 语义</text>
+
+      <line x1="374" y1="564" x2="374" y2="588" stroke="#64748b" stroke-width="1.6" marker-end="url(#am)"/>
+
+      <rect x="24" y="590" width="700" height="56" rx="13" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="44" y="614" font-size="12.5" font-weight="700" fill="#111827">设备驱动与硬件</text>
+      <text x="44" y="634" font-size="12.5" fill="#4b5563">virtio-blk / NVMe / SCSI / loop → SSD / 云盘 / 本地盘</text>
+
+      <!-- 右侧内存管理 -->
+      <rect x="754" y="14" width="262" height="300" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-dasharray="6 4"/>
+      <text x="774" y="40" font-size="12.5" font-weight="700" fill="#1e3a8a">内存管理（横切）</text>
+      <text x="774" y="64" font-size="11.5" fill="#4b5563">页分配器 · 伙伴系统</text>
+      <text x="774" y="86" font-size="11.5" fill="#4b5563">页表 / TLB / MMU</text>
+      <text x="774" y="108" font-size="11.5" fill="#4b5563">LRU · kswapd · 直接回收</text>
+      <text x="774" y="130" font-size="11.5" fill="#4b5563">脏页比例 · 回写线程</text>
+      <text x="774" y="152" font-size="11.5" fill="#4b5563">memcg · 内存配额</text>
+      <text x="774" y="174" font-size="11.5" fill="#4b5563">userfaultfd · 惰性加载</text>
+      <text x="774" y="196" font-size="11.5" fill="#4b5563">KSM · 页去重</text>
+      <text x="774" y="218" font-size="11.5" fill="#4b5563">THP · 大页</text>
+      <text x="774" y="240" font-size="11.5" fill="#4b5563">OOM killer</text>
+      <text x="774" y="262" font-size="11.5" fill="#4b5563">/proc/meminfo · smaps</text>
+      <text x="774" y="284" font-size="11" fill="#8a93a2">快照：内存镜像从哪来</text>
+
+      <rect x="754" y="336" width="262" height="310" rx="14" fill="#fffaf0" stroke="#fde68a" stroke-dasharray="6 4"/>
+      <text x="774" y="362" font-size="12.5" font-weight="700" fill="#92400e">快照的三个对象</text>
+      <rect x="774" y="378" width="222" height="70" rx="8" fill="#fff" stroke="#fde68a"/>
+      <text x="885" y="402" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">① 磁盘</text>
+      <text x="885" y="421" text-anchor="middle" font-size="10.5" fill="#7b8494">rootfs / 数据卷</text>
+      <text x="885" y="438" text-anchor="middle" font-size="10.5" fill="#7b8494">reflink / dm-snapshot</text>
+      <rect x="774" y="460" width="222" height="70" rx="8" fill="#fff" stroke="#fde68a"/>
+      <text x="885" y="484" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">② 内存</text>
+      <text x="885" y="503" text-anchor="middle" font-size="10.5" fill="#7b8494">full / diff 快照</text>
+      <text x="885" y="520" text-anchor="middle" font-size="10.5" fill="#7b8494">脏页位图 · UFFD</text>
+      <rect x="774" y="542" width="222" height="70" rx="8" fill="#fff" stroke="#fde68a"/>
+      <text x="885" y="566" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">③ 设备状态</text>
+      <text x="885" y="585" text-anchor="middle" font-size="10.5" fill="#7b8494">vCPU / virtio / vsock</text>
+      <text x="885" y="602" text-anchor="middle" font-size="10.5" fill="#7b8494">时钟 / 中断控制器</text>
+    </svg>
+    <div class="caption">图 1 · Linux IO 栈全景：左侧是「空间轴」（应用 → 设备），右侧是「横切关注点」（内存管理 + 快照三对象）</div>
+  </div>
+
+  <h3>2.1 两条主轴</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>理解 IO 栈的两条轴</caption>
+      <thead>
+        <tr><th>轴</th><th>路径</th><th>核心问题</th><th>快照相关性</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>空间轴</strong>（分层）</td><td>应用 → syscall → VFS → 页缓存 → 文件系统 → 块层 → 驱动 → 设备</td><td>每一层负责什么抽象？边界在哪？</td><td>决定「快照在哪一层做」：FS 层用 reflink，块层用 dm-snapshot，VM 层用内存+设备快照</td></tr>
+        <tr><td><strong>时间轴</strong>（状态）</td><td>write → 脏页 → 回写 → bio → 设备缓存 → 持久介质</td><td>数据在什么时刻真正持久化？</td><td>决定「快照点是否一致」：必须等到 flush/FUA 完成</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">给领导的汇报口径</span>
+    <p>「快照的难点不在复制数据，而在<strong>定义一致点</strong>。一致点由三层共同决定：内存脏页是否回写、文件系统日志是否提交、设备写缓存是否刷出。所以我先补内存管理，再补文件系统/块设备，最后做快照。」</p>
+  </div>
+</section>
+<!-- ============ 3 ============ -->
+<section id="mm">
+  <h2>3. 内存管理（一）：虚拟内存与物理页</h2>
+  <p>Linux 的每个进程都活在自己的<strong>虚拟地址空间</strong>里。CPU 通过 MMU 查页表，把虚拟地址翻译成物理地址；内核则用 <code>struct page</code> 管理每一个物理页。理解「虚拟 → 页表 → 物理页」这条链，是理解页缓存、mmap、userfaultfd 的前提。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 420" role="img" aria-label="虚拟地址到物理页的映射">
+      <defs>
+        <marker id="amm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+        </marker>
+      </defs>
+      <!-- 进程地址空间 -->
+      <rect x="20" y="24" width="250" height="360" rx="14" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="40" y="50" font-size="12.5" font-weight="700" fill="#1e3a8a">进程虚拟地址空间</text>
+      <rect x="40" y="66" width="210" height="46" rx="7" fill="#fff" stroke="#bfdbfe"/>
+      <text x="145" y="86" text-anchor="middle" font-size="11.5" fill="#111827">内核空间（高地址）</text>
+      <text x="145" y="103" text-anchor="middle" font-size="10" fill="#7b8494">共享，用户不可直接访问</text>
+      <rect x="40" y="122" width="210" height="42" rx="7" fill="#fff" stroke="#bfdbfe"/>
+      <text x="145" y="140" text-anchor="middle" font-size="11.5" fill="#111827">栈（stack）</text>
+      <text x="145" y="156" text-anchor="middle" font-size="10" fill="#7b8494">自动增长 · 匿名页</text>
+      <rect x="40" y="174" width="210" height="42" rx="7" fill="#fff" stroke="#bfdbfe"/>
+      <text x="145" y="192" text-anchor="middle" font-size="11.5" fill="#111827">mmap 区域</text>
+      <text x="145" y="208" text-anchor="middle" font-size="10" fill="#7b8494">文件映射 / 匿名映射</text>
+      <rect x="40" y="226" width="210" height="42" rx="7" fill="#fff" stroke="#bfdbfe"/>
+      <text x="145" y="244" text-anchor="middle" font-size="11.5" fill="#111827">堆（heap）</text>
+      <text x="145" y="260" text-anchor="middle" font-size="10" fill="#7b8494">brk / malloc · 匿名页</text>
+      <rect x="40" y="278" width="210" height="42" rx="7" fill="#fff" stroke="#bfdbfe"/>
+      <text x="145" y="296" text-anchor="middle" font-size="11.5" fill="#111827">代码段 / 数据段</text>
+      <text x="145" y="312" text-anchor="middle" font-size="10" fill="#7b8494">文件映射（可执行文件）</text>
+      <rect x="40" y="330" width="210" height="38" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="145" y="354" text-anchor="middle" font-size="10.5" fill="#374151">VMA 链表描述每段权限与后端</text>
+
+      <!-- 页表 -->
+      <rect x="330" y="70" width="210" height="270" rx="14" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="435" y="96" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">多级页表</text>
+      <rect x="352" y="114" width="166" height="34" rx="6" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="435" y="136" text-anchor="middle" font-size="11" fill="#374151">PGD（页全局目录）</text>
+      <text x="435" y="164" text-anchor="middle" font-size="14" fill="#94a3b8">↓</text>
+      <rect x="352" y="174" width="166" height="34" rx="6" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="435" y="196" text-anchor="middle" font-size="11" fill="#374151">P4D / PUD</text>
+      <text x="435" y="224" text-anchor="middle" font-size="14" fill="#94a3b8">↓</text>
+      <rect x="352" y="234" width="166" height="34" rx="6" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="435" y="256" text-anchor="middle" font-size="11" fill="#374151">PMD</text>
+      <text x="435" y="284" text-anchor="middle" font-size="14" fill="#94a3b8">↓</text>
+      <rect x="352" y="294" width="166" height="34" rx="6" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="435" y="316" text-anchor="middle" font-size="11" fill="#1e3a8a">PTE → 物理页帧号 PFN</text>
+      <text x="435" y="360" text-anchor="middle" font-size="10.5" fill="#7b8494">4 级/5 级 · 4KB 页 · 2MB/1GB 大页</text>
+
+      <!-- 物理页 -->
+      <rect x="610" y="70" width="190" height="270" rx="14" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="705" y="96" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0f766e">物理页</text>
+      <rect x="630" y="112" width="150" height="52" rx="6" fill="#fff" stroke="#a7f3d0"/>
+      <text x="705" y="133" text-anchor="middle" font-size="11" fill="#111827">struct page</text>
+      <text x="705" y="151" text-anchor="middle" font-size="9.5" fill="#7b8494">flags · refcount · mapping</text>
+      <rect x="630" y="174" width="150" height="52" rx="6" fill="#fff" stroke="#a7f3d0"/>
+      <text x="705" y="195" text-anchor="middle" font-size="11" fill="#111827">folio（复合页）</text>
+      <text x="705" y="213" text-anchor="middle" font-size="9.5" fill="#7b8494">order · head/tail</text>
+      <rect x="630" y="236" width="150" height="52" rx="6" fill="#fff" stroke="#a7f3d0"/>
+      <text x="705" y="257" text-anchor="middle" font-size="11" fill="#111827">zone / node</text>
+      <text x="705" y="275" text-anchor="middle" font-size="9.5" fill="#7b8494">DMA / NORMAL · NUMA</text>
+      <text x="705" y="316" text-anchor="middle" font-size="10.5" fill="#7b8494">伙伴系统按 order 分配</text>
+      <text x="705" y="333" text-anchor="middle" font-size="10.5" fill="#7b8494">空闲链表 → 分配/合并</text>
+
+      <!-- 箭头 -->
+      <line x1="270" y1="150" x2="326" y2="150" stroke="#64748b" stroke-width="1.7" marker-end="url(#amm)"/>
+      <text x="298" y="140" text-anchor="middle" font-size="10" fill="#64748b">MMU</text>
+      <line x1="540" y1="310" x2="606" y2="310" stroke="#64748b" stroke-width="1.7" marker-end="url(#amm)"/>
+      <text x="573" y="300" text-anchor="middle" font-size="10" fill="#64748b">PFN</text>
+
+      <!-- 两类页 -->
+      <rect x="830" y="70" width="190" height="126" rx="12" fill="#ffffff" stroke="#bfdbfe"/>
+      <text x="925" y="94" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1e3a8a">文件页</text>
+      <text x="925" y="116" text-anchor="middle" font-size="10.5" fill="#4b5563">有 backing file</text>
+      <text x="925" y="136" text-anchor="middle" font-size="10.5" fill="#4b5563">mapping 指向 address_space</text>
+      <text x="925" y="156" text-anchor="middle" font-size="10.5" fill="#4b5563">可回写、可丢弃</text>
+      <text x="925" y="180" text-anchor="middle" font-size="10" fill="#7b8494">页缓存 / mmap 文件</text>
+
+      <rect x="830" y="212" width="190" height="128" rx="12" fill="#ffffff" stroke="#fde68a"/>
+      <text x="925" y="236" text-anchor="middle" font-size="11.5" font-weight="700" fill="#92400e">匿名页</text>
+      <text x="925" y="258" text-anchor="middle" font-size="10.5" fill="#4b5563">无 backing file</text>
+      <text x="925" y="278" text-anchor="middle" font-size="10.5" fill="#4b5563">只能换出到 swap</text>
+      <text x="925" y="298" text-anchor="middle" font-size="10.5" fill="#4b5563">栈 / 堆 / MAP_PRIVATE</text>
+      <text x="925" y="322" text-anchor="middle" font-size="10" fill="#7b8494">快照必须保存这些页</text>
+    </svg>
+    <div class="caption">图 2 · 虚拟地址经多级页表映射到物理页；页按「有无 backing file」分为文件页与匿名页，二者在快照中的处理方式不同</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>内存管理核心数据结构</caption>
+      <thead>
+        <tr><th>结构</th><th>所在头文件</th><th>职责</th><th>快照视角</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>mm_struct</code></td><td><code>linux/mm_types.h</code></td><td>描述一个进程的地址空间：页表、VMA 链表、RSS 统计</td><td>快照的「进程视图」入口</td></tr>
+        <tr><td><code>vm_area_struct</code>（VMA）</td><td><code>linux/mm_types.h</code></td><td>一段连续虚拟地址的权限、flags、后端文件、<code>vm_ops</code></td><td>判断某段是文件映射还是匿名映射</td></tr>
+        <tr><td><code>struct page</code> / <code>folio</code></td><td><code>linux/mm_types.h</code></td><td>物理页元数据：flags、refcount、mapping、index</td><td>脏页/回写状态的载体；内存镜像的基本单位</td></tr>
+        <tr><td><code>struct address_space</code></td><td><code>linux/fs.h</code></td><td>inode 的页缓存视图：xarray + <code>a_ops</code></td><td>文件页与文件系统之间的桥</td></tr>
+        <tr><td><code>struct zone</code> / <code>pglist_data</code></td><td><code>linux/mmzone.h</code></td><td>物理内存分区（DMA/NORMAL）与 NUMA 节点</td><td>内存热插拔、跨节点恢复</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>3.1 缺页：虚拟地址第一次被访问时发生什么</h3>
+  <ol class="steps">
+    <li><b>CPU 访问虚拟地址，MMU 查页表发现 PTE 无效</b><p>触发 <code>#PF</code> 异常，进入内核 <code>do_user_addr_fault</code>。</p></li>
+    <li><b>内核找到对应 VMA</b><p>检查地址是否落在合法区间、权限是否允许（读/写/执行）。</p></li>
+    <li><b>分类处理</b><p>匿名页 → 分配零页或从 swap 读入；文件页 → 查 page cache，未命中则文件系统发起读 IO。</p></li>
+    <li><b>填充 PTE</b><p>把物理页帧号写入页表，设置权限位与脏位；更新 RSS 统计。</p></li>
+    <li><b>返回用户态重试</b><p>指令重新执行，这次 MMU 命中。</p></li>
+  </ol>
+
+  <div class="table-wrap">
+    <table>
+      <caption>缺页的两种类型（性能分析的关键区分）</caption>
+      <thead>
+        <tr><th>类型</th><th>触发条件</th><th>是否需要 IO</th><th>典型场景</th><th>观测</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Minor fault（次缺页）</td><td>页已在页缓存/已分配，只是 PTE 未建立</td><td>通常否</td><td>首次访问已缓存文件、CoW 复制、UFFD 惰性恢复</td><td><code>/proc/vmstat</code> 的 <code>pgfault</code></td></tr>
+        <tr><td>Major fault（主缺页）</td><td>页不在内存，需要从磁盘/swap 读入</td><td>是</td><td>冷启动读文件、swap 换入、快照首次拉页</td><td><code>pgmajfault</code>；<code>perf</code> 可追踪</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ①</span>
+    <p>模板恢复时，如果内存快照按需加载（userfaultfd），那么「第一次访问某个页」就是一次 <strong>minor 或 major fault</strong>。这解释了为什么沙箱刚恢复时会有延迟毛刺：<strong>热页越多，毛刺越少</strong>。优化手段是恢复后主动 <code>MADV_WILLNEED</code> 预取，或对热点页做预热。</p>
+  </div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="pagecache">
+  <h2>4. 内存管理（二）：Page Cache 与 address_space</h2>
+  <p>页缓存是 Linux 性能的基石：<strong>读写文件本质上是在读写内存页</strong>，磁盘只是页的后端。页缓存按「inode + 文件偏移」索引，而这个索引的载体就是 <code>address_space</code>。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 400" role="img" aria-label="address_space 与 inode 页缓存">
+      <defs>
+        <marker id="apc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+        </marker>
+      </defs>
+      <!-- 文件对象 -->
+      <rect x="24" y="26" width="210" height="110" rx="12" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="129" y="52" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1e3a8a">struct file</text>
+      <text x="129" y="74" text-anchor="middle" font-size="10.5" fill="#4b5563">f_path · f_pos · f_flags</text>
+      <text x="129" y="94" text-anchor="middle" font-size="10.5" fill="#4b5563">f_op（file_operations）</text>
+      <text x="129" y="116" text-anchor="middle" font-size="10" fill="#7b8494">一次 open 的实例</text>
+
+      <rect x="24" y="180" width="210" height="110" rx="12" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="129" y="206" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">struct dentry</text>
+      <text x="129" y="228" text-anchor="middle" font-size="10.5" fill="#4b5563">d_name · d_inode</text>
+      <text x="129" y="248" text-anchor="middle" font-size="10.5" fill="#4b5563">d_parent · d_subdirs</text>
+      <text x="129" y="270" text-anchor="middle" font-size="10" fill="#7b8494">目录项缓存（dcache）</text>
+
+      <!-- inode -->
+      <rect x="300" y="80" width="220" height="160" rx="12" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="410" y="106" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">struct inode</text>
+      <text x="410" y="128" text-anchor="middle" font-size="10.5" fill="#4b5563">i_ino · i_size · i_mode</text>
+      <text x="410" y="148" text-anchor="middle" font-size="10.5" fill="#4b5563">i_mapping → address_space</text>
+      <text x="410" y="168" text-anchor="middle" font-size="10.5" fill="#4b5563">i_fop · i_op · i_sb</text>
+      <text x="410" y="192" text-anchor="middle" font-size="10" fill="#7b8494">文件系统对象（磁盘元数据的内存表示）</text>
+      <text x="410" y="214" text-anchor="middle" font-size="10" fill="#7b8494">同一文件被多次 open 共享同一 inode</text>
+
+      <!-- address_space -->
+      <rect x="586" y="40" width="430" height="240" rx="12" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="801" y="66" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0f766e">struct address_space（页缓存视图）</text>
+      <rect x="606" y="82" width="190" height="60" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="701" y="104" text-anchor="middle" font-size="11" fill="#111827">xarray（i_pages）</text>
+      <text x="701" y="122" text-anchor="middle" font-size="9.5" fill="#7b8494">index → folio</text>
+      <rect x="812" y="82" width="184" height="60" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="904" y="104" text-anchor="middle" font-size="11" fill="#111827">a_ops</text>
+      <text x="904" y="122" text-anchor="middle" font-size="9.5" fill="#7b8494">read/write/dirty 回调</text>
+      <rect x="606" y="154" width="190" height="60" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="701" y="176" text-anchor="middle" font-size="11" fill="#111827">i_dirty / wb</text>
+      <text x="701" y="194" text-anchor="middle" font-size="9.5" fill="#7b8494">脏页链表 · 回写控制</text>
+      <rect x="812" y="154" width="184" height="60" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="904" y="176" text-anchor="middle" font-size="11" fill="#111827">i_mmap</text>
+      <text x="904" y="194" text-anchor="middle" font-size="9.5" fill="#7b8494">映射此文件的 VMA</text>
+      <text x="801" y="240" text-anchor="middle" font-size="10.5" fill="#4b5563">页缓存以「文件偏移 / 页大小」为 key</text>
+      <text x="801" y="260" text-anchor="middle" font-size="10.5" fill="#4b5563">readahead 状态也在 mapping 上</text>
+
+      <!-- 箭头 -->
+      <line x1="234" y1="80" x2="296" y2="120" stroke="#64748b" stroke-width="1.6" marker-end="url(#apc)"/>
+      <text x="258" y="94" font-size="10" fill="#64748b">f_inode</text>
+      <line x1="234" y1="214" x2="296" y2="190" stroke="#64748b" stroke-width="1.6" marker-end="url(#apc)"/>
+      <text x="258" y="216" font-size="10" fill="#64748b">d_inode</text>
+      <line x1="520" y1="150" x2="582" y2="150" stroke="#64748b" stroke-width="1.6" marker-end="url(#apc)"/>
+      <text x="551" y="140" text-anchor="middle" font-size="10" fill="#64748b">i_mapping</text>
+
+      <!-- 底部说明 -->
+      <rect x="24" y="320" width="992" height="60" rx="10" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="44" y="344" font-size="11.5" fill="#4b5563">读：<tspan font-family="monospace">filemap_read</tspan> 命中直接拷给用户；未命中 → <tspan font-family="monospace">a_ops-&gt;read_folio</tspan> → 文件系统映射 → bio → 回填页缓存。</text>
+      <text x="44" y="366" font-size="11.5" fill="#4b5563">写：<tspan font-family="monospace">copy_from_user</tspan> 写入页缓存 → 标记脏页 → 异步 writeback；<tspan font-family="monospace">fsync</tspan> 才等待落盘。</text>
+    </svg>
+    <div class="caption">图 3 · file / dentry / inode / address_space 四者关系：inode 是磁盘元数据的内存表示，address_space 是它的页缓存视图</div>
+  </div>
+
+  <h3>4.1 三种 IO 方式</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>Buffered IO / Direct IO / mmap 对比</caption>
+      <thead>
+        <tr><th>方式</th><th>是否经过页缓存</th><th>语义</th><th>适用</th><th>坑</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Buffered IO（默认）</td><td>是</td><td><code>write</code> 返回时数据只在页缓存，未落盘</td><td>绝大多数应用；顺序读写</td><td>需要 <code>fsync</code> 才有持久化保证</td></tr>
+        <tr><td>Direct IO（<code>O_DIRECT</code>）</td><td>否</td><td>直接构造 bio 下发，绕过页缓存</td><td>数据库、快照文件、避免双缓存</td><td>对齐要求（偏移/长度/内存地址）；小 IO 性能差</td></tr>
+        <tr><td>mmap</td><td>是（映射页缓存）</td><td>通过内存访问文件，缺页时建立映射</td><td>随机访问、大文件、内存快照</td><td><code>msync</code> 语义、SIGBUS、写放大</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption><code>address_space_operations</code> 的关键回调</caption>
+      <thead>
+        <tr><th>回调</th><th>何时调用</th><th>文件系统要做什么</th><th>快照关联</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>read_folio</code></td><td>页缓存未命中读</td><td>把文件逻辑块映射到设备块，发起读</td><td>恢复时从快照文件读页</td></tr>
+        <tr><td><code>readahead</code></td><td>顺序读预测</td><td>批量预读</td><td>恢复预取、冷启动加速</td></tr>
+        <tr><td><code>writepage</code> / <code>writepages</code></td><td>回写线程刷脏页</td><td>把脏页写回设备</td><td>快照前必须等它完成</td></tr>
+        <tr><td><code>dirty_folio</code></td><td>页被写脏</td><td>把 inode 挂到脏链表</td><td>脏页跟踪的起点</td></tr>
+        <tr><td><code>write_begin</code> / <code>write_end</code></td><td>buffered write</td><td>准备/提交一次写</td><td>日志提交点</td></tr>
+        <tr><td><code>invalidate_folio</code></td><td>截断/回收</td><td>清理页缓存</td><td>快照后丢弃缓存</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">关键细节：reflink 不共享页缓存</span>
+    <p>XFS 的 reflink 共享的是<strong>磁盘 extent</strong>，不是内存页。克隆出来的文件是<strong>新的 inode</strong>，拥有独立的 <code>address_space</code> 与页缓存。所以：<strong>克隆是 O(1) 的磁盘操作，但冷读仍会打盘</strong>。CubeSandbox 做克隆/恢复时，如果希望低延迟，需要额外做页缓存预热（<code>vmtouch</code>、<code>MADV_WILLNEED</code>、或共享内存快照）。这是很多人第一次做 reflink 快照时踩的坑。</p>
+  </div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="fault">
+  <h2>5. 内存管理（三）：回收与回写</h2>
+  <p>内存不是无限的。当空闲页低于水位线，内核开始回收；当脏页超过阈值，内核开始回写。快照的性能与一致性，几乎都绕不开这两个机制。</p>
+
+  <h3>5.1 页面回收（reclaim）</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>回收机制与水位线</caption>
+      <thead>
+        <tr><th>机制</th><th>触发</th><th>行为</th><th>对快照的影响</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>kswapd（后台回收）</td><td>空闲页低于 low 水位</td><td>异步扫描 LRU，回收干净页/回写脏页</td><td>后台抖动，可能拖慢快照</td></tr>
+        <tr><td>直接回收（direct reclaim）</td><td>分配时低于 min 水位</td><td>分配者自己同步回收，延迟尖刺</td><td>快照期间分配内存会变慢</td></tr>
+        <tr><td>LRU 双链表</td><td>—</td><td>active/inactive 分级，二次机会</td><td>热页更可能留在内存，利于恢复</td></tr>
+        <tr><td>swap</td><td>匿名页被回收</td><td>换出到 swap 设备</td><td>内存快照可能包含已换出页的引用</td></tr>
+        <tr><td>OOM killer</td><td>无法回收且超过 <code>memory.max</code></td><td>按 <code>oom_score</code> 杀进程</td><td>快照进程被误杀 → 快照失败</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="small muted">水位线：<code>min</code>（保留）<code>&lt; low</code>（唤醒 kswapd）<code>&lt; high</code>（停止回收）。可通过 <code>/proc/sys/vm/watermark_scale_factor</code> 调整。</p>
+
+  <h3>5.2 脏页回写（writeback）</h3>
+  <p>写操作只把数据放进页缓存并标记脏页，真正的磁盘写由回写线程异步完成。控制回写的核心参数：</p>
+  <div class="table-wrap">
+    <table>
+      <caption>writeback 关键参数（<code>/proc/sys/vm/</code>）</caption>
+      <thead>
+        <tr><th>参数</th><th>默认量级</th><th>含义</th><th>调优建议</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>dirty_background_ratio</code></td><td>10%</td><td>脏页超过此比例，后台回写线程启动</td><td>快照前可临时调低，提前回写</td></tr>
+        <tr><td><code>dirty_ratio</code></td><td>20%</td><td>脏页超过此比例，写进程被同步阻塞</td><td>避免快照期间应用被卡住</td></tr>
+        <tr><td><code>dirty_expire_centisecs</code></td><td>3000（30s）</td><td>脏页最长存活时间</td><td>影响快照「新鲜度」</td></tr>
+        <tr><td><code>dirty_writeback_centisecs</code></td><td>500（5s）</td><td>回写线程唤醒间隔</td><td>更频繁 → 脏页更少</td></tr>
+        <tr><td><code>dirty_background_bytes</code> / <code>dirty_bytes</code></td><td>—</td><td>按字节设置阈值（优先于 ratio）</td><td>大内存机器更精确</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 360" role="img" aria-label="写路径与回写">
+      <defs>
+        <marker id="awb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+        </marker>
+        <marker id="awr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
+        </marker>
+      </defs>
+      <!-- 写路径 -->
+      <text x="24" y="30" font-size="12" font-weight="700" fill="#1e3a8a">① 写路径（快速返回）</text>
+      <rect x="24" y="44" width="150" height="56" rx="9" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="99" y="68" text-anchor="middle" font-size="12" fill="#111827">write()</text>
+      <text x="99" y="87" text-anchor="middle" font-size="10" fill="#7b8494">copy_from_user</text>
+
+      <rect x="210" y="44" width="170" height="56" rx="9" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="295" y="68" text-anchor="middle" font-size="12" fill="#111827">页缓存 folio</text>
+      <text x="295" y="87" text-anchor="middle" font-size="10" fill="#7b8494">分配 / 写入</text>
+
+      <rect x="416" y="44" width="170" height="56" rx="9" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="501" y="68" text-anchor="middle" font-size="12" fill="#111827">标记脏页</text>
+      <text x="501" y="87" text-anchor="middle" font-size="10" fill="#7b8494">dirty_folio → 脏链表</text>
+
+      <rect x="622" y="44" width="170" height="56" rx="9" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="707" y="68" text-anchor="middle" font-size="12" fill="#111827">返回用户态</text>
+      <text x="707" y="87" text-anchor="middle" font-size="10" fill="#7b8494">数据可能仍在内存</text>
+
+      <rect x="828" y="44" width="188" height="56" rx="9" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="922" y="68" text-anchor="middle" font-size="11.5" fill="#be123c">掉电 → 数据丢失</text>
+      <text x="922" y="87" text-anchor="middle" font-size="10" fill="#9f1239">除非 fsync / 设备缓存已刷</text>
+
+      <g stroke="#64748b" stroke-width="1.6" marker-end="url(#awb)">
+        <line x1="174" y1="72" x2="206" y2="72"/>
+        <line x1="380" y1="72" x2="412" y2="72"/>
+        <line x1="586" y1="72" x2="618" y2="72"/>
+        <line x1="792" y1="72" x2="824" y2="72"/>
+      </g>
+
+      <!-- 回写路径 -->
+      <text x="24" y="166" font-size="12" font-weight="700" fill="#92400e">② 回写路径（异步 / fsync 同步）</text>
+      <rect x="24" y="180" width="170" height="60" rx="9" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="109" y="204" text-anchor="middle" font-size="12" fill="#111827">writeback 线程</text>
+      <text x="109" y="223" text-anchor="middle" font-size="10" fill="#7b8494">或 fsync 触发</text>
+
+      <rect x="230" y="180" width="170" height="60" rx="9" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="315" y="204" text-anchor="middle" font-size="12" fill="#111827">writepages</text>
+      <text x="315" y="223" text-anchor="middle" font-size="10" fill="#7b8494">a_ops 回调</text>
+
+      <rect x="436" y="180" width="190" height="60" rx="9" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="531" y="204" text-anchor="middle" font-size="12" fill="#111827">iomap / 映射</text>
+      <text x="531" y="223" text-anchor="middle" font-size="10" fill="#7b8494">逻辑块 → 物理块</text>
+
+      <rect x="662" y="180" width="150" height="60" rx="9" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="737" y="204" text-anchor="middle" font-size="12" fill="#111827">submit_bio</text>
+      <text x="737" y="223" text-anchor="middle" font-size="10" fill="#7b8494">构造 bio</text>
+
+      <rect x="848" y="180" width="168" height="60" rx="9" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="932" y="204" text-anchor="middle" font-size="12" fill="#111827">blk-mq → 驱动</text>
+      <text x="932" y="223" text-anchor="middle" font-size="10" fill="#7b8494">设备写缓存</text>
+
+      <g stroke="#b45309" stroke-width="1.7" marker-end="url(#awr)">
+        <line x1="194" y1="210" x2="226" y2="210"/>
+        <line x1="400" y1="210" x2="432" y2="210"/>
+        <line x1="626" y1="210" x2="658" y2="210"/>
+        <line x1="812" y1="210" x2="844" y2="210"/>
+      </g>
+
+      <!-- fsync -->
+      <rect x="24" y="278" width="992" height="62" rx="10" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="44" y="302" font-size="11.5" font-weight="700" fill="#111827">fsync 的完整语义</text>
+      <text x="44" y="324" font-size="11.5" fill="#4b5563">filemap_write_and_wait_range（刷数据）→ f_op-&gt;fsync（刷文件系统日志）→ blkdev_issue_flush（刷设备写缓存）。三步都完成，才返回。</text>
+    </svg>
+    <div class="caption">图 4 · write 与 fsync 的路径差异：write 只保证进入页缓存，fsync 才保证「数据 + 元数据 + 设备缓存」全部持久化</div>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ②</span>
+    <p>做快照前，正确顺序是：<strong>让客户机应用 <code>fsync</code>（或 <code>fsfreeze</code>）→ 暂停 vCPU → 刷宿主机页缓存 → 刷设备写缓存 → 再做 reflink/内存快照</strong>。少了任何一步，恢复出来的沙箱都可能「看起来正常，但文件断了半截」。</p>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="memcg">
+  <h2>6. 内存管理（四）：memcg 与 userfaultfd</h2>
+  <h3>6.1 memcg：给沙箱划内存红线</h3>
+  <p>cgroup v2 的 <code>memory</code> 控制器负责统计与限制一组进程的内存。对沙箱平台而言，它是「单沙箱内存配额 + 超卖 + OOM 隔离」的基础。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>cgroup v2 memory 关键接口</caption>
+      <thead>
+        <tr><th>文件</th><th>含义</th><th>用法</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>memory.current</code></td><td>当前使用量（anon + file + kernel）</td><td>监控、利用率</td></tr>
+        <tr><td><code>memory.max</code></td><td>硬上限，超过触发回收，最终 OOM</td><td>单沙箱配额</td></tr>
+        <tr><td><code>memory.high</code></td><td>软上限，超过后限流回收</td><td>避免硬杀，平滑降速</td></tr>
+        <tr><td><code>memory.stat</code></td><td>细分统计：anon、file、dirty、writeback、slab</td><td>定位「谁占用了内存」</td></tr>
+        <tr><td><code>memory.events</code></td><td>high/max/oom 事件计数</td><td>告警</td></tr>
+        <tr><td><code>memory.reclaim</code></td><td>主动回收指定字节数</td><td>快照前主动腾内存</td></tr>
+        <tr><td><code>memory.oom.group</code></td><td>OOM 时整组杀</td><td>避免只杀子进程留下残局</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">容易忽略的点</span>
+    <p><code>memory.current</code> 包含 <strong>page cache</strong>。一个沙箱读了很多文件，<code>current</code> 会上升，但这部分是可回收的。做容量规划时，真正要限制的是 <strong>anon</strong>；page cache 应该「能收就收」，而不是直接算进硬配额。</p>
+  </div>
+
+  <h3>6.2 userfaultfd：把缺页交给用户态</h3>
+  <p><code>userfaultfd</code> 允许用户态程序注册一段内存，并在缺页时<strong>接管处理</strong>。它让「按需加载」从内核策略变成用户策略，是 VM 内存快照、CRIU、QEMU 热迁移的核心机制。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>userfaultfd 的三种模式</caption>
+      <thead>
+        <tr><th>模式</th><th>触发的缺页</th><th>支持的内存类型</th><th>典型用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>UFFDIO_REGISTER_MODE_MISSING</code></td><td>页从未存在（匿名页/空洞）</td><td>匿名、shmem、hugetlbfs</td><td>懒分配、按需从快照拉页</td></tr>
+        <tr><td><code>UFFDIO_REGISTER_MODE_MINOR</code></td><td>页在页缓存但 PTE 缺失</td><td>shmem、hugetlbfs（需要 backing）</td><td>VM 快照恢复、共享内存</td></tr>
+        <tr><td><code>UFFDIO_REGISTER_MODE_WP</code></td><td>写保护缺页</td><td>匿名、shmem</td><td>脏页跟踪、增量快照</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre class="c"><code>/* 极简骨架：注册一段匿名内存，缺页时从快照文件填充 */
+int uffd = syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+struct uffdio_api api = { .api = UFFD_API };
+ioctl(uffd, UFFDIO_API, &amp;api);
+
+void *addr = mmap(NULL, len, PROT_READ | PROT_WRITE,
+                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+struct uffdio_register reg = {
+    .range = { .start = (unsigned long)addr, .len = len },
+    .mode  = UFFDIO_REGISTER_MODE_MISSING,
+};
+ioctl(uffd, UFFDIO_REGISTER, &amp;reg);
+
+/* 事件循环 */
+struct uffd_msg msg;
+read(uffd, &amp;msg, sizeof(msg));           /* 发生缺页 */
+off_t off = msg.arg.pagefault.address - (unsigned long)addr;
+pread(snap_fd, buf, PAGE_SIZE, off);      /* 从快照文件读页 */
+
+struct uffdio_copy copy = {
+    .dst = msg.arg.pagefault.address &amp; ~(PAGE_SIZE - 1),
+    .src = (unsigned long)buf,
+    .len = PAGE_SIZE,
+};
+ioctl(uffd, UFFDIO_COPY, &amp;copy);          /* 填充并唤醒缺页线程 */</code></pre>
+
+  <p class="small muted">生产实现还要处理 <code>UFFDIO_ZEROPAGE</code>（零页）、<code>UFFDIO_CONTINUE</code>（minor 模式）、<code>UFFDIO_WRITEPROTECT</code>（写保护跟踪）、fork 事件与并发。内核 <code>tools/testing/selftests/mm/uffd-*</code> 有完整示例。</p>
+
+  <h3>6.3 其他与快照相关的机制</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>内存去重与页状态工具</caption>
+      <thead>
+        <tr><th>机制</th><th>作用</th><th>代价</th><th>快照用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>KSM（Kernel Same-page Merging）</td><td>合并内容相同的匿名页（只读）</td><td>CPU 扫描开销；写时 CoW</td><td>多沙箱共享相同只读页，降低内存占用</td></tr>
+        <tr><td>THP（透明大页）</td><td>2MB 大页，减少 TLB miss</td><td>内存碎片、偶发延迟</td><td>大页迁移/快照需特殊处理</td></tr>
+        <tr><td>soft-dirty（<code>/proc/pid/clear_refs</code>）</td><td>跟踪进程页是否被写</td><td>需要扫描</td><td>进程级增量快照（CRIU 式）</td></tr>
+        <tr><td>KVM dirty log / dirty ring</td><td>跟踪 guest 物理页写</td><td>需要 KVM 支持</td><td>VM 增量快照（Firecracker diff）</td></tr>
+        <tr><td><code>madvise(MADV_DONTNEED)</code></td><td>丢弃页，后续访问重新读</td><td>重新缺页</td><td>快照后释放页缓存</td></tr>
+        <tr><td><code>madvise(MADV_WILLNEED)</code></td><td>预读提示</td><td>可能过度预读</td><td>恢复预热</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ③</span>
+    <p>CubeSandbox 的「增量快照只持久化被修改的匿名内存页」依赖的正是<strong>脏页跟踪</strong>：VM 场景用 KVM dirty log，进程场景用 soft-dirty / UFFD 写保护。恢复时若采用 UFFD 惰性加载，则「未修改页」继续通过 reflink 共享，「修改页」才真正落盘——这就是它宣称「降低写放大与快照体积」的原理。</p>
+  </div>
+</section>
+<!-- ============ 7 ============ -->
+<section id="vfs">
+  <h2>7. 文件系统（一）：VFS 对象模型</h2>
+  <p>Linux 支持几十种文件系统，但用户看到的接口只有一套：<code>open/read/write/close</code>。这层统一抽象就是 <strong>VFS（Virtual File System）</strong>。VFS 不是「一个文件系统」，而是「所有文件系统都必须实现的接口集合」。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 430" role="img" aria-label="VFS 对象模型">
+      <defs>
+        <marker id="av" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+        </marker>
+      </defs>
+      <rect x="360" y="18" width="300" height="74" rx="12" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="510" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">struct super_block</text>
+      <text x="510" y="64" text-anchor="middle" font-size="10.5" fill="#4b5563">一个已挂载文件系统实例</text>
+      <text x="510" y="82" text-anchor="middle" font-size="10" fill="#7b8494">s_op · s_root · s_dev · s_flags</text>
+
+      <rect x="60" y="160" width="250" height="86" rx="12" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="185" y="186" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">struct dentry</text>
+      <text x="185" y="206" text-anchor="middle" font-size="10.5" fill="#4b5563">目录项：名字 → inode</text>
+      <text x="185" y="224" text-anchor="middle" font-size="10" fill="#7b8494">d_name · d_inode · d_parent</text>
+      <text x="185" y="240" text-anchor="middle" font-size="10" fill="#7b8494">dcache 加速路径解析</text>
+
+      <rect x="390" y="160" width="250" height="86" rx="12" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="515" y="186" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">struct inode</text>
+      <text x="515" y="206" text-anchor="middle" font-size="10.5" fill="#4b5563">文件元数据 + 数据位置</text>
+      <text x="515" y="224" text-anchor="middle" font-size="10" fill="#7b8494">i_ino · i_size · i_mode</text>
+      <text x="515" y="240" text-anchor="middle" font-size="10" fill="#7b8494">i_mapping · i_fop · i_op</text>
+
+      <rect x="720" y="160" width="250" height="86" rx="12" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="845" y="186" text-anchor="middle" font-size="13" font-weight="700" fill="#0f766e">struct file</text>
+      <text x="845" y="206" text-anchor="middle" font-size="10.5" fill="#4b5563">一次 open 的实例</text>
+      <text x="845" y="224" text-anchor="middle" font-size="10" fill="#7b8494">f_path · f_pos · f_flags</text>
+      <text x="845" y="240" text-anchor="middle" font-size="10" fill="#7b8494">f_op · f_inode · f_count</text>
+
+      <!-- 操作表 -->
+      <rect x="60" y="300" width="250" height="104" rx="12" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="185" y="324" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">dentry_operations</text>
+      <text x="185" y="346" text-anchor="middle" font-size="10.5" fill="#4b5563">d_revalidate · d_hash</text>
+      <text x="185" y="366" text-anchor="middle" font-size="10.5" fill="#4b5563">d_compare · d_delete</text>
+      <text x="185" y="388" text-anchor="middle" font-size="10" fill="#7b8494">目录项缓存策略</text>
+
+      <rect x="390" y="300" width="250" height="104" rx="12" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="515" y="324" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">inode_operations</text>
+      <text x="515" y="346" text-anchor="middle" font-size="10.5" fill="#4b5563">lookup · create · link</text>
+      <text x="515" y="366" text-anchor="middle" font-size="10.5" fill="#4b5563">mkdir · rename · setattr</text>
+      <text x="515" y="388" text-anchor="middle" font-size="10" fill="#7b8494">命名空间操作</text>
+
+      <rect x="720" y="300" width="250" height="104" rx="12" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="845" y="324" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">file_operations</text>
+      <text x="845" y="346" text-anchor="middle" font-size="10.5" fill="#4b5563">read · write · mmap · fsync</text>
+      <text x="845" y="366" text-anchor="middle" font-size="10.5" fill="#4b5563">iterate · splice · ioctl</text>
+      <text x="845" y="388" text-anchor="middle" font-size="10" fill="#7b8494">数据读写入口</text>
+
+      <g stroke="#64748b" stroke-width="1.6" marker-end="url(#av)">
+        <line x1="430" y1="96" x2="230" y2="156"/>
+        <line x1="510" y1="96" x2="512" y2="156"/>
+        <line x1="540" y1="200" x2="716" y2="200"/>
+        <line x1="185" y1="250" x2="185" y2="296"/>
+        <line x1="515" y1="250" x2="515" y2="296"/>
+        <line x1="845" y1="250" x2="845" y2="296"/>
+      </g>
+      <text x="320" y="118" font-size="10" fill="#64748b">s_root</text>
+      <text x="600" y="192" font-size="10" fill="#64748b">f_inode</text>
+    </svg>
+    <div class="caption">图 5 · VFS 四大对象与操作表：super_block（挂载点）→ inode（元数据）→ dentry（名字缓存）→ file（打开实例）</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>VFS 对象速查</caption>
+      <thead>
+        <tr><th>对象</th><th>生命周期</th><th>关键字段</th><th>操作表</th><th>快照关联</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>super_block</code></td><td>挂载期间</td><td><code>s_op</code> · <code>s_root</code> · <code>s_flags</code></td><td><code>super_operations</code></td><td>freeze/thaw 的入口；快照前要冻结的文件系统单位</td></tr>
+        <tr><td><code>inode</code></td><td>文件存在期间缓存</td><td><code>i_ino</code> · <code>i_size</code> · <code>i_mapping</code></td><td><code>inode_operations</code></td><td>reflink 克隆后是<strong>新 inode</strong>；extent 树挂在 inode 上</td></tr>
+        <tr><td><code>dentry</code></td><td>路径查找期间</td><td><code>d_name</code> · <code>d_inode</code> · <code>d_parent</code></td><td><code>dentry_operations</code></td><td>快照恢复后 dcache 需失效/重建</td></tr>
+        <tr><td><code>file</code></td><td><code>open</code> 到 <code>close</code></td><td><code>f_path</code> · <code>f_pos</code> · <code>f_op</code></td><td><code>file_operations</code></td><td>VM 快照要保存 guest 内打开的文件描述符状态</td></tr>
+        <tr><td><code>address_space</code></td><td>inode 生命周期</td><td><code>i_pages</code> · <code>a_ops</code> · <code>i_mmap</code></td><td><code>address_space_operations</code></td><td>页缓存与文件系统的桥；writeback 的入口</td></tr>
+        <tr><td><code>vfsmount</code></td><td>挂载期间</td><td><code>mnt_root</code> · <code>mnt_sb</code> · <code>mnt_flags</code></td><td>—</td><td>挂载命名空间；容器 rootfs 的边界</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>7.1 路径解析：一次 <code>open("/a/b/c")</code> 经过什么</h3>
+  <ol class="steps">
+    <li><b>从根或 cwd 开始</b><p><code>link_path_walk</code> 逐段解析，优先走 RCU-walk（无锁读 dcache）。</p></li>
+    <li><b>查 dcache</b><p>命中则直接拿 inode；未命中调 <code>i_op-&gt;lookup</code> 从磁盘读目录项。</p></li>
+    <li><b>权限与挂载检查</b><p>每段做 <code>inode_permission</code>，并处理挂载点跨越（mount namespace）。</p></li>
+    <li><b>打开文件</b><p>分配 <code>struct file</code>，调 <code>f_op-&gt;open</code>，返回 fd。</p></li>
+  </ol>
+
+  <div class="callout warn">
+    <span class="t">与快照相关的两个细节</span>
+    <p>① <strong>dcache 与 inode 缓存是内存状态</strong>，快照恢复后如果底层文件被替换（例如回滚到旧 reflink 克隆），必须让缓存失效，否则会读到旧 inode 的数据。② <strong>挂载命名空间</strong>决定沙箱看到哪些文件系统；跨节点恢复时，挂载点与设备名可能变化，需要重新绑定。</p>
+  </div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="fs">
+  <h2>8. 文件系统（二）：ext4 / XFS 与日志</h2>
+  <p>VFS 只定义接口，真正的「逻辑块 → 物理块」映射由具体文件系统完成。生产上最常遇到的两个是 <strong>ext4</strong>（通用、成熟）与 <strong>XFS</strong>（大文件、高并发、reflink）。CubeSandbox 的 CubeCoW 明确依赖 XFS 的 reflink 能力。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>ext4 vs XFS 核心差异</caption>
+      <thead>
+        <tr><th>维度</th><th>ext4</th><th>XFS</th><th>对快照的影响</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>磁盘布局</td><td>块组（block group）+ inode 表</td><td>分配组（AG）+ B+ 树</td><td>XFS 更适合大文件与并发</td></tr>
+        <tr><td>块映射</td><td>extent 树（4 级）</td><td>BMBT（extent 列表 B+ 树）</td><td>都支持 <code>fiemap</code> 查询</td></tr>
+        <tr><td>分配策略</td><td>延迟分配（delalloc）</td><td>延迟分配 + 推测预分配</td><td>影响快照时脏页分布</td></tr>
+        <tr><td>日志</td><td>JBD2（独立日志块）</td><td>log（环形缓冲区）+ CIL</td><td>freeze 时要等日志提交</td></tr>
+        <tr><td>reflink</td><td><span class="tag">不支持</span>（FICLONE 会 <code>EOPNOTSUPP</code>）</td><td><span class="tag g">支持</span>（<code>reflink=1</code>，内核 4.9+）</td><td><strong>CubeCoW 的关键前提</strong></td></tr>
+        <tr><td>快照</td><td>无原生快照</td><td>无原生快照，但可用 reflink 克隆</td><td>都需配合块层或 reflink</td></tr>
+        <tr><td>在线扩容</td><td>支持</td><td>支持</td><td>快照池容量规划</td></tr>
+        <tr><td>校验</td><td>元数据校验和</td><td>元数据校验和（CRC）</td><td>检测静默损坏</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>8.1 日志（journaling）到底保证什么</h3>
+  <p>日志解决的是<strong>崩溃一致性</strong>：如果系统在写数据的中途掉电，重启后通过重放日志，让文件系统回到「某个一致状态」。注意——它<strong>不保证你的数据不丢</strong>，只保证元数据不自相矛盾。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>ext4 的三种数据日志模式</caption>
+      <thead>
+        <tr><th>模式</th><th>数据是否写日志</th><th>一致性</th><th>性能</th><th>典型场景</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>data=ordered</code>（默认）</td><td>否，但保证数据先于元数据落盘</td><td>不会出现「元数据指向未写数据」</td><td>中</td><td>通用服务器</td></tr>
+        <tr><td><code>data=writeback</code></td><td>否，无顺序保证</td><td>可能读到旧数据/垃圾</td><td>高</td><td>对一致性要求低的场景</td></tr>
+        <tr><td><code>data=journal</code></td><td>是，数据也写日志</td><td>最强</td><td>低（写放大）</td><td>数据库元数据、小文件</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>XFS 采用<strong>元数据日志 + 延迟分配</strong>：数据块先写，日志提交确保元数据指向已写入的数据。XFS 的日志是一个环形缓冲区，通过 CIL（Committed Item List）批量提交，因此高并发下日志开销被摊薄。</p>
+
+  <div class="callout info">
+    <span class="t">「崩溃一致」不等于「应用一致」</span>
+    <p>文件系统日志只能保证<strong>结构</strong>一致。数据库还需要 WAL/redo log，应用还需要自己的事务语义。做 VM 快照时，如果客户机里跑着数据库，<strong>默认快照只是崩溃一致</strong>；要应用一致，必须在客户机内 <code>fsfreeze</code> 或调用数据库的快照钩子。</p>
+  </div>
+
+  <h3>8.2 查询文件在磁盘上的位置</h3>
+  <pre class="bash"><code># 查看文件系统类型与 reflink 是否开启
+xfs_info /var/lib/cube | grep -i reflink
+
+# 查看文件的 extent 布局（含 shared 标记）
+filefrag -v /var/lib/cube/rootfs.img
+xfs_io -c "fiemap -v" /var/lib/cube/rootfs.img
+
+# 查看逻辑块 → 物理块映射（XFS）
+xfs_bmap -v /var/lib/cube/rootfs.img
+
+# 查看稀疏文件空洞
+seek_off=$(python3 -c "import os;f=open('rootfs.img','rb');print(f.seek(0,2))")
+</code></pre>
+
+  <div class="table-wrap">
+    <table>
+      <caption>常用文件系统观测工具</caption>
+      <thead>
+        <tr><th>工具</th><th>作用</th><th>快照排障用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>filefrag -v</code></td><td>显示文件 extent 与 <code>shared</code> 标志</td><td>确认 reflink 是否真的共享</td></tr>
+        <tr><td><code>xfs_bmap -v</code></td><td>XFS 块映射</td><td>定位 extent 数量与碎片</td></tr>
+        <tr><td><code>xfs_db</code></td><td>直接读 XFS 元数据</td><td>排查 refcount / 损坏（只读谨慎）</td></tr>
+        <tr><td><code>du</code> / <code>du --apparent-size</code></td><td>块占用 vs 逻辑大小</td><td>识别稀疏文件与共享块</td></tr>
+        <tr><td><code>df -h</code> / <code>df -i</code></td><td>容量 / inode 使用</td><td>快照爆盘、inode 耗尽</td></tr>
+        <tr><td><code>xfs_repair -n</code></td><td>只读检查</td><td>故障后一致性验证</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="reflink">
+  <h2>9. 文件系统（三）：reflink 与写时复制</h2>
+  <p>这是 CubeSandbox 快照最关键的一节。XFS 的 <strong>reflink</strong> 允许两个文件共享同一批磁盘 extent；只有某一方写入时，才为它分配新块。它把「复制一个 GB 级 rootfs」从 O(数据量) 降到 O(元数据)。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 460" role="img" aria-label="reflink extent 共享与写时复制">
+      <defs>
+        <marker id="arf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/>
+        </marker>
+      </defs>
+      <!-- 模板 -->
+      <rect x="40" y="24" width="300" height="92" rx="11" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="190" y="50" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0f766e">模板文件（inode 100）</text>
+      <rect x="60" y="62" width="80" height="34" rx="6" fill="#fff" stroke="#a7f3d0"/>
+      <text x="100" y="84" text-anchor="middle" font-size="10.5" fill="#111827">extent 0</text>
+      <rect x="150" y="62" width="80" height="34" rx="6" fill="#fff" stroke="#a7f3d0"/>
+      <text x="190" y="84" text-anchor="middle" font-size="10.5" fill="#111827">extent 1</text>
+      <rect x="240" y="62" width="80" height="34" rx="6" fill="#fff" stroke="#a7f3d0"/>
+      <text x="280" y="84" text-anchor="middle" font-size="10.5" fill="#111827">extent 2</text>
+
+      <!-- 克隆 -->
+      <rect x="40" y="170" width="300" height="92" rx="11" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="190" y="196" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">克隆文件（inode 200）</text>
+      <rect x="60" y="208" width="80" height="34" rx="6" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="100" y="230" text-anchor="middle" font-size="10.5" fill="#0f766e">共享 0</text>
+      <rect x="150" y="208" width="80" height="34" rx="6" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="190" y="230" text-anchor="middle" font-size="10.5" fill="#0f766e">共享 1</text>
+      <rect x="240" y="208" width="80" height="34" rx="6" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="280" y="230" text-anchor="middle" font-size="10.5" fill="#0f766e">共享 2</text>
+
+      <!-- 写后 -->
+      <rect x="40" y="316" width="300" height="92" rx="11" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="190" y="342" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">写入 extent 1 后</text>
+      <rect x="60" y="354" width="80" height="34" rx="6" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="100" y="376" text-anchor="middle" font-size="10.5" fill="#0f766e">共享 0</text>
+      <rect x="150" y="354" width="80" height="34" rx="6" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="190" y="376" text-anchor="middle" font-size="10.5" fill="#92400e">新块 1'</text>
+      <rect x="240" y="354" width="80" height="34" rx="6" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="280" y="376" text-anchor="middle" font-size="10.5" fill="#0f766e">共享 2</text>
+
+      <g stroke="#0f766e" stroke-width="1.7" marker-end="url(#arf)">
+        <line x1="120" y1="116" x2="120" y2="166"/>
+        <line x1="120" y1="262" x2="120" y2="312"/>
+      </g>
+      <text x="134" y="146" font-size="10" fill="#0f766e">FICLONE</text>
+      <text x="134" y="292" font-size="10" fill="#b45309">write()</text>
+
+      <!-- 物理块 -->
+      <rect x="420" y="40" width="270" height="330" rx="12" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="555" y="66" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">物理磁盘块</text>
+      <rect x="444" y="84" width="222" height="40" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="555" y="109" text-anchor="middle" font-size="11" fill="#0f766e">block 100（refcount=3）</text>
+      <rect x="444" y="136" width="222" height="40" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="555" y="161" text-anchor="middle" font-size="11" fill="#0f766e">block 101（refcount=2）</text>
+      <rect x="444" y="188" width="222" height="40" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="555" y="213" text-anchor="middle" font-size="11" fill="#0f766e">block 102（refcount=3）</text>
+      <rect x="444" y="252" width="222" height="40" rx="6" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="555" y="277" text-anchor="middle" font-size="11" fill="#92400e">block 200（refcount=1）</text>
+      <text x="555" y="312" text-anchor="middle" font-size="10.5" fill="#7b8494">写入时分配新块</text>
+      <text x="555" y="330" text-anchor="middle" font-size="10.5" fill="#7b8494">原块 refcount 减 1</text>
+      <text x="555" y="350" text-anchor="middle" font-size="10" fill="#8a93a2">refcount btree 维护共享计数</text>
+
+      <!-- 说明 -->
+      <rect x="720" y="40" width="300" height="330" rx="12" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="870" y="66" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">关键语义</text>
+      <text x="744" y="94" font-size="11" fill="#4b5563">① 克隆只复制 extent 引用</text>
+      <text x="744" y="116" font-size="11" fill="#4b5563">② 共享块只读，写触发 CoW</text>
+      <text x="744" y="138" font-size="11" fill="#4b5563">③ refcount=0 才真正释放</text>
+      <text x="744" y="160" font-size="11" fill="#4b5563">④ 克隆是<strong>新 inode</strong></text>
+      <text x="744" y="182" font-size="11" fill="#4b5563">⑤ 页缓存不共享（冷读打盘）</text>
+      <text x="744" y="204" font-size="11" fill="#4b5563">⑥ 跨文件系统克隆不支持</text>
+      <text x="744" y="226" font-size="11" fill="#4b5563">⑦ 需要 <code>reflink=1</code></text>
+      <text x="744" y="248" font-size="11" fill="#4b5563">⑧ 快照是平面模型</text>
+      <text x="744" y="284" font-size="10.5" fill="#7b8494">O(1) 指的是「数据不复制」；</text>
+      <text x="744" y="302" font-size="10.5" fill="#7b8494">extent 链表仍与碎片数相关。</text>
+      <text x="744" y="336" font-size="10.5" fill="#7b8494">CubeCoW 的 clone/snapshot</text>
+      <text x="744" y="354" font-size="10.5" fill="#7b8494">就建立在这套语义上。</text>
+    </svg>
+    <div class="caption">图 6 · XFS reflink：克隆 = 共享 extent + 新 inode；写入 = 分配新块 + refcount 递减</div>
+  </div>
+
+  <h3>9.1 最小可验证实验</h3>
+  <pre class="bash"><code># 1) 确认数据盘是 XFS 且 reflink=1
+mkfs.xfs -m reflink=1 /dev/nvme1n1
+mount /dev/nvme1n1 /var/lib/cube
+xfs_info /var/lib/cube | grep reflink      # reflink=1
+
+# 2) 创建一个 1GB 文件
+fallocate -l 1G /var/lib/cube/base.img
+
+# 3) reflink 克隆（O(1)）
+cp --reflink=always /var/lib/cube/base.img /var/lib/cube/clone.img
+
+# 4) 观察共享 extent
+filefrag -v /var/lib/cube/clone.img | head -20
+# 输出中 shared 字段 > 0 表示与 base 共享
+
+# 5) 写入 clone，观察 CoW
+dd if=/dev/urandom of=/var/lib/cube/clone.img bs=1M count=64 conv=fsync
+
+# 6) 查看空间：df 的 used 只增加 64MB 左右
+df -h /var/lib/cube</code></pre>
+
+  <div class="table-wrap">
+    <table>
+      <caption>支持 reflink / FICLONE 的文件系统</caption>
+      <thead>
+        <tr><th>文件系统</th><th>FICLONE</th><th>原生快照</th><th>备注</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>XFS（reflink=1）</td><td><span class="tag g">支持</span></td><td>无（用克隆模拟）</td><td>CubeCoW 的选择；内核 4.9+</td></tr>
+        <tr><td>Btrfs</td><td><span class="tag g">支持</span></td><td><span class="tag g">支持</span>（subvolume snapshot）</td><td>CoW B-tree，快照/回滚/send-receive</td></tr>
+        <tr><td>ZFS</td><td>通过 clone 语义</td><td><span class="tag g">支持</span></td><td>池化、快照、zvol</td></tr>
+        <tr><td>ext4</td><td><span class="tag">不支持</span></td><td>无</td><td>FICLONE 返回 <code>EOPNOTSUPP</code></td></tr>
+        <tr><td>OCFS2</td><td><span class="tag g">支持</span></td><td>—</td><td>企业场景</td></tr>
+        <tr><td>NFS / FUSE</td><td><span class="tag">通常不支持</span></td><td>视实现</td><td>不能依赖 reflink</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>9.2 FICLONE 系统调用</h3>
+  <pre class="c"><code>#include &lt;sys/ioctl.h&gt;
+#include &lt;linux/fs.h&gt;
+#include &lt;fcntl.h&gt;
+
+int clone_file(const char *src, const char *dst) {
+    int sfd = open(src, O_RDONLY);
+    int dfd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (sfd &lt; 0 || dfd &lt; 0) return -1;
+
+    /* 整个文件克隆；FICLONERANGE 可只克隆一段 */
+    if (ioctl(dfd, FICLONE, sfd) &lt; 0) {
+        perror("FICLONE");           /* EOPNOTSUPP：文件系统不支持 */
+        return -1;                   /* EXDEV：跨文件系统 */
+    }
+    close(sfd); close(dfd);
+    return 0;
+}</code></pre>
+
+  <div class="callout danger">
+    <span class="t">生产环境必须处理的边界</span>
+    <ul>
+      <li><strong><code>EOPNOTSUPP</code></strong>：数据盘不是 XFS/Btrfs，或 XFS 未开 reflink → 必须回退到全量复制，并告警。</li>
+      <li><strong><code>EXDEV</code></strong>：源和目标不在同一文件系统 → 不能克隆。</li>
+      <li><strong>ENOSPC</strong>：CoW 写入时空间不足 → 写入失败，沙箱可能损坏；需要预留空间与告警。</li>
+      <li><strong>extent 碎片</strong>：极端碎片化时，克隆的元数据操作不再是严格 O(1)，但仍远小于数据复制。</li>
+      <li><strong>页缓存不共享</strong>：克隆后第一次读仍打盘，需要预热策略。</li>
+      <li><strong>快照平面模型</strong>：CubeSandbox 的快照之间相互独立，删除一个不影响另一个；GC 必须基于引用计数。</li>
+    </ul>
+  </div>
+
+  <h3>9.3 reflink vs dm-snapshot vs qcow2</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>三种块级/文件级快照方案对比</caption>
+      <thead>
+        <tr><th>维度</th><th>XFS reflink</th><th>dm-snapshot</th><th>qcow2</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>层次</td><td>文件系统</td><td>块设备</td><td>用户态镜像格式</td></tr>
+        <tr><td>快照粒度</td><td>文件/区间</td><td>整个块设备</td><td>虚拟磁盘</td></tr>
+        <tr><td>空间模型</td><td>extent 共享 + refcount</td><td>COW 设备 + exception store</td><td>L1/L2 表 + refcount</td></tr>
+        <tr><td>读性能</td><td>原生</td><td>需查 exception 表，可能多一次 IO</td><td>需查表，随机读放大</td></tr>
+        <tr><td>写性能</td><td>CoW 分配新 extent</td><td>写 COW 设备</td><td>写新 cluster</td></tr>
+        <tr><td>链式快照</td><td>平面（各自独立）</td><td>支持 origin → snap1 → snap2</td><td>支持 backing chain</td></tr>
+        <tr><td>扩容</td><td>文件系统扩容</td><td>需扩容 COW 设备</td><td>支持</td></tr>
+        <tr><td>典型用户</td><td><strong>CubeSandbox / CubeCoW</strong></td><td>LVM、传统虚机</td><td>QEMU/KVM</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="freeze">
+  <h2>10. 文件系统（四）：一致性与 freeze</h2>
+  <p>拍快照的前提是「静止点」。但 Linux 的文件系统一直在动：应用在写、页缓存在回写、日志在提交。要得到一个可用的快照，必须先把文件系统<strong>冻结</strong>，或者用写时复制机制保证时间点一致。</p>
+
+  <h3>10.1 三种一致性级别</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>快照一致性的三个级别</caption>
+      <thead>
+        <tr><th>级别</th><th>保证</th><th>实现手段</th><th>适用</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>崩溃一致</strong>（crash-consistent）</td><td>恢复后文件系统可挂载、无结构损坏；可能丢最近写入</td><td>日志 + 暂停 vCPU + 刷设备缓存</td><td>无状态沙箱、可重建环境</td></tr>
+        <tr><td><strong>文件系统一致</strong>（fs-consistent）</td><td>所有已 <code>fsync</code> 的数据与元数据都在快照里</td><td><code>fsfreeze</code> / <code>sync</code> + freeze</td><td>通用有状态沙箱</td></tr>
+        <tr><td><strong>应用一致</strong>（app-consistent）</td><td>数据库/应用认为快照是一个合法备份点</td><td>应用钩子（如 <code>pg_start_backup</code>）+ freeze</td><td>数据库、消息队列</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>10.2 freeze 的层次</h3>
+  <p>内核的 <code>FIFREEZE</code> ioctl 会调用 <code>freeze_super()</code>，把文件系统推进三个逐步加深的状态：</p>
+  <div class="layers">
+    <div class="layer"><span class="n">1</span><span class="name">SB_FREEZE_WRITE</span><span class="desc">阻止新的写操作，等待进行中的写完成</span></div>
+    <div class="layer"><span class="n">2</span><span class="name">SB_FREEZE_TRANS</span><span class="desc">等待日志事务提交完成（XFS 刷 log，ext4 刷 JBD2）</span></div>
+    <div class="layer"><span class="n">3</span><span class="name">SB_FREEZE_FREEZE</span><span class="desc">完全冻结，允许安全读取/克隆；此时拍快照</span></div>
+  </div>
+
+  <pre class="bash"><code># 冻结 / 解冻（需要 root）
+fsfreeze -f /var/lib/cube          # FIFREEZE
+# ... 在此拍快照 / reflink 克隆 / 备份 ...
+fsfreeze -u /var/lib/cube          # FITHAW
+
+# 查看是否冻结
+cat /proc/fs/xfs/stat 2>/dev/null | head
+# 或用 xfs_io 查询
+xfs_io -c "statfs" /var/lib/cube</code></pre>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 300" role="img" aria-label="一致性快照流程">
+      <defs>
+        <marker id="acz" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
+        </marker>
+      </defs>
+      <rect x="20" y="80" width="150" height="70" rx="10" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="95" y="108" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1e3a8a">① 应用静默</text>
+      <text x="95" y="128" text-anchor="middle" font-size="10" fill="#4b5563">停止写入 / 切只读</text>
+
+      <rect x="200" y="80" width="150" height="70" rx="10" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="275" y="108" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111827">② fsync</text>
+      <text x="275" y="128" text-anchor="middle" font-size="10" fill="#4b5563">数据 + 元数据落盘</text>
+
+      <rect x="380" y="80" width="150" height="70" rx="10" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="455" y="108" text-anchor="middle" font-size="11.5" font-weight="700" fill="#92400e">③ freeze</text>
+      <text x="455" y="128" text-anchor="middle" font-size="10" fill="#4b5563">日志提交 / 文件系统冻结</text>
+
+      <rect x="560" y="80" width="150" height="70" rx="10" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="635" y="108" text-anchor="middle" font-size="11.5" font-weight="700" fill="#be123c">④ 暂停 vCPU</text>
+      <text x="635" y="128" text-anchor="middle" font-size="10" fill="#9f1239">VM 不再执行</text>
+
+      <rect x="740" y="80" width="130" height="70" rx="10" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="805" y="108" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0f766e">⑤ 克隆/快照</text>
+      <text x="805" y="128" text-anchor="middle" font-size="10" fill="#4b5563">reflink + 内存</text>
+
+      <rect x="900" y="80" width="120" height="70" rx="10" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="960" y="108" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111827">⑥ 恢复</text>
+      <text x="960" y="128" text-anchor="middle" font-size="10" fill="#4b5563">thaw / resume</text>
+
+      <g stroke="#b45309" stroke-width="1.7" marker-end="url(#acz)">
+        <line x1="170" y1="115" x2="196" y2="115"/>
+        <line x1="350" y1="115" x2="376" y2="115"/>
+        <line x1="530" y1="115" x2="556" y2="115"/>
+        <line x1="710" y1="115" x2="736" y2="115"/>
+        <line x1="870" y1="115" x2="896" y2="115"/>
+      </g>
+
+      <rect x="20" y="196" width="1000" height="80" rx="11" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="42" y="220" font-size="11.5" font-weight="700" fill="#111827">失败回滚</text>
+      <text x="42" y="242" font-size="11.5" fill="#4b5563">任何一步失败（超时、ENOSPC、设备错误）都必须「解冻 + 恢复 vCPU」，否则沙箱会永久卡死。快照操作要幂等、可重试、可超时。</text>
+      <text x="42" y="262" font-size="11.5" fill="#4b5563">顺序不能反：先冻结文件系统再暂停 vCPU，会让客户机内核有机会完成写；反过来则可能漏掉最后一次写。</text>
+    </svg>
+    <div class="caption">图 7 · 一致性快照的六个步骤：任何一步失败都要能回滚到「运行中」</div>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">freeze 的代价</span>
+    <p>冻结期间，客户机内所有写操作都会阻塞。对长事务或高写入负载，freeze 可能持续数百毫秒甚至更久，直接表现为<strong>业务卡顿</strong>。因此生产实现通常会给 freeze 设置超时，并在超时后放弃本次快照（而不是无限等待）。CubeSandbox 的自动暂停/恢复机制同样需要这个超时保护。</p>
+  </div>
+</section>
+<!-- ============ 11 ============ -->
+<section id="blk">
+  <h2>11. 块设备（一）：抽象与对象</h2>
+  <p>文件系统「知道文件、inode、偏移」，块设备「只知道扇区和字节」。<strong>块设备是内核提供给上层的一块随机可寻址的持久存储</strong>，它不理解文件，也不理解目录。两者之间的契约是：文件系统把「文件逻辑块」映射为「设备 LBA（逻辑块地址）」，块层负责把 bio 送到硬件。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 380" role="img" aria-label="文件系统与块设备的关系">
+      <defs>
+        <marker id="abk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+        </marker>
+      </defs>
+      <!-- FS -->
+      <rect x="20" y="20" width="300" height="330" rx="14" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="170" y="48" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0f766e">文件系统（XFS）</text>
+      <rect x="44" y="66" width="252" height="52" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="170" y="88" text-anchor="middle" font-size="11.5" fill="#111827">inode → extent 列表</text>
+      <text x="170" y="106" text-anchor="middle" font-size="10" fill="#7b8494">逻辑块号 → 物理块号</text>
+      <rect x="44" y="134" width="252" height="52" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="170" y="156" text-anchor="middle" font-size="11.5" fill="#111827">日志（journal / log）</text>
+      <text x="170" y="174" text-anchor="middle" font-size="10" fill="#7b8494">元数据提交、崩溃恢复</text>
+      <rect x="44" y="202" width="252" height="52" rx="8" fill="#fff" stroke="#a7f3d0"/>
+      <text x="170" y="224" text-anchor="middle" font-size="11.5" fill="#111827">块分配器</text>
+      <text x="170" y="242" text-anchor="middle" font-size="10" fill="#7b8494">延迟分配 / 预分配 / 碎片</text>
+      <rect x="44" y="270" width="252" height="56" rx="8" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="170" y="292" text-anchor="middle" font-size="11.5" fill="#92400e">不直接访问硬件</text>
+      <text x="170" y="310" text-anchor="middle" font-size="10" fill="#92400e">只构造 bio，交给块层</text>
+
+      <!-- 边界 -->
+      <line x1="350" y1="20" x2="350" y2="350" stroke="#64748b" stroke-width="2" stroke-dasharray="7 5"/>
+      <text x="360" y="44" font-size="10.5" font-weight="700" fill="#64748b">VFS / 块层接口</text>
+
+      <!-- 块设备 -->
+      <rect x="390" y="20" width="330" height="330" rx="14" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="555" y="48" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">块设备抽象</text>
+      <rect x="414" y="66" width="282" height="52" rx="8" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="555" y="88" text-anchor="middle" font-size="11.5" fill="#111827">struct block_device</text>
+      <text x="555" y="106" text-anchor="middle" font-size="10" fill="#7b8494">打开的块设备 · 分区 · holder</text>
+      <rect x="414" y="134" width="282" height="52" rx="8" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="555" y="156" text-anchor="middle" font-size="11.5" fill="#111827">struct gendisk</text>
+      <text x="555" y="174" text-anchor="middle" font-size="10" fill="#7b8494">整块磁盘 · 主次设备号 · 分区表</text>
+      <rect x="414" y="202" width="282" height="52" rx="8" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="555" y="224" text-anchor="middle" font-size="11.5" fill="#111827">struct request_queue</text>
+      <text x="555" y="242" text-anchor="middle" font-size="10" fill="#7b8494">队列 · 调度器 · 限制 · tag</text>
+      <rect x="414" y="270" width="282" height="56" rx="8" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="555" y="292" text-anchor="middle" font-size="11.5" fill="#1e3a8a">struct bio（I/O 描述符）</text>
+      <text x="555" y="310" text-anchor="middle" font-size="10" fill="#1e3a8a">方向 + 扇区 + 页向量 + 回调</text>
+
+      <!-- 设备 -->
+      <rect x="760" y="20" width="260" height="330" rx="14" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="890" y="48" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">驱动与硬件</text>
+      <rect x="784" y="66" width="212" height="52" rx="8" fill="#fff" stroke="#e3e7ec"/>
+      <text x="890" y="88" text-anchor="middle" font-size="11.5" fill="#111827">virtio-blk / NVMe / SCSI</text>
+      <text x="890" y="106" text-anchor="middle" font-size="10" fill="#7b8494">queue_rq 下发请求</text>
+      <rect x="784" y="134" width="212" height="52" rx="8" fill="#fff" stroke="#e3e7ec"/>
+      <text x="890" y="156" text-anchor="middle" font-size="11.5" fill="#111827">DMA / 中断</text>
+      <text x="890" y="174" text-anchor="middle" font-size="10" fill="#7b8494">数据搬运 · 完成通知</text>
+      <rect x="784" y="202" width="212" height="52" rx="8" fill="#fff" stroke="#e3e7ec"/>
+      <text x="890" y="224" text-anchor="middle" font-size="11.5" fill="#111827">写缓存 / 掉电保护</text>
+      <text x="890" y="242" text-anchor="middle" font-size="10" fill="#7b8494">flush / FUA 语义</text>
+      <rect x="784" y="270" width="212" height="56" rx="8" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="890" y="292" text-anchor="middle" font-size="11.5" fill="#be123c">持久介质</text>
+      <text x="890" y="310" text-anchor="middle" font-size="10" fill="#9f1239">SSD / 云盘 / 本地盘</text>
+
+      <g stroke="#64748b" stroke-width="1.6" marker-end="url(#abk)">
+        <line x1="320" y1="230" x2="386" y2="230"/>
+        <line x1="720" y1="230" x2="756" y2="230"/>
+      </g>
+      <text x="352" y="220" text-anchor="middle" font-size="9.5" fill="#64748b">LBA</text>
+      <text x="738" y="220" text-anchor="middle" font-size="9.5" fill="#64748b">RQ</text>
+    </svg>
+    <div class="caption">图 8 · 文件系统只负责「文件逻辑块 → 设备 LBA」，块层与驱动负责实际传输；两者通过 bio 解耦</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>块设备核心对象</caption>
+      <thead>
+        <tr><th>对象</th><th>头文件</th><th>表示什么</th><th>关键字段</th><th>快照关联</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>block_device</code></td><td><code>linux/blk_types.h</code></td><td>一个被打开的块设备（含分区）</td><td><code>bd_inode</code> · <code>bd_disk</code> · <code>bd_partno</code></td><td>快照卷的打开句柄</td></tr>
+        <tr><td><code>gendisk</code></td><td><code>linux/blkdev.h</code></td><td>整块磁盘</td><td><code>major</code> · <code>first_minor</code> · <code>queue</code> · <code>disk_name</code></td><td>设备命名与分区</td></tr>
+        <tr><td><code>request_queue</code></td><td><code>linux/blkdev.h</code></td><td>设备请求队列</td><td><code>queue_hw_ctx</code> · <code>elevator</code> · <code>limits</code> · <code>tag_set</code></td><td>队列深度决定快照并发 IO 上限</td></tr>
+        <tr><td><code>bio</code></td><td><code>linux/blk_types.h</code></td><td>一次块 IO 描述</td><td><code>bi_bdev</code> · <code>bi_iter</code> · <code>bi_opf</code> · <code>bi_end_io</code></td><td>快照 IO 的最小观测单位</td></tr>
+        <tr><td><code>request</code></td><td><code>linux/blk-mq.h</code></td><td>调度器/驱动处理单元</td><td><code>q</code> · <code>__data</code>（bio 链）· <code>state</code></td><td>合并后的 IO；影响吞吐</td></tr>
+        <tr><td><code>bio_vec</code></td><td><code>linux/bvec.h</code></td><td>bio 中的一个内存段</td><td><code>bv_page</code> · <code>bv_offset</code> · <code>bv_len</code></td><td>零拷贝/直接 IO 的页向量</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>11.1 块设备 vs 字符设备</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>设备类型对比</caption>
+      <thead>
+        <tr><th>类型</th><th>访问方式</th><th>是否走页缓存</th><th>典型设备</th><th>快照相关性</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>块设备</td><td>按块随机访问，可挂载文件系统</td><td>通过文件系统页缓存（或 <code>O_DIRECT</code> 绕过）</td><td><code>/dev/nvme0n1</code>、<code>/dev/vda</code></td><td>快照的持久化后端</td></tr>
+        <tr><td>字符设备</td><td>字节流，顺序/设备特定</td><td>否</td><td><code>/dev/null</code>、<code>/dev/tty</code></td><td>设备状态（串口、vsock）</td></tr>
+        <tr><td>网络设备</td><td>数据包收发</td><td>否</td><td><code>eth0</code>、<code>tap0</code></td><td>VM 网络状态</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="bio">
+  <h2>12. 块设备（二）：bio 与 blk-mq</h2>
+  <p>块层经历了从「单队列 + 电梯算法」到「多队列（blk-mq）」的演进。现代 NVMe 设备有大量硬件队列，blk-mq 让每个 CPU 拥有软件队列，按需映射到硬件队列，从而避免全局锁成为瓶颈。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 440" role="img" aria-label="bio 与 blk-mq 队列">
+      <defs>
+        <marker id="abq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
+        </marker>
+      </defs>
+      <!-- 提交者 -->
+      <rect x="20" y="30" width="180" height="70" rx="10" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="110" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#0f766e">文件系统 / dm</text>
+      <text x="110" y="78" text-anchor="middle" font-size="10" fill="#4b5563">submit_bio()</text>
+
+      <rect x="20" y="130" width="180" height="70" rx="10" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="110" y="158" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">bio 构造</text>
+      <text x="110" y="178" text-anchor="middle" font-size="10" fill="#4b5563">bi_bdev · bi_iter · bi_opf</text>
+
+      <rect x="20" y="230" width="180" height="70" rx="10" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="110" y="258" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">plug 列表</text>
+      <text x="110" y="278" text-anchor="middle" font-size="10" fill="#4b5563">批量提交（可选）</text>
+
+      <rect x="20" y="330" width="180" height="70" rx="10" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="110" y="358" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">完成回调</text>
+      <text x="110" y="378" text-anchor="middle" font-size="10" fill="#4b5563">bi_end_io</text>
+
+      <!-- 软件队列 -->
+      <rect x="260" y="30" width="250" height="370" rx="14" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="385" y="56" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">blk-mq 软件队列</text>
+      <rect x="282" y="74" width="206" height="54" rx="8" fill="#fff" stroke="#fde68a"/>
+      <text x="385" y="96" text-anchor="middle" font-size="11" fill="#111827">CPU0 sq</text>
+      <text x="385" y="114" text-anchor="middle" font-size="9.5" fill="#7b8494">本地提交、无锁</text>
+      <rect x="282" y="142" width="206" height="54" rx="8" fill="#fff" stroke="#fde68a"/>
+      <text x="385" y="164" text-anchor="middle" font-size="11" fill="#111827">CPU1 sq</text>
+      <text x="385" y="182" text-anchor="middle" font-size="9.5" fill="#7b8494">本地提交、无锁</text>
+      <rect x="282" y="210" width="206" height="54" rx="8" fill="#fff" stroke="#fde68a"/>
+      <text x="385" y="232" text-anchor="middle" font-size="11" fill="#111827">CPU2 sq</text>
+      <text x="385" y="250" text-anchor="middle" font-size="9.5" fill="#7b8494">本地提交、无锁</text>
+      <text x="385" y="292" text-anchor="middle" font-size="10.5" fill="#92400e">调度器（可插拔）</text>
+      <text x="385" y="312" text-anchor="middle" font-size="10" fill="#7b8494">none / mq-deadline / kyber / bfq</text>
+      <text x="385" y="338" text-anchor="middle" font-size="10.5" fill="#92400e">tag 分配 · 合并 · 排序</text>
+      <text x="385" y="360" text-anchor="middle" font-size="10" fill="#7b8494">request 生命周期管理</text>
+      <text x="385" y="386" text-anchor="middle" font-size="10" fill="#7b8494">队列深度 = 并发上限</text>
+
+      <!-- 硬件队列 -->
+      <rect x="560" y="30" width="220" height="370" rx="14" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="670" y="56" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1e3a8a">硬件队列</text>
+      <rect x="582" y="74" width="176" height="54" rx="8" fill="#fff" stroke="#bfdbfe"/>
+      <text x="670" y="96" text-anchor="middle" font-size="11" fill="#111827">hctx 0</text>
+      <text x="670" y="114" text-anchor="middle" font-size="9.5" fill="#7b8494">queue_rq → 驱动</text>
+      <rect x="582" y="142" width="176" height="54" rx="8" fill="#fff" stroke="#bfdbfe"/>
+      <text x="670" y="164" text-anchor="middle" font-size="11" fill="#111827">hctx 1</text>
+      <text x="670" y="182" text-anchor="middle" font-size="9.5" fill="#7b8494">queue_rq → 驱动</text>
+      <rect x="582" y="210" width="176" height="54" rx="8" fill="#fff" stroke="#bfdbfe"/>
+      <text x="670" y="232" text-anchor="middle" font-size="11" fill="#111827">hctx N</text>
+      <text x="670" y="250" text-anchor="middle" font-size="9.5" fill="#7b8494">queue_rq → 驱动</text>
+      <text x="670" y="300" text-anchor="middle" font-size="10.5" fill="#1e3a8a">NVMe：每核一个队列</text>
+      <text x="670" y="322" text-anchor="middle" font-size="10.5" fill="#1e3a8a">virtio：队列数可配</text>
+      <text x="670" y="344" text-anchor="middle" font-size="10" fill="#7b8494">IOPS 随队列数扩展</text>
+
+      <!-- 设备 -->
+      <rect x="820" y="30" width="200" height="150" rx="14" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="920" y="56" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">驱动</text>
+      <text x="920" y="82" text-anchor="middle" font-size="11" fill="#4b5563">nvme / virtio_blk</text>
+      <text x="920" y="104" text-anchor="middle" font-size="11" fill="#4b5563">DMA 映射</text>
+      <text x="920" y="126" text-anchor="middle" font-size="11" fill="#4b5563">中断 / 轮询</text>
+      <text x="920" y="148" text-anchor="middle" font-size="11" fill="#4b5563">完成队列</text>
+
+      <rect x="820" y="210" width="200" height="190" rx="14" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="920" y="236" text-anchor="middle" font-size="12.5" font-weight="700" fill="#be123c">持久介质</text>
+      <text x="920" y="262" text-anchor="middle" font-size="11" fill="#4b5563">SSD / 云盘</text>
+      <text x="920" y="284" text-anchor="middle" font-size="11" fill="#4b5563">写缓存</text>
+      <text x="920" y="306" text-anchor="middle" font-size="11" fill="#4b5563">FTL / GC</text>
+      <text x="920" y="328" text-anchor="middle" font-size="10" fill="#9f1239">flush 决定数据何时真正落盘</text>
+      <text x="920" y="350" text-anchor="middle" font-size="10" fill="#9f1239">discard 影响 GC 与寿命</text>
+
+      <g stroke="#b45309" stroke-width="1.7" marker-end="url(#abq)">
+        <line x1="200" y1="65" x2="256" y2="65"/>
+        <line x1="200" y1="165" x2="256" y2="165"/>
+        <line x1="510" y1="100" x2="556" y2="100"/>
+        <line x1="510" y1="168" x2="556" y2="168"/>
+        <line x1="510" y1="236" x2="556" y2="236"/>
+        <line x1="780" y1="110" x2="816" y2="110"/>
+      </g>
+      <path d="M920 180 L920 206" stroke="#be123c" stroke-width="1.7" marker-end="url(#abq)" fill="none"/>
+    </svg>
+    <div class="caption">图 9 · blk-mq：每个 CPU 一个软件队列（无锁提交），按 tag 映射到硬件队列，驱动通过 <code>queue_rq</code> 下发</div>
+  </div>
+
+  <h3>12.1 bio 的字段与语义</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>bio 关键字段</caption>
+      <thead>
+        <tr><th>字段</th><th>含义</th><th>快照场景</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>bi_bdev</code></td><td>目标块设备</td><td>区分 rootfs 卷 / 快照卷</td></tr>
+        <tr><td><code>bi_iter.bi_sector</code></td><td>起始扇区（512B 单位）</td><td>定位快照数据在磁盘的位置</td></tr>
+        <tr><td><code>bi_iter.bi_size</code></td><td>本次 IO 字节数</td><td>合并后的大 IO 提升吞吐</td></tr>
+        <tr><td><code>bi_opf</code></td><td>操作与标志：READ/WRITE/FLUSH/FUA/DISCARD</td><td>判断是否要求写屏障</td></tr>
+        <tr><td><code>bi_end_io</code></td><td>完成回调</td><td>快照 IO 完成通知、错误处理</td></tr>
+        <tr><td><code>bi_private</code></td><td>回调私有数据</td><td>挂载上层上下文（如 dm 的 io）</td></tr>
+        <tr><td><code>bi_ioprio</code></td><td>IO 优先级</td><td>快照后台任务降优先级，避免抢业务 IO</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>12.2 IO 调度器怎么选</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>blk-mq 调度器</caption>
+      <thead>
+        <tr><th>调度器</th><th>策略</th><th>适用</th><th>快照影响</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>none</code></td><td>不排序，直接下发</td><td>NVMe、低延迟 SSD</td><td>快照 IO 与业务 IO 竞争时无公平性</td></tr>
+        <tr><td><code>mq-deadline</code></td><td>按截止时间排序，防饥饿</td><td>通用块设备</td><td>避免快照任务饿死业务</td></tr>
+        <tr><td><code>kyber</code></td><td>按延迟目标限流</td><td>低延迟设备</td><td>控制快照读写的尾延迟</td></tr>
+        <tr><td><code>bfq</code></td><td>按进程公平调度</td><td>桌面/交互</td><td>适合多租户隔离</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ④</span>
+    <p>快照/恢复本质是<strong>大块顺序 IO</strong>。要跑满带宽：① 用 <code>io_uring</code> 或异步 <code>preadv</code> 提高队列深度；② 用 <code>O_DIRECT</code> 避免污染业务的 page cache（或反过来用 buffered + 预热，见第 19 章）；③ 给快照任务设 <code>ioprio</code> 低优先级，避免抢占沙箱业务 IO；④ 用 <code>bpftrace</code> 观察 <code>block_rq_issue</code> 的合并率与队列深度。</p>
+  </div>
+</section>
+
+<!-- ============ 13 ============ -->
+<section id="dm">
+  <h2>13. 块设备（三）：device-mapper</h2>
+  <p>device-mapper（dm）是 Linux 的<strong>块设备虚拟化层</strong>：它在块层把「逻辑块设备」映射到「一个或多个底层设备」，并支持快照、精简供给、加密、RAID 等 target。LVM、dm-crypt、docker 的 devicemapper 都基于它。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 420" role="img" aria-label="device-mapper 堆叠与 dm-snapshot">
+      <defs>
+        <marker id="adm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+        </marker>
+      </defs>
+      <!-- 上层 -->
+      <rect x="20" y="20" width="300" height="70" rx="10" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="170" y="48" text-anchor="middle" font-size="12" font-weight="700" fill="#0f766e">文件系统（XFS）</text>
+      <text x="170" y="68" text-anchor="middle" font-size="10" fill="#4b5563">挂载在 /dev/mapper/snap</text>
+
+      <rect x="20" y="120" width="300" height="80" rx="10" fill="#ffffff" stroke="#d0d6de"/>
+      <text x="170" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">dm-snapshot（逻辑设备）</text>
+      <text x="170" y="166" text-anchor="middle" font-size="10" fill="#4b5563">origin + cow + chunk size</text>
+      <text x="170" y="184" text-anchor="middle" font-size="10" fill="#7b8494">读：查 exception → origin</text>
+
+      <rect x="20" y="230" width="300" height="70" rx="10" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="170" y="258" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">dm-linear / dm-thin / md</text>
+      <text x="170" y="278" text-anchor="middle" font-size="10" fill="#4b5563">可继续堆叠</text>
+
+      <rect x="20" y="330" width="300" height="60" rx="10" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="170" y="356" text-anchor="middle" font-size="11.5" fill="#111827">物理设备 /dev/nvme0n1</text>
+      <text x="170" y="376" text-anchor="middle" font-size="10" fill="#7b8494">LBA</text>
+
+      <!-- 设备 -->
+      <rect x="400" y="20" width="200" height="120" rx="10" fill="#fff" stroke="#a7f3d0"/>
+      <text x="500" y="46" text-anchor="middle" font-size="12" font-weight="700" fill="#0f766e">origin 设备</text>
+      <text x="500" y="68" text-anchor="middle" font-size="10.5" fill="#4b5563">原始数据</text>
+      <text x="500" y="90" text-anchor="middle" font-size="10" fill="#7b8494">只读基线</text>
+      <text x="500" y="112" text-anchor="middle" font-size="10" fill="#7b8494">快照读命中它</text>
+
+      <rect x="640" y="20" width="200" height="120" rx="10" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="740" y="46" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">COW 设备</text>
+      <text x="740" y="68" text-anchor="middle" font-size="10.5" fill="#4b5563">写时复制区</text>
+      <text x="740" y="90" text-anchor="middle" font-size="10" fill="#7b8494">exception store</text>
+      <text x="740" y="112" text-anchor="middle" font-size="10" fill="#7b8494">chunk → 数据块</text>
+
+      <rect x="880" y="20" width="140" height="120" rx="10" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="950" y="46" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">元数据</text>
+      <text x="950" y="68" text-anchor="middle" font-size="10" fill="#4b5563">持久/瞬态</text>
+      <text x="950" y="90" text-anchor="middle" font-size="10" fill="#4b5563">块映射表</text>
+      <text x="950" y="112" text-anchor="middle" font-size="10" fill="#7b8494">dmsetup status</text>
+
+      <!-- 读取路径 -->
+      <rect x="400" y="180" width="620" height="110" rx="10" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="422" y="204" font-size="11.5" font-weight="700" fill="#111827">读路径</text>
+      <text x="422" y="226" font-size="11" fill="#4b5563">① 计算 chunk 号 → ② 查 exception store → ③ 命中：读 COW 设备；未命中：读 origin</text>
+      <text x="422" y="248" font-size="11" fill="#4b5563">④ 若 origin 与 COW 不在同一设备，仍是一次额外跳转；随机读可能放大</text>
+      <text x="422" y="270" font-size="11" fill="#4b5563">⑤ 写路径：首次写某 chunk → 复制 origin 的整块到 COW → 更新映射 → 再写</text>
+
+      <!-- 写放大 -->
+      <rect x="400" y="320" width="620" height="80" rx="10" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="422" y="344" font-size="11.5" font-weight="700" fill="#be123c">写放大与 chunk size</text>
+      <text x="422" y="366" font-size="11" fill="#4b5563">写 4KB 但 chunk=64KB → 需要先复制 64KB（读+写），写放大 16 倍。chunk 越小放大越少，但元数据越多。</text>
+      <text x="422" y="386" font-size="11" fill="#4b5563">LVM 默认 64KB；dm-snapshot 默认 8 sectors（4KB）。CubeCoW 用 reflink 的 extent 粒度，没有这个放大问题。</text>
+    </svg>
+    <div class="caption">图 10 · dm-snapshot：origin + COW 设备 + exception store；写放大由 chunk size 决定，这是它与 reflink 的核心差异</div>
+  </div>
+
+  <h3>13.1 常用 dm target</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>device-mapper target 速查</caption>
+      <thead>
+        <tr><th>target</th><th>作用</th><th>快照能力</th><th>典型场景</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>linear</code></td><td>线性映射到一段设备</td><td>无</td><td>分区、简单卷</td></tr>
+        <tr><td><code>striped</code></td><td>条带化（RAID0）</td><td>无</td><td>性能卷</td></tr>
+        <tr><td><code>snapshot</code></td><td>COW 快照</td><td><span class="tag g">有</span>（单层/链式）</td><td>LVM 快照、传统虚机</td></tr>
+        <tr><td><code>thin</code></td><td>精简供给池 + 快照</td><td><span class="tag g">有</span>（共享块）</td><td>容器存储、云盘</td></tr>
+        <tr><td><code>crypt</code></td><td>透明加密</td><td>—</td><td>快照加密、合规</td></tr>
+        <tr><td><code>writecache</code></td><td>写缓存（SSD/PMEM）</td><td>—</td><td>加速写、掉电保护</td></tr>
+        <tr><td><code>integrity</code></td><td>数据完整性校验</td><td>—</td><td>静默损坏检测</td></tr>
+        <tr><td><code>delay</code></td><td>人为延迟/错误注入</td><td>—</td><td>故障演练（快照失败注入）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>13.2 dm-snapshot 实操</h3>
+  <pre class="bash"><code># 准备 origin 与 cow 设备（示例用 loop）
+losetup /dev/loop10 origin.img
+losetup /dev/loop11 cow.img
+
+# 创建快照：P=持久化，8=chunk size（扇区）
+echo "0 $(blockdev --getsz /dev/loop10) snapshot /dev/loop10 /dev/loop11 P 8" \
+  | dmsetup create snap0
+
+# 查看状态（used/total 表示 COW 已用块）
+dmsetup status snap0
+# snap0: 0 2097152 snapshot 1234/65536 8
+
+# 挂载并验证
+mkfs.xfs /dev/mapper/snap0
+mount /dev/mapper/snap0 /mnt/snap
+touch /mnt/snap/hello
+
+# 删除快照（先 umount）
+umount /mnt/snap
+dmsetup remove snap0</code></pre>
+
+  <div class="callout warn">
+    <span class="t">dm-snapshot 的坑</span>
+    <p>① <strong>COW 设备写满</strong>会导致快照失效（默认行为）；② 链式快照删除中间层需要 <code>--merge</code>；③ 随机读要查 exception 表，延迟比裸设备高；④ 不支持在线扩容 origin（需重建）。这正是 CubeSandbox 选择 <strong>XFS reflink</strong> 而不是 dm-snapshot 的原因：reflink 没有 chunk 写放大，快照是平面模型，删除互不影响。</p>
+  </div>
+
+  <h3>13.3 dm-thin 与 LVM</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>dm-thin 与 LVM 快照</caption>
+      <thead>
+        <tr><th>能力</th><th>dm-thin</th><th>LVM 快照</th><th>备注</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>空间模型</td><td>thin pool 按需分配</td><td>固定 COW 区</td><td>thin 更适合超卖</td></tr>
+        <tr><td>快照</td><td>共享块的 thin 设备</td><td>COW 设备</td><td>thin 快照无写放大</td></tr>
+        <tr><td>元数据</td><td>btree（metadata 设备）</td><td>exception store</td><td>需 <code>thin_check</code></td></tr>
+        <tr><td>垃圾回收</td><td>discard + 后台</td><td>需手动</td><td>影响快照空间回收</td></tr>
+        <tr><td>命令</td><td><code>dmsetup</code> / <code>thin_*</code></td><td><code>lvcreate -s</code></td><td>LVM 更易用</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ⑤</span>
+    <p>如果数据盘是<strong>云盘或 dm-thin</strong>，你仍然可以「叠加」XFS reflink：只要文件系统层是 XFS 且开启 reflink，CubeCoW 的 <code>FICLONE</code> 就生效。反过来，如果底层是 ext4，就只能退化到 dm-snapshot 或全量复制。<strong>选型时先确认：文件系统类型 + reflink 标志 + 数据盘是否支持 discard。</strong></p>
+  </div>
+</section>
+
+<!-- ============ 14 ============ -->
+<section id="flush">
+  <h2>14. 块设备（四）：写缓存、屏障与丢弃</h2>
+  <h3>14.1 写缓存与持久化保证</h3>
+  <p>很多设备（尤其是 SSD、云盘、RAID 控制器）有<strong>易失写缓存</strong>：<code>write</code> 返回时数据可能只在缓存里。要保证持久化，必须使用 <code>flush</code> 或 <code>FUA</code> 语义。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>块层持久化语义</caption>
+      <thead>
+        <tr><th>标志 / 操作</th><th>含义</th><th>何时使用</th><th>性能代价</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>REQ_PREFLUSH</code></td><td>写之前先刷设备缓存</td><td>日志提交、<code>fsync</code> 的元数据</td><td>一次额外 flush，可能很高</td></tr>
+        <tr><td><code>REQ_FUA</code></td><td>写必须直达持久介质</td><td>日志尾块、事务提交</td><td>设备支持时几乎无额外成本</td></tr>
+        <tr><td><code>blkdev_issue_flush()</code></td><td>显式刷整个设备缓存</td><td><code>fsync</code> 最后一步</td><td>高（毫秒级）</td></tr>
+        <tr><td><code>sync()</code></td><td>刷所有文件系统数据+元数据</td><td>关机、快照前</td><td>全局，可能很慢</td></tr>
+        <tr><td><code>syncfs()</code></td><td>刷指定文件系统</td><td>按文件系统快照</td><td>比 <code>sync</code> 可控</td></tr>
+        <tr><td><code>fdatasync()</code></td><td>刷数据 + 必要元数据（大小）</td><td>日志文件、数据库 WAL</td><td>比 <code>fsync</code> 略低</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout danger">
+    <span class="t">最容易被忽略的一致性漏洞</span>
+    <p>很多「快照」实现只做了 <code>cp --reflink</code>，却没有<strong>刷设备写缓存</strong>。如果底层是带易失缓存的云盘/RAID，快照可能捕获到「页缓存已提交、但设备缓存未落盘」的状态，恢复后文件系统日志损坏。正确做法：<strong>freeze → <code>blkdev_issue_flush</code> / <code>fsync</code> → 再克隆</strong>。</p>
+  </div>
+
+  <h3>14.2 discard / TRIM 与空间回收</h3>
+  <p>删除文件时，文件系统默认只更新元数据，底层块可能仍保留旧数据。discard 告诉设备「这些块不再使用」，用于 SSD 的 GC 与精简供给的空间回收。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>discard 相关接口</caption>
+      <thead>
+        <tr><th>接口</th><th>层次</th><th>作用</th><th>快照场景</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>blkdev_issue_discard()</code></td><td>内核 API</td><td>下发 discard bio</td><td>删除快照后释放块</td></tr>
+        <tr><td><code>BLKDISCARD</code> ioctl</td><td>用户态</td><td>丢弃设备区间</td><td>清理快照数据</td></tr>
+        <tr><td><code>blkdiscard</code></td><td>命令</td><td>丢弃整盘/分区</td><td>测试、重置</td></tr>
+        <tr><td><code>fstrim</code></td><td>命令</td><td>文件系统级 trim</td><td>回收未使用块</td></tr>
+        <tr><td><code>fallocate(FALLOC_FL_PUNCH_HOLE)</code></td><td>系统调用</td><td>打洞，释放文件块</td><td>稀疏快照、压缩镜像</td></tr>
+        <tr><td><code>FALLOC_FL_ZERO_RANGE</code></td><td>系统调用</td><td>零填充区间（可保留块）</td><td>安全擦除快照中的敏感区</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">discard 的两个陷阱</span>
+    <p>① <strong>异步且可能丢</strong>：discard 不保证完成，不能作为「数据已擦除」的安全保证；敏感数据应显式覆写或加密。② <strong>性能抖动</strong>：大量 discard 会触发 SSD GC，造成延迟尖刺；生产上通常用 <code>fstrim.timer</code> 在低峰期运行。</p>
+  </div>
+</section>
+
+<!-- ============ 15 ============ -->
+<section id="path">
+  <h2>15. IO 全链路：读 / 写 / fsync / mmap</h2>
+  <p>现在把前面所有层串起来。下面四条路径是你在快照代码里最常遇到的。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 560" role="img" aria-label="四条 IO 路径对比">
+      <defs>
+        <marker id="aio" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+        </marker>
+      </defs>
+      <!-- 表头 -->
+      <g font-size="11.5" font-weight="700" fill="#1e3a8a">
+        <text x="20" y="24">Buffered Read</text>
+        <text x="280" y="24">Buffered Write</text>
+        <text x="540" y="24">fsync / fdatasync</text>
+        <text x="800" y="24">mmap Fault</text>
+      </g>
+
+      <!-- 列 1 -->
+      <rect x="20" y="38" width="220" height="42" rx="8" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="130" y="64" text-anchor="middle" font-size="11" fill="#111827">read(fd, buf, n)</text>
+      <rect x="20" y="94" width="220" height="42" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="130" y="120" text-anchor="middle" font-size="11" fill="#111827">VFS → filemap_read</text>
+      <rect x="20" y="150" width="220" height="42" rx="8" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="130" y="176" text-anchor="middle" font-size="11" fill="#111827">查页缓存</text>
+      <rect x="20" y="206" width="220" height="56" rx="8" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="130" y="228" text-anchor="middle" font-size="10.5" fill="#92400e">命中：copy_to_user</text>
+      <text x="130" y="248" text-anchor="middle" font-size="10.5" fill="#92400e">未命中：read_folio → bio</text>
+      <rect x="20" y="276" width="220" height="42" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="130" y="302" text-anchor="middle" font-size="11" fill="#111827">回填页缓存</text>
+      <rect x="20" y="332" width="220" height="42" rx="8" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="130" y="358" text-anchor="middle" font-size="11" fill="#111827">返回字节数</text>
+
+      <!-- 列 2 -->
+      <rect x="280" y="38" width="220" height="42" rx="8" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="390" y="64" text-anchor="middle" font-size="11" fill="#111827">write(fd, buf, n)</text>
+      <rect x="280" y="94" width="220" height="42" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="390" y="120" text-anchor="middle" font-size="11" fill="#111827">generic_perform_write</text>
+      <rect x="280" y="150" width="220" height="42" rx="8" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="390" y="176" text-anchor="middle" font-size="11" fill="#111827">分配 / 找到 folio</text>
+      <rect x="280" y="206" width="220" height="42" rx="8" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="390" y="232" text-anchor="middle" font-size="11" fill="#92400e">copy_from_user</text>
+      <rect x="280" y="262" width="220" height="42" rx="8" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="390" y="288" text-anchor="middle" font-size="11" fill="#92400e">dirty_folio 标记脏页</text>
+      <rect x="280" y="318" width="220" height="56" rx="8" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="390" y="340" text-anchor="middle" font-size="11" fill="#111827">返回（未落盘）</text>
+      <text x="390" y="360" text-anchor="middle" font-size="10" fill="#7b8494">异步 writeback 稍后发生</text>
+
+      <!-- 列 3 -->
+      <rect x="540" y="38" width="220" height="42" rx="8" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="650" y="64" text-anchor="middle" font-size="11" fill="#111827">fsync(fd)</text>
+      <rect x="540" y="94" width="220" height="42" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="650" y="120" text-anchor="middle" font-size="11" fill="#111827">filemap_write_and_wait_range</text>
+      <rect x="540" y="150" width="220" height="42" rx="8" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="650" y="176" text-anchor="middle" font-size="11" fill="#92400e">do_writepages → bio</text>
+      <rect x="540" y="206" width="220" height="42" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="650" y="232" text-anchor="middle" font-size="11" fill="#111827">等待 IO 完成</text>
+      <rect x="540" y="262" width="220" height="42" rx="8" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="650" y="288" text-anchor="middle" font-size="11" fill="#0f766e">f_op-&gt;fsync（刷日志）</text>
+      <rect x="540" y="318" width="220" height="42" rx="8" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="650" y="344" text-anchor="middle" font-size="11" fill="#be123c">blkdev_issue_flush</text>
+      <rect x="540" y="374" width="220" height="42" rx="8" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="650" y="400" text-anchor="middle" font-size="11" fill="#111827">返回（真正持久化）</text>
+
+      <!-- 列 4 -->
+      <rect x="800" y="38" width="220" height="42" rx="8" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="910" y="64" text-anchor="middle" font-size="11" fill="#111827">访问 mmap 地址</text>
+      <rect x="800" y="94" width="220" height="42" rx="8" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="910" y="120" text-anchor="middle" font-size="11" fill="#be123c">缺页异常 #PF</text>
+      <rect x="800" y="150" width="220" height="42" rx="8" fill="#fff" stroke="#d0d6de"/>
+      <text x="910" y="176" text-anchor="middle" font-size="11" fill="#111827">handle_mm_fault</text>
+      <rect x="800" y="206" width="220" height="42" rx="8" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="910" y="232" text-anchor="middle" font-size="11" fill="#111827">filemap_fault / 零页</text>
+      <rect x="800" y="262" width="220" height="42" rx="8" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="910" y="288" text-anchor="middle" font-size="11" fill="#92400e">建立 PTE</text>
+      <rect x="800" y="318" width="220" height="42" rx="8" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="910" y="344" text-anchor="middle" font-size="11" fill="#111827">写共享映射：page_mkwrite</text>
+      <rect x="800" y="374" width="220" height="42" rx="8" fill="#f9fafb" stroke="#e3e7ec"/>
+      <text x="910" y="400" text-anchor="middle" font-size="11" fill="#111827">msync 才保证落盘</text>
+
+      <!-- 底部对照 -->
+      <rect x="20" y="444" width="1000" height="100" rx="11" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="42" y="468" font-size="11.5" font-weight="700" fill="#111827">延迟量级（参考）</text>
+      <text x="42" y="490" font-size="11" fill="#4b5563">页缓存命中 ≈ 100ns–1µs · 本地 NVMe ≈ 10–100µs · 网络存储 ≈ 0.1–1ms · 设备 flush ≈ 0.1–10ms</text>
+      <text x="42" y="512" font-size="11" fill="#4b5563">快照恢复的尾延迟主要由「冷读 + 缺页 + 设备 flush」决定；快照创建的尾延迟主要由「脏页回写 + 元数据提交」决定。</text>
+      <text x="42" y="534" font-size="11" fill="#4b5563">观测入口：<tspan font-family="monospace">/proc/meminfo</tspan> · <tspan font-family="monospace">/proc/vmstat</tspan> · <tspan font-family="monospace">/proc/diskstats</tspan> · bpftrace · blktrace · perf · iostat</text>
+    </svg>
+    <div class="caption">图 11 · 四条路径对照：只有 fsync 返回时，数据才真正持久化；mmap 的写回同样需要 msync</div>
+  </div>
+
+  <h3>15.1 用 bpftrace 观察 IO 路径</h3>
+  <pre class="bash"><code># 谁在提交 bio（按进程统计）
+bpftrace -e 'tracepoint:block:block_rq_issue { @[comm] = count(); }'
+
+# bio 大小分布（判断是否合并）
+bpftrace -e 'tracepoint:block:block_rq_issue { @bytes = hist(args->bytes); }'
+
+# 页缓存命中/未命中
+bpftrace -e 'kprobe:filemap_read { @reads++; }
+             kprobe:filemap_get_pages { @lookups++; }'
+
+# 缺页延迟
+bpftrace -e 'kprobe:handle_mm_fault { @start[tid] = nsecs; }
+             kretprobe:handle_mm_fault /@start[tid]/ {
+               @us = hist((nsecs - @start[tid]) / 1000); delete(@start[tid]); }'
+
+# 设备 flush 次数与耗时
+bpftrace -e 'kprobe:blkdev_issue_flush { @start[tid] = nsecs; }
+             kretprobe:blkdev_issue_flush /@start[tid]/ {
+               @us = hist((nsecs - @start[tid]) / 1000); delete(@start[tid]); }'</code></pre>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ⑥</span>
+    <p>做快照功能时，建议把上面几条 bpftrace 直接做成<strong>可观测性流水线</strong>：快照耗时分解为「freeze 等待 → 脏页回写 → reflink 元数据 → 内存导出 → 设备 flush」五段，每段一个直方图。这样线上出现「快照慢」时，能一眼看出是页缓存、元数据还是设备缓存的问题。</p>
+  </div>
+</section>
+<!-- ============ 16 ============ -->
+<section id="snap">
+  <h2>16. 快照技术全景</h2>
+  <p>「快照」不是一个单一技术，而是一组按<strong>层次</strong>与<strong>一致性</strong>划分的方案。选错层次，后面的性能与可靠性都会崩。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 470" role="img" aria-label="快照技术分类">
+      <defs>
+        <marker id="ast" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
+        </marker>
+      </defs>
+      <rect x="400" y="16" width="240" height="52" rx="11" fill="#fffaf0" stroke="#fde68a"/>
+      <text x="520" y="48" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">快照方案</text>
+
+      <!-- 四个分支 -->
+      <rect x="30" y="120" width="220" height="90" rx="11" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="140" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#0f766e">文件系统级</text>
+      <text x="140" y="168" text-anchor="middle" font-size="10.5" fill="#4b5563">reflink（XFS）</text>
+      <text x="140" y="186" text-anchor="middle" font-size="10.5" fill="#4b5563">subvolume（Btrfs）</text>
+      <text x="140" y="204" text-anchor="middle" font-size="10.5" fill="#4b5563">dataset（ZFS）</text>
+
+      <rect x="280" y="120" width="220" height="90" rx="11" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="390" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">块设备级</text>
+      <text x="390" y="168" text-anchor="middle" font-size="10.5" fill="#4b5563">dm-snapshot</text>
+      <text x="390" y="186" text-anchor="middle" font-size="10.5" fill="#4b5563">dm-thin / LVM</text>
+      <text x="390" y="204" text-anchor="middle" font-size="10.5" fill="#4b5563">md / 云盘快照</text>
+
+      <rect x="530" y="120" width="220" height="90" rx="11" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="640" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">虚拟机级</text>
+      <text x="640" y="168" text-anchor="middle" font-size="10.5" fill="#4b5563">Firecracker full/diff</text>
+      <text x="640" y="186" text-anchor="middle" font-size="10.5" fill="#4b5563">RustVMM snapshot</text>
+      <text x="640" y="204" text-anchor="middle" font-size="10.5" fill="#4b5563">QEMU qcow2 / CRIU</text>
+
+      <rect x="780" y="120" width="230" height="90" rx="11" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="895" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#be123c">应用级</text>
+      <text x="895" y="168" text-anchor="middle" font-size="10.5" fill="#4b5563">数据库备份 / WAL</text>
+      <text x="895" y="186" text-anchor="middle" font-size="10.5" fill="#4b5563">对象存储版本</text>
+      <text x="895" y="204" text-anchor="middle" font-size="10.5" fill="#4b5563">Git / 版本化文件</text>
+
+      <g stroke="#b45309" stroke-width="1.6" marker-end="url(#ast)">
+        <line x1="440" y1="68" x2="160" y2="116"/>
+        <line x1="485" y1="68" x2="400" y2="116"/>
+        <line x1="555" y1="68" x2="630" y2="116"/>
+        <line x1="600" y1="68" x2="875" y2="116"/>
+      </g>
+
+      <!-- 维度 -->
+      <rect x="30" y="260" width="980" height="190" rx="13" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="52" y="286" font-size="12" font-weight="700" fill="#111827">五个正交维度（任何快照方案都要回答）</text>
+      <rect x="52" y="302" width="180" height="58" rx="8" fill="#fff" stroke="#e3e7ec"/>
+      <text x="142" y="324" text-anchor="middle" font-size="11" font-weight="700" fill="#111827">全量 / 增量</text>
+      <text x="142" y="344" text-anchor="middle" font-size="10" fill="#7b8494">是否只存 dirty 数据</text>
+      <rect x="248" y="302" width="180" height="58" rx="8" fill="#fff" stroke="#e3e7ec"/>
+      <text x="338" y="324" text-anchor="middle" font-size="11" font-weight="700" fill="#111827">崩溃 / 应用一致</text>
+      <text x="338" y="344" text-anchor="middle" font-size="10" fill="#7b8494">是否需要 freeze</text>
+      <rect x="444" y="302" width="180" height="58" rx="8" fill="#fff" stroke="#e3e7ec"/>
+      <text x="534" y="324" text-anchor="middle" font-size="11" font-weight="700" fill="#111827">平面 / 链式</text>
+      <text x="534" y="344" text-anchor="middle" font-size="10" fill="#7b8494">快照之间是否独立</text>
+      <rect x="640" y="302" width="180" height="58" rx="8" fill="#fff" stroke="#e3e7ec"/>
+      <text x="730" y="324" text-anchor="middle" font-size="11" font-weight="700" fill="#111827">冷 / 热</text>
+      <text x="730" y="344" text-anchor="middle" font-size="10" fill="#7b8494">是否暂停服务</text>
+      <rect x="836" y="302" width="152" height="58" rx="8" fill="#fff" stroke="#e3e7ec"/>
+      <text x="912" y="324" text-anchor="middle" font-size="11" font-weight="700" fill="#111827">本地 / 远程</text>
+      <text x="912" y="344" text-anchor="middle" font-size="10" fill="#7b8494">是否跨节点</text>
+
+      <text x="52" y="392" font-size="11" fill="#4b5563">CubeSandbox 的选择：<tspan font-weight="700" fill="#92400e">文件系统级 reflink（磁盘）+ VM 级内存快照 + 平面模型 + 热快照（暂停 vCPU）</tspan>。</text>
+      <text x="52" y="414" font-size="11" fill="#4b5563">它不做「链式快照」，因此删除任意快照不影响其他快照；代价是没有「回到任意历史点」的链式回滚，只能回到某个具体快照。</text>
+      <text x="52" y="436" font-size="11" fill="#4b5563">增量快照依赖脏页跟踪：磁盘用 reflink 共享未修改 extent，内存用 KVM dirty log 只存修改页。</text>
+    </svg>
+    <div class="caption">图 12 · 快照技术全景：四个层次 × 五个维度；CubeSandbox 的组合是「reflink 磁盘 + VM 内存 + 平面 + 热快照」</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>快照方案对比</caption>
+      <thead>
+        <tr><th>方案</th><th>层次</th><th>空间</th><th>恢复速度</th><th>一致性</th><th>适用</th><th>不适用</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>XFS reflink</td><td>文件</td><td>O(1) 元数据，写时分配</td><td>快（元数据）</td><td>文件系统级</td><td>rootfs 克隆、模板</td><td>需要链式历史、跨文件系统</td></tr>
+        <tr><td>Btrfs snapshot</td><td>子卷</td><td>CoW</td><td>快</td><td>文件系统级</td><td>通用、send/receive</td><td>性能敏感、稳定性要求极高</td></tr>
+        <tr><td>ZFS snapshot</td><td>数据集</td><td>CoW + 校验</td><td>快</td><td>文件系统级</td><td>存储服务器</td><td>内存占用高</td></tr>
+        <tr><td>dm-snapshot</td><td>块</td><td>COW 区</td><td>中（查表）</td><td>块级</td><td>LVM、传统虚机</td><td>高随机写、chunk 写放大</td></tr>
+        <tr><td>dm-thin</td><td>块</td><td>共享块</td><td>中</td><td>块级</td><td>容器存储、云盘</td><td>元数据损坏需修复</td></tr>
+        <tr><td>qcow2</td><td>文件</td><td>cluster CoW</td><td>中</td><td>虚拟磁盘</td><td>QEMU/KVM</td><td>高 IOPS、裸金属</td></tr>
+        <tr><td>VM 内存快照</td><td>VM</td><td>full/diff</td><td>中（UFFD 可懒加载）</td><td>崩溃/应用</td><td>沙箱、Firecracker</td><td>跨 CPU 特性、设备兼容</td></tr>
+        <tr><td>CRIU</td><td>进程</td><td>内存 + 文件</td><td>中</td><td>进程级</td><td>容器检查点</td><td>内核态资源、复杂设备</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 17 ============ -->
+<section id="vm">
+  <h2>17. VM 快照：内存、设备与脏页</h2>
+  <p>沙箱不是普通进程，它是一台 VM。VM 快照必须同时保存<strong>内存、vCPU 寄存器、设备状态、磁盘</strong>四类状态，缺一不可。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 360" role="img" aria-label="VM 快照的四个组成部分">
+      <defs>
+        <marker id="avm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
+        </marker>
+      </defs>
+      <rect x="390" y="14" width="260" height="56" rx="12" fill="#fffaf0" stroke="#fde68a"/>
+      <text x="520" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">VM 快照</text>
+      <text x="520" y="60" text-anchor="middle" font-size="10" fill="#7b8494">四类状态缺一不可</text>
+
+      <rect x="30" y="120" width="220" height="180" rx="12" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="140" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">① 内存</text>
+      <text x="140" y="170" text-anchor="middle" font-size="10.5" fill="#4b5563">guest 物理内存</text>
+      <text x="140" y="190" text-anchor="middle" font-size="10.5" fill="#4b5563">full / diff</text>
+      <text x="140" y="210" text-anchor="middle" font-size="10.5" fill="#4b5563">脏页位图</text>
+      <text x="140" y="230" text-anchor="middle" font-size="10.5" fill="#4b5563">UFFD 惰性恢复</text>
+      <text x="140" y="254" text-anchor="middle" font-size="10" fill="#7b8494">文件：mem file</text>
+      <text x="140" y="276" text-anchor="middle" font-size="10" fill="#7b8494">稀疏/密集 · 压缩</text>
+
+      <rect x="278" y="120" width="220" height="180" rx="12" fill="#f0fdf4" stroke="#a7f3d0"/>
+      <text x="388" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#0f766e">② vCPU / KVM</text>
+      <text x="388" y="170" text-anchor="middle" font-size="10.5" fill="#4b5563">寄存器、MSR</text>
+      <text x="388" y="190" text-anchor="middle" font-size="10.5" fill="#4b5563">中断控制器</text>
+      <text x="388" y="210" text-anchor="middle" font-size="10.5" fill="#4b5563">时钟 / TSC</text>
+      <text x="388" y="230" text-anchor="middle" font-size="10.5" fill="#4b5563">CPU 特性</text>
+      <text x="388" y="254" text-anchor="middle" font-size="10" fill="#7b8494">KVM 内部状态</text>
+      <text x="388" y="276" text-anchor="middle" font-size="10" fill="#7b8494">跨主机兼容性</text>
+
+      <rect x="526" y="120" width="220" height="180" rx="12" fill="#fffbeb" stroke="#fde68a"/>
+      <text x="636" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">③ 设备</text>
+      <text x="636" y="170" text-anchor="middle" font-size="10.5" fill="#4b5563">virtio 队列</text>
+      <text x="636" y="190" text-anchor="middle" font-size="10.5" fill="#4b5563">vsock 状态</text>
+      <text x="636" y="210" text-anchor="middle" font-size="10.5" fill="#4b5563">网卡 / 磁盘</text>
+      <text x="636" y="230" text-anchor="middle" font-size="10.5" fill="#4b5563">串口 / 显示器</text>
+      <text x="636" y="254" text-anchor="middle" font-size="10" fill="#7b8494">恢复时需重绑</text>
+      <text x="636" y="276" text-anchor="middle" font-size="10" fill="#7b8494">设备路径可能变化</text>
+
+      <rect x="774" y="120" width="236" height="180" rx="12" fill="#fff1f2" stroke="#fecdd3"/>
+      <text x="892" y="146" text-anchor="middle" font-size="12" font-weight="700" fill="#be123c">④ 磁盘</text>
+      <text x="892" y="170" text-anchor="middle" font-size="10.5" fill="#4b5563">rootfs / 数据卷</text>
+      <text x="892" y="190" text-anchor="middle" font-size="10.5" fill="#4b5563">reflink 克隆</text>
+      <text x="892" y="210" text-anchor="middle" font-size="10.5" fill="#4b5563">dm-snapshot / qcow2</text>
+      <text x="892" y="230" text-anchor="middle" font-size="10.5" fill="#4b5563">一致性由 freeze 保证</text>
+      <text x="892" y="254" text-anchor="middle" font-size="10" fill="#7b8494">与内存快照同一时间点</text>
+      <text x="892" y="276" text-anchor="middle" font-size="10" fill="#7b8494">CubeCoW 负责克隆</text>
+
+      <g stroke="#b45309" stroke-width="1.6" marker-end="url(#avm)">
+        <line x1="450" y1="70" x2="150" y2="116"/>
+        <line x1="495" y1="70" x2="392" y2="116"/>
+        <line x1="550" y1="70" x2="632" y2="116"/>
+        <line x1="595" y1="70" x2="885" y2="116"/>
+      </g>
+
+      <rect x="30" y="322" width="980" height="28" rx="7" fill="#fafbfc" stroke="#e3e7ec"/>
+      <text x="52" y="341" font-size="10.5" fill="#4b5563">恢复顺序：先恢复内存与设备状态 → 再恢复 vCPU → 最后 resume；设备路径、网络配置、vsock 连接需要重新绑定。</text>
+    </svg>
+    <div class="caption">图 13 · VM 快照的四个组成部分；磁盘与内存必须在同一个静止点拍摄，否则恢复后状态不自洽</div>
+  </div>
+
+  <h3>17.1 Firecracker 的 snapshot API</h3>
+  <pre class="bash"><code># 暂停 VM（通过 API socket）
+curl -X PATCH --unix-socket /tmp/fc.sock \
+  -H "Content-Type: application/json" \
+  -d '{"state": "Paused"}' http://localhost/vm
+
+# 创建完整快照
+curl -X PUT --unix-socket /tmp/fc.sock \
+  -H "Content-Type: application/json" \
+  -d '{
+        "snapshot_type": "Full",
+        "snapshot_path": "/var/lib/cube/vm.snap",
+        "mem_file_path": "/var/lib/cube/vm.mem"
+      }' http://localhost/snapshot/create
+
+# 增量快照（依赖 KVM dirty log）
+curl -X PUT --unix-socket /tmp/fc.sock \
+  -H "Content-Type: application/json" \
+  -d '{
+        "snapshot_type": "Diff",
+        "snapshot_path": "/var/lib/cube/vm.diff.snap",
+        "mem_file_path": "/var/lib/cube/vm.diff.mem"
+      }' http://localhost/snapshot/create
+
+# 恢复（可指定 UFFD 惰性加载）
+curl -X PUT --unix-socket /tmp/fc2.sock \
+  -H "Content-Type: application/json" \
+  -d '{
+        "snapshot_path": "/var/lib/cube/vm.snap",
+        "mem_backend": {
+          "backend_type": "File",
+          "backend_path": "/var/lib/cube/vm.mem"
+        },
+        "resume_vm": true
+      }' http://localhost/snapshot/load</code></pre>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Firecracker 快照的边界（务必确认版本）</caption>
+      <thead>
+        <tr><th>项目</th><th>行为</th><th>影响</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>CPU 特性</td><td>恢复主机需兼容快照主机的 CPU 特性</td><td>跨代 CPU 迁移可能失败</td></tr>
+        <tr><td>内核版本</td><td>guest 内核包含在内存镜像中</td><td>换内核需重建模板</td></tr>
+        <tr><td>vsock</td><td>连接不保证跨恢复存活</td><td>恢复后需重连</td></tr>
+        <tr><td>网络</td><td>恢复时可覆盖网卡配置</td><td>跨节点需重新分配 TAP/IP</td></tr>
+        <tr><td>块设备</td><td>后端路径需覆盖</td><td>rootfs 克隆路径变化</td></tr>
+        <tr><td>时钟</td><td>恢复后需校准</td><td>时间跳变可能影响应用</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>17.2 脏页从哪来：KVM dirty log</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>三种脏页跟踪机制</caption>
+      <thead>
+        <tr><th>机制</th><th>跟踪对象</th><th>接口</th><th>典型用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>KVM dirty log</td><td>guest 物理页写</td><td><code>KVM_GET_DIRTY_LOG</code> / dirty ring</td><td>Firecracker Diff 快照、QEMU 迁移</td></tr>
+        <tr><td>soft-dirty</td><td>进程虚拟页写</td><td><code>/proc/pid/clear_refs</code></td><td>CRIU 进程增量</td></tr>
+        <tr><td>UFFD 写保护</td><td>注册区间的写</td><td><code>UFFDIO_WRITEPROTECT</code></td><td>自定义增量快照</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ⑦</span>
+    <p>CubeSandbox 的「增量快照只持久化被修改的匿名内存页」对应 <strong>KVM dirty log</strong>：<code>Diff</code> 快照只包含自上次快照以来被写过的 guest 物理页。恢复时把 <code>Full</code> 基底 + 多个 <code>Diff</code> 叠加，即可重建某个时间点的内存。这要求<strong>快照链的元数据必须记录 parent 与顺序</strong>，否则无法恢复。</p>
+  </div>
+</section>
+
+<!-- ============ 18 ============ -->
+<section id="consist">
+  <h2>18. 一致性设计：把「静止点」工程化</h2>
+  <p>前面讲了一致性的原理，这一章讲<strong>怎么在系统里实现它</strong>。核心是「两阶段协议 + 超时回滚 + 幂等」。</p>
+
+  <h3>18.1 快照协议</h3>
+  <ol class="steps snap">
+    <li><b>Pre-check</b><p>检查目标节点资源、数据盘剩余空间、reflink 支持、快照 ID 是否已存在（幂等）。</p></li>
+    <li><b>Quiesce</b><p>通知沙箱内应用/文件系统进入静默：<code>fsfreeze</code> 或等效钩子；记录超时。</p></li>
+    <li><b>Pause vCPU</b><p>通过 VMM API 暂停所有 vCPU，确保内存与设备状态不再变化。</p></li>
+    <li><b>Flush</b><p>刷宿主机页缓存（<code>syncfs</code>）、刷设备写缓存（<code>blkdev_issue_flush</code>）。</p></li>
+    <li><b>Capture</b><p>并行执行：CubeCoW 克隆 rootfs（reflink）+ 导出内存（full/diff）+ 保存设备状态；记录时间戳与版本。</p></li>
+    <li><b>Commit</b><p>写元数据（原子 rename / 事务），标记快照可用；更新引用计数。</p></li>
+    <li><b>Resume</b><p>恢复 vCPU、<code>thaw</code> 文件系统；任何一步失败都走回滚。</p></li>
+    <li><b>GC / Verify</b><p>异步校验（checksum、可挂载性），并按引用计数回收过期快照。</p></li>
+  </ol>
+
+  <div class="table-wrap">
+    <table>
+      <caption>一致性设计的失败模式与对策</caption>
+      <thead>
+        <tr><th>失败点</th><th>后果</th><th>对策</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>freeze 超时</td><td>沙箱长时间不可写</td><td>超时后 <code>thaw</code> 并放弃本次快照；告警</td></tr>
+        <tr><td>快照中途崩溃</td><td>半成品快照</td><td>临时目录 + 原子 rename；启动时扫描并清理孤儿</td></tr>
+        <tr><td>ENOSPC</td><td>CoW 写失败、沙箱损坏</td><td>预留空间、配额、提前告警；失败时回滚到快照前</td></tr>
+        <tr><td>重复请求</td><td>多份快照、引用计数错乱</td><td>幂等键（sandbox_id + snapshot_id）；分布式锁</td></tr>
+        <tr><td>跨节点恢复失败</td><td>服务不可用</td><td>预检 CPU/设备兼容性；回退到本地节点或重建</td></tr>
+        <tr><td>元数据损坏</td><td>快照不可用</td><td>校验和、副本、定期 <code>xfs_repair -n</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">幂等与并发的具体做法</span>
+    <p>快照创建接口必须接受<strong>客户端幂等键</strong>；服务端用 Redis 分布式锁（CubeSandbox 已有）按 <code>sandbox_id</code> 串行化，避免同一沙箱并发快照；元数据写入用「临时文件 + fsync + rename」保证原子性；引用计数用数据库事务或 Redis Lua 脚本。</p>
+  </div>
+</section>
+
+<!-- ============ 19 ============ -->
+<section id="perf">
+  <h2>19. 性能与空间：快照的成本模型</h2>
+  <p>快照的「便宜」是有条件的。理解成本模型，才能在容量规划与压测中给出可信数字。</p>
+
+  <h3>19.1 写放大（write amplification）</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>不同方案的写放大</caption>
+      <thead>
+        <tr><th>方案</th><th>首次写某块</th><th>放大倍数</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>XFS reflink</td><td>分配新 extent + 写新数据</td><td>≈1×（块内部分写可能 RMW）</td><td>4KB 块粒度；小于块宽的写需要读改写</td></tr>
+        <tr><td>dm-snapshot</td><td>复制整个 chunk 到 COW，再写</td><td>chunk_size / write_size</td><td>4KB 写 + 64KB chunk = 16×</td></tr>
+        <tr><td>qcow2</td><td>分配新 cluster（默认 64KB）</td><td>cluster / write</td><td>可调 cluster 大小</td></tr>
+        <tr><td>dm-thin</td><td>分配新块，无复制</td><td>≈1×</td><td>但元数据 btree 更新</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>19.2 空间与密度</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>快照空间成本</caption>
+      <thead>
+        <tr><th>项目</th><th>成本</th><th>估算</th><th>优化</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>根文件系统</td><td>共享 extent，不复制</td><td>≈0（元数据）</td><td>reflink</td></tr>
+        <tr><td>内存 full 快照</td><td>≈ guest 内存大小</td><td>如 2GB/沙箱</td><td>压缩（zstd）、稀疏化、页去重</td></tr>
+        <tr><td>内存 diff 快照</td><td>≈ 脏页量</td><td>取决于工作集</td><td>KVM dirty log</td></tr>
+        <tr><td>元数据（inode/refcount）</td><td>每个快照少量</td><td>KB 级</td><td>批量、合并</td></tr>
+        <tr><td>page cache</td><td>宿主机内存</td><td>可能很大</td><td>cgroup 限制、<code>posix_fadvise</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout danger">
+    <span class="t">空间核算的陷阱</span>
+    <p><code>du</code> 会把 reflink 共享的块<strong>重复计算</strong>到每个文件上，所以「所有快照 du 之和」会远大于 <code>df</code> 的实际使用量。正确做法：用 <code>df</code> 看真实占用，用 <code>xfs_io -c "fiemap -v"</code> 看共享 extent，用 <code>xfs_quota</code> 做项目配额。容量告警要基于 <code>df</code> 与 CoW 预留空间，而不是 <code>du</code>。</p>
+  </div>
+
+  <h3>19.3 恢复延迟的组成</h3>
+  <div class="flow">
+    <div class="box k">调度</div><span class="arw">+</span>
+    <div class="box k">CoW 克隆</div><span class="arw">+</span>
+    <div class="box g">内存映射</div><span class="arw">+</span>
+    <div class="box g">设备重绑</div><span class="arw">+</span>
+    <div class="box s">首次缺页</div><span class="arw">+</span>
+    <div class="box s">网络就绪</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <caption>恢复延迟优化手段</caption>
+      <thead>
+        <tr><th>手段</th><th>作用</th><th>代价</th><th>适用</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>UFFD 惰性加载</td><td>只加载热页，降低启动时间</td><td>首访缺页延迟</td><td>内存大、工作集小</td></tr>
+        <tr><td>预取（<code>MADV_WILLNEED</code>）</td><td>提前拉页，减少毛刺</td><td>可能过度预读</td><td>确定热点的场景</td></tr>
+        <tr><td>共享内存快照</td><td>多沙箱共享只读页</td><td>写时 CoW</td><td>同模板大量沙箱</td></tr>
+        <tr><td>本地缓存</td><td>快照文件放在本地 NVMe</td><td>容量成本</td><td>低延迟要求</td></tr>
+        <tr><td>并行恢复</td><td>内存/设备/网络并发</td><td>复杂度</td><td>大沙箱</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ⑧</span>
+    <p>CubeSandbox 宣称「<strong>&lt;60ms 冷启动</strong>」，其组成正是上表的组合：预快照模板 + CoW 克隆 + 快照恢复。做性能优化时，不要只盯 CPU，要分别测量「reflink 克隆耗时」「内存页加载耗时」「设备重绑耗时」；任何一个拖后腿，整体数字都上不去。</p>
+  </div>
+</section>
+
+<!-- ============ 20 ============ -->
+<section id="fail">
+  <h2>20. 故障、回收与运维</h2>
+  <h3>20.1 故障模式</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>快照系统的典型故障</caption>
+      <thead>
+        <tr><th>故障</th><th>现象</th><th>根因</th><th>处理</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>CoW 空间耗尽</td><td>写失败、沙箱只读/崩溃</td><td>快照预留不足</td><td>预留空间、配额、告警；失败回滚</td></tr>
+        <tr><td>快照半成品</td><td>恢复失败</td><td>创建中途崩溃</td><td>临时目录 + 原子提交；启动清理</td></tr>
+        <tr><td>孤儿快照</td><td>空间不释放</td><td>删除流程中断</td><td>基于引用计数 GC；定期扫描</td></tr>
+        <tr><td>元数据损坏</td><td>无法挂载/恢复</td><td>掉电、硬件坏道</td><td>校验和、副本、<code>xfs_repair</code></td></tr>
+        <tr><td>CPU 特性不兼容</td><td>跨节点恢复失败</td><td>异代 CPU</td><td>同代节点池、启动预检</td></tr>
+        <tr><td>vsock 断连</td><td>恢复后 Agent 失联</td><td>连接状态未恢复</td><td>重连协议、健康检查</td></tr>
+        <tr><td>时钟跳变</td><td>应用超时/重试风暴</td><td>恢复后 TSC 未校准</td><td>恢复时校时、单调时钟</td></tr>
+        <tr><td>快照泄露敏感数据</td><td>合规风险</td><td>快照未加密/未清理</td><td>加密、访问控制、安全删除</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>20.2 垃圾回收（GC）</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>GC 策略</caption>
+      <thead>
+        <tr><th>策略</th><th>依据</th><th>优点</th><th>风险</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>引用计数</td><td>每个 extent 的 refcount</td><td>精确、无泄漏</td><td>元数据操作开销</td></tr>
+        <tr><td>TTL</td><td>创建时间 + 保留策略</td><td>简单</td><td>可能删掉仍被引用的快照</td></tr>
+        <tr><td>LRU</td><td>最后访问时间</td><td>适合缓存式快照</td><td>冷快照被误删</td></tr>
+        <tr><td>标记-清除</td><td>从根集合遍历引用</td><td>可处理环</td><td>需要暂停/一致性快照</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>20.3 安全</h3>
+  <ul>
+    <li><strong>加密</strong>：快照包含内存与磁盘，可能含密钥/凭据；静态加密（dm-crypt / 对象存储 SSE）与传输加密（TLS）都要做。</li>
+    <li><strong>访问控制</strong>：快照是「数据的完整副本」，权限模型应与沙箱一致；跨租户隔离。</li>
+    <li><strong>安全删除</strong>：普通删除只释放引用；敏感快照应加密后删密钥（crypto-shredding），或显式覆写。</li>
+    <li><strong>审计</strong>：记录谁在何时创建/恢复/删除快照，便于合规与溯源。</li>
+  </ul>
+
+  <div class="callout tip">
+    <span class="t">CubeSandbox 落地 ⑨</span>
+    <p>CubeSandbox 的快照存在 Redis 元数据 + 共享存储上。落地时要补三件事：① <strong>快照目录的引用计数与 GC</strong>（平面模型下删除互不影响，但不能留孤儿）；② <strong>跨节点恢复的兼容性预检</strong>（CPU、设备路径、网络）；③ <strong>快照的加密与访问审计</strong>（内存快照尤其敏感）。</p>
+  </div>
+</section>
+<!-- ============ 21 ============ -->
+<section id="cube">
+  <h2>21. CubeSandbox 快照架构映射</h2>
+  <p>把前面所有原理落到 CubeSandbox 的组件上。下图用<strong>琥珀色</strong>标出快照路径，灰色是普通沙箱创建路径。</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1100 780" role="img" aria-label="CubeSandbox 快照架构">
+      <defs>
+        <marker id="acs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
+        </marker>
+        <marker id="acg2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a93a2"/>
+        </marker>
+      </defs>
+
+      <!-- Client -->
+      <rect x="380" y="14" width="340" height="54" rx="12" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="550" y="38" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">Client / E2B SDK</text>
+      <text x="550" y="57" text-anchor="middle" font-size="11" fill="#7b8494">POST /sandboxes/&#123;id&#125;/snapshots</text>
+
+      <!-- 控制面 -->
+      <rect x="24" y="96" width="760" height="226" rx="16" fill="#fffaf0" stroke="#fde68a" stroke-dasharray="7 5"/>
+      <text x="44" y="122" font-size="12" font-weight="700" fill="#92400e" letter-spacing=".06em">控制面 CONTROL PLANE</text>
+
+      <rect x="44" y="136" width="220" height="86" rx="11" fill="#fff" stroke="#b45309"/>
+      <text x="154" y="161" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">CubeAPI</text>
+      <text x="154" y="180" text-anchor="middle" font-size="11" fill="#4b5563">Rust · Axum</text>
+      <text x="154" y="199" text-anchor="middle" font-size="10.5" fill="#7b8494">快照 REST 接口</text>
+      <text x="154" y="215" text-anchor="middle" font-size="10" fill="#7b8494">幂等键 · 鉴权</text>
+
+      <rect x="290" y="136" width="220" height="86" rx="11" fill="#fff" stroke="#b45309"/>
+      <text x="400" y="161" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">CubeMaster</text>
+      <text x="400" y="180" text-anchor="middle" font-size="11" fill="#4b5563">Go · 调度</text>
+      <text x="400" y="199" text-anchor="middle" font-size="10.5" fill="#7b8494">选择快照节点</text>
+      <text x="400" y="215" text-anchor="middle" font-size="10" fill="#7b8494">快照目录 · 生命周期事件</text>
+
+      <rect x="536" y="136" width="228" height="86" rx="11" fill="#fff" stroke="#b45309"/>
+      <text x="650" y="161" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">Redis</text>
+      <text x="650" y="180" text-anchor="middle" font-size="11" fill="#4b5563">快照元数据</text>
+      <text x="650" y="199" text-anchor="middle" font-size="10.5" fill="#7b8494">parent / state / refcount</text>
+      <text x="650" y="215" text-anchor="middle" font-size="10" fill="#7b8494">分布式锁 · 幂等键</text>
+
+      <rect x="290" y="236" width="220" height="66" rx="11" fill="#fff" stroke="#d0d6de"/>
+      <text x="400" y="260" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">WebUI :12088</text>
+      <text x="400" y="279" text-anchor="middle" font-size="10.5" fill="#7b8494">快照管理 · 回滚</text>
+
+      <rect x="536" y="236" width="228" height="66" rx="11" fill="#fff" stroke="#d0d6de"/>
+      <text x="650" y="260" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">lifecycle-manager</text>
+      <text x="650" y="279" text-anchor="middle" font-size="10.5" fill="#7b8494">自动暂停 / 恢复</text>
+
+      <!-- 边缘 -->
+      <rect x="816" y="136" width="260" height="166" rx="14" fill="#fff" stroke="#d0d6de"/>
+      <text x="946" y="162" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">CubeProxy</text>
+      <text x="946" y="182" text-anchor="middle" font-size="10.5" fill="#4b5563">OpenResty</text>
+      <text x="946" y="204" text-anchor="middle" font-size="10.5" fill="#4b5563">恢复后重新路由</text>
+      <text x="946" y="224" text-anchor="middle" font-size="10.5" fill="#4b5563">&lt;port&gt;-&lt;id&gt;.domain</text>
+      <text x="946" y="246" text-anchor="middle" font-size="10" fill="#7b8494">Redis 注册表发现副本</text>
+      <text x="946" y="268" text-anchor="middle" font-size="10" fill="#7b8494">跨节点恢复后更新路由</text>
+
+      <!-- 数据面 -->
+      <rect x="24" y="350" width="1052" height="410" rx="16" fill="#f8fafc" stroke="#cbd5e1" stroke-dasharray="7 5"/>
+      <text x="44" y="376" font-size="12" font-weight="700" fill="#1e3a8a" letter-spacing=".06em">数据面 DATA PLANE（每节点）</text>
+
+      <rect x="44" y="390" width="200" height="86" rx="11" fill="#fff" stroke="#b45309"/>
+      <text x="144" y="415" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">Cubelet</text>
+      <text x="144" y="434" text-anchor="middle" font-size="11" fill="#4b5563">Go · 节点代理</text>
+      <text x="144" y="453" text-anchor="middle" font-size="10.5" fill="#7b8494">编排快照流程</text>
+      <text x="144" y="469" text-anchor="middle" font-size="10" fill="#7b8494">调用 CubeCoW / Shim</text>
+
+      <rect x="276" y="390" width="210" height="86" rx="11" fill="#fff" stroke="#b45309"/>
+      <text x="381" y="415" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">CubeShim</text>
+      <text x="381" y="434" text-anchor="middle" font-size="11" fill="#4b5563">Rust · Shim v2</text>
+      <text x="381" y="453" text-anchor="middle" font-size="10.5" fill="#7b8494">freeze / pause / thaw</text>
+      <text x="381" y="469" text-anchor="middle" font-size="10" fill="#7b8494">rootfs · 内存文件 · vsock</text>
+
+      <rect x="518" y="390" width="220" height="86" rx="11" fill="#fff" stroke="#b45309"/>
+      <text x="628" y="415" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">CubeHypervisor</text>
+      <text x="628" y="434" text-anchor="middle" font-size="11" fill="#4b5563">RustVMM + KVM</text>
+      <text x="628" y="453" text-anchor="middle" font-size="10.5" fill="#7b8494">vCPU 暂停 · 内存导出</text>
+      <text x="628" y="469" text-anchor="middle" font-size="10" fill="#7b8494">设备状态 · UFFD 恢复</text>
+
+      <rect x="770" y="390" width="286" height="86" rx="11" fill="#fffaf0" stroke="#fde68a"/>
+      <text x="913" y="415" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400e">Sandbox MicroVM</text>
+      <text x="913" y="434" text-anchor="middle" font-size="11" fill="#4b5563">独立内核 · 独立 TAP</text>
+      <text x="913" y="453" text-anchor="middle" font-size="10.5" fill="#7b8494">guest 页缓存 / 进程状态</text>
+      <text x="913" y="469" text-anchor="middle" font-size="10" fill="#7b8494">恢复后继续运行</text>
+
+      <!-- 底层 -->
+      <rect x="44" y="514" width="250" height="96" rx="11" fill="#ecfdf5" stroke="#a7f3d0"/>
+      <text x="169" y="539" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0f766e">CubeCoW</text>
+      <text x="169" y="558" text-anchor="middle" font-size="10.5" fill="#4b5563">Rust · 卷管理</text>
+      <text x="169" y="577" text-anchor="middle" font-size="10.5" fill="#4b5563">FICLONE 克隆 rootfs</text>
+      <text x="169" y="596" text-anchor="middle" font-size="10" fill="#7b8494">refcount · 平面快照 · GC</text>
+
+      <rect x="316" y="514" width="250" height="96" rx="11" fill="#fff" stroke="#d0d6de"/>
+      <text x="441" y="539" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">XFS 数据盘</text>
+      <text x="441" y="558" text-anchor="middle" font-size="10.5" fill="#4b5563">reflink=1</text>
+      <text x="441" y="577" text-anchor="middle" font-size="10.5" fill="#4b5563">extent 共享 · 写时分配</text>
+      <text x="441" y="596" text-anchor="middle" font-size="10" fill="#7b8494">薄供给 · 配额 · 校验</text>
+
+      <rect x="588" y="514" width="220" height="96" rx="11" fill="#fff" stroke="#d0d6de"/>
+      <text x="698" y="539" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">共享存储 / 对象存储</text>
+      <text x="698" y="558" text-anchor="middle" font-size="10.5" fill="#4b5563">快照文件</text>
+      <text x="698" y="577" text-anchor="middle" font-size="10.5" fill="#4b5563">跨节点恢复</text>
+      <text x="698" y="596" text-anchor="middle" font-size="10" fill="#7b8494">生命周期 · 校验和</text>
+
+      <rect x="830" y="514" width="226" height="96" rx="11" fill="#fff" stroke="#d0d6de"/>
+      <text x="943" y="539" text-anchor="middle" font-size="12.5" font-weight="700" fill="#111827">观测与安全</text>
+      <text x="943" y="558" text-anchor="middle" font-size="10.5" fill="#4b5563">指标 · 日志 · 审计</text>
+      <text x="943" y="577" text-anchor="middle" font-size="10.5" fill="#4b5563">加密 · 访问控制</text>
+      <text x="943" y="596" text-anchor="middle" font-size="10" fill="#7b8494">bpftrace / blktrace</text>
+
+      <!-- 编号流程 -->
+      <g font-size="10.5" fill="#92400e">
+        <circle cx="154" cy="128" r="9" fill="#b45309"/><text x="154" y="132" text-anchor="middle" fill="#fff" font-weight="700">1</text>
+        <circle cx="400" cy="128" r="9" fill="#b45309"/><text x="400" y="132" text-anchor="middle" fill="#fff" font-weight="700">2</text>
+        <circle cx="144" cy="382" r="9" fill="#b45309"/><text x="144" y="386" text-anchor="middle" fill="#fff" font-weight="700">3</text>
+        <circle cx="381" cy="382" r="9" fill="#b45309"/><text x="381" y="386" text-anchor="middle" fill="#fff" font-weight="700">4</text>
+        <circle cx="628" cy="382" r="9" fill="#b45309"/><text x="628" y="386" text-anchor="middle" fill="#fff" font-weight="700">5</text>
+        <circle cx="169" cy="506" r="9" fill="#b45309"/><text x="169" y="510" text-anchor="middle" fill="#fff" font-weight="700">6</text>
+        <circle cx="650" cy="128" r="9" fill="#b45309"/><text x="650" y="132" text-anchor="middle" fill="#fff" font-weight="700">7</text>
+      </g>
+
+      <!-- 箭头 -->
+      <line x1="550" y1="68" x2="200" y2="132" stroke="#b45309" stroke-width="1.7" marker-end="url(#acs)"/>
+      <line x1="264" y1="179" x2="286" y2="179" stroke="#b45309" stroke-width="1.7" marker-end="url(#acs)"/>
+      <line x1="510" y1="179" x2="532" y2="179" stroke="#b45309" stroke-width="1.7" marker-end="url(#acs)"/>
+      <line x1="400" y1="222" x2="150" y2="386" stroke="#b45309" stroke-width="1.7" marker-end="url(#acs)"/>
+      <text x="240" y="318" text-anchor="middle" font-size="10.5" fill="#92400e">RunSnapshot（gRPC）</text>
+      <line x1="244" y1="433" x2="272" y2="433" stroke="#b45309" stroke-width="1.7" marker-end="url(#acs)"/>
+      <line x1="486" y1="433" x2="514" y2="433" stroke="#b45309" stroke-width="1.7" marker-end="url(#acs)"/>
+      <line x1="738" y1="433" x2="766" y2="433" stroke="#b45309" stroke-width="1.7" marker-end="url(#acs)"/>
+      <line x1="144" y1="476" x2="144" y2="510" stroke="#b45309" stroke-width="1.7" marker-end="url(#acs)"/>
+      <line x1="169" y1="610" x2="169" y2="626" stroke="#8a93a2" stroke-width="1.6" marker-end="url(#acg2)"/>
+      <text x="230" y="622" font-size="10" fill="#7b8494">FICLONE → XFS</text>
+      <line x1="650" y1="222" x2="650" y2="250" stroke="#8a93a2" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#acg2)"/>
+      <path d="M976 302 L976 386" stroke="#b45309" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#acs)" fill="none"/>
+      <text x="990" y="346" text-anchor="end" font-size="10" fill="#92400e">恢复后路由</text>
+
+      <rect x="44" y="632" width="1012" height="106" rx="11" fill="#ffffff" stroke="#e3e7ec"/>
+      <text x="66" y="656" font-size="11.5" font-weight="700" fill="#111827">一次快照的状态机</text>
+      <text x="66" y="678" font-size="11" fill="#4b5563">creating → 冻结应用 → 暂停 vCPU → 刷缓存 → 克隆磁盘 + 导出内存 → 提交元数据 → ready</text>
+      <text x="66" y="700" font-size="11" fill="#4b5563">任何一步失败 → failed（可重试）；删除 → deleting → 释放引用 → deleted；孤儿由 GC 扫描。</text>
+      <text x="66" y="722" font-size="11" fill="#4b5563">恢复：从快照元数据找到 rootfs 克隆 + 内存文件 → 在目标节点创建 VM → 重绑设备/网络 → resume。</text>
+    </svg>
+    <div class="caption">图 14 · CubeSandbox 快照架构：控制面负责编排与元数据，数据面负责冻结、克隆、导出与恢复</div>
+  </div>
+
+  <h3>21.1 概念 → 组件映射</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>快照各步骤在 CubeSandbox 中的落点</caption>
+      <thead>
+        <tr><th>快照步骤</th><th>内核机制</th><th>CubeSandbox 组件</th><th>你要关注的代码/接口</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>快照请求</td><td>—</td><td>CubeAPI</td><td>REST 路由、鉴权、幂等键</td></tr>
+        <tr><td>放置与元数据</td><td>—</td><td>CubeMaster + Redis</td><td>快照目录、parent 链、分布式锁</td></tr>
+        <tr><td>应用静默</td><td><code>fsfreeze</code></td><td>CubeShim（经 vsock 通知 guest）</td><td>guest agent、超时、thaw</td></tr>
+        <tr><td>暂停 vCPU</td><td>KVM</td><td>CubeHypervisor</td><td>pause/resume API、设备状态保存</td></tr>
+        <tr><td>刷缓存</td><td><code>syncfs</code> / <code>blkdev_issue_flush</code></td><td>CubeShim / 宿主机</td><td>页缓存与设备缓存顺序</td></tr>
+        <tr><td>磁盘快照</td><td><code>FICLONE</code> / reflink</td><td>CubeCoW</td><td>克隆、refcount、平面快照、GC</td></tr>
+        <tr><td>内存快照</td><td>KVM dirty log + 文件</td><td>CubeHypervisor / CubeShim</td><td>full/diff、稀疏文件、校验和</td></tr>
+        <tr><td>恢复</td><td>UFFD / mmap</td><td>CubeShim + CubeHypervisor</td><td>惰性加载、预取、设备重绑</td></tr>
+        <tr><td>跨节点</td><td>共享存储</td><td>Cubelet + CubeMaster + CubeProxy</td><td>快照传输、路由更新、兼容性预检</td></tr>
+        <tr><td>自动暂停</td><td>—</td><td>lifecycle-manager</td><td>空闲检测、恢复触发、超时</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">读源码的入口建议</span>
+    <p>从「快照/暂停」关键字反查：<code>CubeAPI</code> 的 REST handler → <code>CubeMaster</code> 的生命周期事件 → <code>Cubelet</code> 的 volume 操作 → <code>CubeShim</code> 的 snapshot 实现 → <code>CubeHypervisor</code> 的 VM snapshot/restore → <code>CubeCoW</code> 的 clone/refcount。按这条链读，比从目录结构硬啃快得多。</p>
+  </div>
+</section>
+
+<!-- ============ 22 ============ -->
+<section id="tasks">
+  <h2>22. 改造任务拆解（可直接排期）</h2>
+  <p>假设你的目标是「在 CubeSandbox 之上做快照相关的工作」，下面是按依赖顺序拆出的 10 个任务。每个任务都有明确产出与风险。</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>快照功能改造任务清单</caption>
+      <thead>
+        <tr><th>#</th><th>任务</th><th>改动组件</th><th>产出</th><th>难度</th><th>主要风险</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>快照数据模型</td><td>CubeMaster / Redis</td><td>Snapshot 结构、状态机、parent 链、refcount</td><td><span class="tag k">中</span></td><td>并发与幂等</td></tr>
+        <tr><td>2</td><td>快照 REST API</td><td>CubeAPI</td><td>create / list / get / delete / restore</td><td><span class="tag k">中</span></td><td>E2B 兼容性、错误码</td></tr>
+        <tr><td>3</td><td>一致性协议</td><td>Cubelet / CubeShim</td><td>freeze → pause → flush → snapshot → resume</td><td><span class="tag s">高</span></td><td>卡死、超时、回滚</td></tr>
+        <tr><td>4</td><td>磁盘快照</td><td>CubeCoW</td><td>reflink 克隆、refcount、平面快照</td><td><span class="tag s">高</span></td><td>reflink 退化、ENOSPC</td></tr>
+        <tr><td>5</td><td>内存快照</td><td>CubeHypervisor</td><td>full/diff 导出、稀疏文件、校验和</td><td><span class="tag s">高</span></td><td>脏页一致性、体积</td></tr>
+        <tr><td>6</td><td>恢复与跨节点</td><td>Cubelet / CubeMaster</td><td>UFFD 恢复、设备重绑、路由更新</td><td><span class="tag s">高</span></td><td>CPU/设备兼容性</td></tr>
+        <tr><td>7</td><td>GC 与回收</td><td>CubeCoW / 后台任务</td><td>引用计数 GC、孤儿清理、配额</td><td><span class="tag k">中</span></td><td>误删、空间泄漏</td></tr>
+        <tr><td>8</td><td>可观测性</td><td>全链路</td><td>耗时分解、大小、失败率、缺页率</td><td><span class="tag k">中</span></td><td>埋点遗漏</td></tr>
+        <tr><td>9</td><td>安全与审计</td><td>CubeAPI / 存储</td><td>加密、访问控制、审计日志、安全删除</td><td><span class="tag k">中</span></td><td>内存快照泄露</td></tr>
+        <tr><td>10</td><td>兼容与文档</td><td>CubeAPI / SDK</td><td>E2B 快照语义、SDK 示例、运维手册</td><td><span class="tag g">低</span></td><td>版本漂移</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>22.1 快照 API 设计草案</h3>
+  <pre class="txt"><code>POST   /sandboxes/{sandboxID}/snapshots
+GET    /sandboxes/{sandboxID}/snapshots
+GET    /snapshots/{snapshotID}
+DELETE /snapshots/{snapshotID}
+POST   /snapshots/{snapshotID}/restore
+
+# 创建请求
+{
+  "name": "before-upgrade",
+  "type": "full",              // full | diff
+  "parent_id": "snap_xxx",     // diff 必填
+  "timeout_ms": 30000,
+  "idempotency_key": "req_xxx",
+  "metadata": { "reason": "upgrade" }
+}
+
+# 响应
+{
+  "snapshot_id": "snap_yyy",
+  "sandbox_id": "sbx_xxx",
+  "state": "creating",         // creating | ready | failed | deleting | deleted
+  "type": "full",
+  "parent_id": null,
+  "created_at": "2026-11-16T12:00:00Z",
+  "size_bytes": 2147483648,
+  "cow": { "rootfs": "/cube/cow/snap_yyy/rootfs", "mem": "/cube/cow/snap_yyy/mem" },
+  "checksum": "sha256:..."
+}</code></pre>
+
+  <h3>22.2 控制器骨架（Go 伪代码）</h3>
+  <pre class="c"><code>func (c *Controller) CreateSnapshot(ctx context.Context, req SnapshotRequest) (*Snapshot, error) {
+    // 1. 幂等：同一 idempotency_key 直接返回已有快照
+    if s, err := c.store.GetByIdempotencyKey(ctx, req.IdempotencyKey); err == nil {
+        return s, nil
+    }
+
+    // 2. 同一沙箱串行化（Redis 分布式锁）
+    unlock, err := c.locks.Acquire(ctx, "snapshot:"+req.SandboxID)
+    if err != nil { return nil, err }
+    defer unlock()
+
+    // 3. 预检：reflink 支持、剩余空间、节点资源
+    if err := c.precheck(ctx, req.SandboxID); err != nil { return nil, err }
+
+    s := &Snapshot{ID: newID(), SandboxID: req.SandboxID, State: StateCreating}
+    if err := c.store.Create(ctx, s); err != nil { return nil, err }
+
+    // 4. 冻结 + 暂停（任一失败都回滚）
+    if err := c.shim.Freeze(ctx, req.SandboxID, req.Timeout); err != nil {
+        return c.fail(ctx, s, err)
+    }
+    defer c.shim.Thaw(ctx, req.SandboxID)
+
+    if err := c.shim.Pause(ctx, req.SandboxID); err != nil {
+        return c.fail(ctx, s, err)
+    }
+    defer c.shim.Resume(ctx, req.SandboxID)
+
+    // 5. 刷页缓存 + 设备缓存
+    if err := c.node.Flush(ctx, req.SandboxID); err != nil {
+        return c.fail(ctx, s, err)
+    }
+
+    // 6. 并行：磁盘 reflink + 内存导出
+    if err := c.cow.Clone(ctx, req.SandboxID, s.ID); err != nil {
+        return c.fail(ctx, s, err)
+    }
+    if err := c.vmm.ExportMemory(ctx, req.SandboxID, s.ID, req.Type); err != nil {
+        return c.fail(ctx, s, err)
+    }
+
+    // 7. 原子提交 + 校验和
+    s.State = StateReady
+    s.Checksum = c.checksum(s)
+    return s, c.store.Commit(ctx, s)
+}</code></pre>
+
+  <div class="callout info">
+    <span class="t">实现要点</span>
+    <p>① <strong>defer 顺序</strong>：先 defer thaw 再 defer resume，保证退出时「先恢复 vCPU 再解冻」还是反过来要按你的 VMM 语义确认（通常先 resume 再 thaw）。② <strong>失败回滚</strong>：<code>fail()</code> 必须清理临时文件并释放 refcount。③ <strong>超时</strong>：所有 gRPC 调用都要带 context deadline，避免级联卡死。④ <strong>校验和</strong>：至少对快照元数据做 checksum，内存文件按块做可选校验。</p>
+  </div>
+</section>
+
+<!-- ============ 23 ============ -->
+<section id="path-learn">
+  <h2>23. 学习路径（6 周）</h2>
+  <p>按「内存 → 文件系统 → 块设备 → 快照 → CubeSandbox → 生产」推进。每周都有可验证的产出。</p>
+
+  <ol class="timeline">
+    <li>
+      <div class="ph">W1</div>
+      <div>
+        <h4>内存管理</h4>
+        <p>第 3–6 章：虚拟内存、页表、page cache、缺页、回收、回写、memcg、userfaultfd。配合 <code>/proc/meminfo</code>、<code>smaps</code>、<code>vmstat</code> 做观察。</p>
+        <span class="out">产出：能解释「一次 write 到落盘的完整路径」，并画出脏页状态图</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">W2</div>
+      <div>
+        <h4>VFS 与文件系统</h4>
+        <p>第 7–10 章：VFS 对象、ext4/XFS 布局、日志、reflink、freeze。重点读 XFS 的 delayed logging 与 reflink 设计文档。</p>
+        <span class="out">产出：完成 reflink 克隆实验，能用 <code>filefrag</code>/<code>fiemap</code> 证明共享</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">W3</div>
+      <div>
+        <h4>块设备与 IO 路径</h4>
+        <p>第 11–15 章：块设备对象、bio、blk-mq、device-mapper、flush/FUA/discard，以及四条 IO 路径。</p>
+        <span class="out">产出：完成 dm-snapshot 实验，用 bpftrace 分解一次 fsync 的耗时</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">W4</div>
+      <div>
+        <h4>VM 快照与一致性</h4>
+        <p>第 16–20 章：快照分类、Firecracker/RustVMM snapshot、KVM dirty log、UFFD、一致性协议、性能与故障。</p>
+        <span class="out">产出：跑通 Firecracker full/diff 快照，写出一致性快照的时序图</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">W5</div>
+      <div>
+        <h4>CubeSandbox 源码</h4>
+        <p>第 21–22 章：按调用链读 CubeAPI → CubeMaster → Cubelet → CubeShim → CubeHypervisor → CubeCoW，定位快照相关代码。</p>
+        <span class="out">产出：一份源码走读笔记 + 改造点清单</span>
+      </div>
+    </li>
+    <li>
+      <div class="ph">W6</div>
+      <div>
+        <h4>生产化</h4>
+        <p>第 22、24、25 章：实现/联调快照 API、GC、可观测性、安全；做压测与故障演练。</p>
+        <span class="out">产出：可上线的快照功能 + 运维手册 + 性能报告</span>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ============ 24 ============ -->
+<section id="labs">
+  <h2>24. 动手实验（Labs）</h2>
+
+  <div class="table-wrap">
+    <table>
+      <caption>实验清单</caption>
+      <thead>
+        <tr><th>#</th><th>实验</th><th>验证的概念</th><th>难度</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>观察 page cache 命中/未命中</td><td>页缓存、readahead、minor/major fault</td><td><span class="tag g">入门</span></td></tr>
+        <tr><td>2</td><td>观察 writeback 与 dirty 阈值</td><td>脏页、回写线程、<code>fsync</code> 语义</td><td><span class="tag g">入门</span></td></tr>
+        <tr><td>3</td><td>XFS reflink 克隆与 CoW</td><td>extent 共享、refcount、写放大</td><td><span class="tag k">中</span></td></tr>
+        <tr><td>4</td><td>FICLONE 最小 C 程序</td><td>克隆系统调用、错误码</td><td><span class="tag k">中</span></td></tr>
+        <tr><td>5</td><td>dm-snapshot 创建与写放大</td><td>chunk、exception store、读路径</td><td><span class="tag k">中</span></td></tr>
+        <tr><td>6</td><td>userfaultfd 按需加载</td><td>缺页接管、UFFDIO_COPY</td><td><span class="tag s">高</span></td></tr>
+        <tr><td>7</td><td>Firecracker full/diff 快照</td><td>VM 内存快照、脏页、恢复</td><td><span class="tag s">高</span></td></tr>
+        <tr><td>8</td><td>freeze + 快照一致性</td><td>fsfreeze、日志提交、设备 flush</td><td><span class="tag k">中</span></td></tr>
+        <tr><td>9</td><td>bpftrace 分解 fsync 耗时</td><td>IO 路径、延迟归因</td><td><span class="tag k">中</span></td></tr>
+        <tr><td>10</td><td>CubeSandbox 快照/回滚</td><td>端到端快照语义</td><td><span class="tag s">高</span></td></tr>
+        <tr><td>11</td><td>fio 压测快照性能</td><td>吞吐、尾延迟、写放大</td><td><span class="tag s">高</span></td></tr>
+        <tr><td>12</td><td>故障注入（ENOSPC / 掉电）</td><td>失败回滚、GC、恢复</td><td><span class="tag s">高</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Lab 1：观察页缓存</h3>
+  <pre class="bash"><code># 准备 1GB 文件
+dd if=/dev/urandom of=/tmp/test.bin bs=1M count=1024
+
+# 清空页缓存（生产慎用）
+sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
+
+# 第一次读：major fault + 磁盘 IO
+/usr/bin/time -v dd if=/tmp/test.bin of=/dev/null bs=1M 2>&1 | grep -E "elapsed|fault"
+
+# 第二次读：命中页缓存
+/usr/bin/time -v dd if=/tmp/test.bin of=/dev/null bs=1M 2>&1 | grep -E "elapsed|fault"
+
+# 查看文件缓存页
+fincore /tmp/test.bin | head
+
+# 观察内存
+grep -E "Cached|Dirty|Writeback" /proc/meminfo</code></pre>
+
+  <h3>Lab 2：观察 writeback</h3>
+  <pre class="bash"><code># 临时调低阈值，让回写更频繁
+sudo sysctl vm.dirty_background_bytes=67108864
+sudo sysctl vm.dirty_bytes=134217728
+
+# 写 512MB，观察 Dirty 上升
+dd if=/dev/zero of=/tmp/wb.bin bs=1M count=512 conv=fsync &
+watch -n 0.5 'grep -E "Dirty|Writeback" /proc/meminfo'
+
+# 观察回写线程
+ps -eLo pid,comm | grep -E "kworker|flush"
+
+# 观察块设备 IO
+iostat -x 1</code></pre>
+
+  <h3>Lab 6：userfaultfd</h3>
+  <pre class="bash"><code># 使用内核自带的 selftest
+cd /usr/src/linux/tools/testing/selftests/mm
+make
+sudo ./uffd-unit-tests
+
+# 或运行示例
+sudo ./userfaultfd</code></pre>
+
+  <h3>Lab 10：CubeSandbox 快照</h3>
+  <pre class="bash"><code># 前提：已按 Quick Start 部署 CubeSandbox，WebUI 可访问
+# 1) 创建一个沙箱并写入状态
+# 2) 通过 API / WebUI 创建快照
+# 3) 修改沙箱内文件
+# 4) 回滚到快照，验证文件恢复
+
+# 观察底层：找到 rootfs 卷，确认 reflink 共享
+xfs_info /var/lib/cube | grep reflink
+filefrag -v /var/lib/cube/&lt;sandbox-id&gt;/rootfs.img | head
+
+# 观察快照创建期间的块 IO
+sudo bpftrace -e 'tracepoint:block:block_rq_issue { @[comm, args->bytes] = count(); }'</code></pre>
+
+  <div class="callout tip">
+    <span class="t">实验记录模板</span>
+    <p>每个实验记录：<strong>操作 → 观察（命令输出/指标）→ 解释（对应内核机制）→ 对 CubeSandbox 的启示</strong>。这份笔记可以直接变成团队内的分享材料。</p>
+  </div>
+</section>
+
+<!-- ============ 25 ============ -->
+<section id="debug">
+  <h2>25. 排障手册</h2>
+
+  <div class="table-wrap">
+    <table>
+      <caption>快照系统常见症状与排查路径</caption>
+      <thead>
+        <tr><th>症状</th><th>可能原因</th><th>排查命令</th><th>修复方向</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>快照创建慢</td><td>脏页多、freeze 等待、元数据碎片、设备 flush 慢</td><td><code>bpftrace</code> 分解耗时；<code>/proc/meminfo</code>；<code>iostat -x</code></td><td>提前回写、调低 dirty 阈值、碎片整理</td></tr>
+        <tr><td>快照恢复慢</td><td>冷读打盘、缺页多、设备重绑、网络未就绪</td><td><code>perf</code>；<code>/proc/vmstat</code> 的 <code>pgmajfault</code>；<code>strace</code></td><td>预取、UFFD、共享页、本地缓存</td></tr>
+        <tr><td>空间不释放</td><td>孤儿快照、refcount 泄漏、page cache 占用</td><td><code>df</code> vs <code>du</code>；<code>fiemap</code>；GC 日志</td><td>引用计数 GC、删除孤儿、<code>drop_caches</code></td></tr>
+        <tr><td>数据不一致</td><td>未 freeze、未刷设备缓存、快照点错位</td><td><code>fsfreeze</code> 日志；<code>blktrace</code> 看 flush</td><td>补 freeze + flush；统一时间点</td></tr>
+        <tr><td>恢复失败</td><td>CPU 特性/设备路径/vsock 不兼容</td><td>VMM 日志；<code>dmesg</code>；<code>lscpu</code></td><td>同代节点池、覆盖设备配置、重连</td></tr>
+        <tr><td>写放大高</td><td>dm-snapshot chunk 太大、部分块写</td><td><code>iostat</code>；<code>bpftrace</code> bio 大小</td><td>换 reflink/thin、对齐写</td></tr>
+        <tr><td>ENOSPC</td><td>CoW 预留不足、快照过多</td><td><code>df -h</code>；<code>df -i</code>；快照列表</td><td>预留空间、配额、GC、告警</td></tr>
+        <tr><td>延迟毛刺</td><td>直接回收、kswapd、设备 GC、日志提交</td><td><code>perf</code>；<code>vmstat 1</code>；<code>iostat</code></td><td>内存预留、IO 隔离、错峰</td></tr>
+        <tr><td>元数据损坏</td><td>掉电、坏道、并发写</td><td><code>xfs_repair -n</code>；<code>dmesg</code></td><td>校验和、副本、只读挂载</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>25.1 工具箱</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>排障工具速查</caption>
+      <thead>
+        <tr><th>工具</th><th>层次</th><th>用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>bpftrace</code></td><td>内核/全链路</td><td>跟踪函数、tracepoint、延迟直方图</td></tr>
+        <tr><td><code>blktrace</code> / <code>blkparse</code></td><td>块层</td><td>IO 全生命周期、队列延迟</td></tr>
+        <tr><td><code>perf</code></td><td>CPU/内核</td><td>火焰图、上下文切换、缺页</td></tr>
+        <tr><td><code>iostat</code> / <code>pidstat</code></td><td>设备/进程</td><td>吞吐、IOPS、等待时间</td></tr>
+        <tr><td><code>fio</code></td><td>应用</td><td>压测、模拟负载</td></tr>
+        <tr><td><code>filefrag</code> / <code>xfs_bmap</code></td><td>文件系统</td><td>extent、共享、碎片</td></tr>
+        <tr><td><code>dmsetup</code> / <code>thin_*</code></td><td>块设备</td><td>快照状态、元数据检查</td></tr>
+        <tr><td><code>crash</code> / <code>drgn</code></td><td>内核转储</td><td>分析 vmcore、页状态</td></tr>
+        <tr><td><code>strace</code></td><td>系统调用</td><td>验证 fsync/fallocate 语义</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 26 速查 ============ -->
+<section id="cheatsheet">
+  <h2>26. 一页速查</h2>
+  <p>值班、评审、面试时用这一页快速定位。原理详见对应章节。</p>
+
+  <h3>26.1 四条 IO 路径（记这四句）</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>返回意味着什么</caption>
+      <thead>
+        <tr><th>路径</th><th>返回时数据在哪</th><th>何时真正持久化</th><th>快照场景</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>write()</code></td><td>页缓存（可能仍是脏页）</td><td>writeback 或 <code>fsync</code> 之后</td><td>快照前必须 <code>fsync</code> / <code>fsfreeze</code></td></tr>
+        <tr><td><code>read()</code></td><td>已拷贝到用户缓冲区</td><td>本就在内存（或已从磁盘读入）</td><td>恢复冷读、预热</td></tr>
+        <tr><td><code>fsync()</code></td><td>—</td><td><strong>数据 + 元数据 + 设备缓存都已刷</strong></td><td>一致性快照的「静止点」</td></tr>
+        <tr><td><code>mmap</code> 访问</td><td>PTE 已建立，指向页缓存</td><td><code>msync</code> 之后</td><td>内存快照、共享映射</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>26.2 必会命令</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>观察与操作</caption>
+      <thead>
+        <tr><th>目的</th><th>命令</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>确认 reflink</td><td><code>xfs_info /var/lib/cube | grep reflink</code></td></tr>
+        <tr><td>看 extent 共享</td><td><code>filefrag -v file</code> · <code>xfs_io -c "fiemap -v" file</code></td></tr>
+        <tr><td>看脏页/回写</td><td><code>grep -E "Dirty|Writeback" /proc/meminfo</code></td></tr>
+        <tr><td>看缺页</td><td><code>grep -E "pgfault|pgmajfault" /proc/vmstat</code></td></tr>
+        <tr><td>看块 IO</td><td><code>iostat -x 1</code> · <code>blktrace -d /dev/nvme0n1 -o - | blkparse -i -</code></td></tr>
+        <tr><td>跟踪 bio</td><td><code>bpftrace -e 'tracepoint:block:block_rq_issue { @[comm]=count(); }'</code></td></tr>
+        <tr><td>冻结/解冻</td><td><code>fsfreeze -f /mnt</code> · <code>fsfreeze -u /mnt</code></td></tr>
+        <tr><td>reflink 克隆</td><td><code>cp --reflink=always src dst</code></td></tr>
+        <tr><td>dm 快照</td><td><code>dmsetup create snap --table "0 &lt;sectors&gt; snapshot &lt;origin&gt; &lt;cow&gt; P 8"</code></td></tr>
+        <tr><td>只读检查</td><td><code>xfs_repair -n /dev/nvme1n1</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>26.3 错误码速查</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>FICLONE / IO 常见错误</caption>
+      <thead>
+        <tr><th>错误码</th><th>含义</th><th>处理</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>EOPNOTSUPP</code></td><td>文件系统不支持 <code>FICLONE</code>（如 ext4）</td><td>回退全量复制 + 告警</td></tr>
+        <tr><td><code>EXDEV</code></td><td>源与目标不在同一文件系统</td><td>在同一 FS 内克隆</td></tr>
+        <tr><td><code>ENOSPC</code></td><td>CoW 写入空间不足</td><td>预留空间、配额、失败回滚</td></tr>
+        <tr><td><code>EINVAL</code></td><td><code>O_DIRECT</code> 未对齐或参数非法</td><td>检查块大小、偏移、内存对齐</td></tr>
+        <tr><td><code>EBUSY</code></td><td>文件系统冻结中或挂载冲突</td><td>重试或排查挂载状态</td></tr>
+        <tr><td><code>EROFS</code></td><td>只读挂载</td><td>检查 <code>mount</code> 与错误后的 remount-ro</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>26.4 一致性检查清单</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>拍快照前逐项确认</caption>
+      <thead>
+        <tr><th>#</th><th>检查项</th><th>命令 / 手段</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>应用已静默或文件系统已 freeze</td><td><code>fsfreeze -f</code> / 应用钩子</td></tr>
+        <tr><td>2</td><td>vCPU 已暂停</td><td>VMM pause API</td></tr>
+        <tr><td>3</td><td>页缓存已刷</td><td><code>syncfs</code> / <code>fsync</code></td></tr>
+        <tr><td>4</td><td>设备写缓存已刷</td><td><code>blkdev_issue_flush</code> / <code>fsync</code> 末步</td></tr>
+        <tr><td>5</td><td>磁盘与内存快照同一时间点</td><td>暂停后再并行 capture</td></tr>
+        <tr><td>6</td><td>元数据原子提交 + 校验和</td><td>临时文件 + rename + checksum</td></tr>
+        <tr><td>7</td><td>失败可回滚</td><td>thaw + resume + 清理临时文件</td></tr>
+        <tr><td>8</td><td>快照可挂载/可恢复验证</td><td>定期 restore 演练</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>26.5 CubeSandbox 组件定位</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>要改什么，去哪里</caption>
+      <thead>
+        <tr><th>要做的事</th><th>组件</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>快照 REST、鉴权、幂等</td><td>CubeAPI</td></tr>
+        <tr><td>调度、快照目录、跨节点</td><td>CubeMaster + Redis</td></tr>
+        <tr><td>freeze / pause / thaw、内存文件、vsock</td><td>CubeShim</td></tr>
+        <tr><td>vCPU 暂停、内存导出、设备状态、UFFD</td><td>CubeHypervisor</td></tr>
+        <tr><td>rootfs 克隆、refcount、平面快照、GC</td><td>CubeCoW + XFS</td></tr>
+        <tr><td>自动暂停 / 恢复</td><td>lifecycle-manager</td></tr>
+        <tr><td>恢复后路由更新</td><td>CubeProxy</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>26.6 参数速查</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>常用默认值（以实际内核/版本为准）</caption>
+      <thead>
+        <tr><th>参数</th><th>默认量级</th><th>作用</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>dirty_background_ratio</code></td><td>10%</td><td>后台回写启动阈值</td></tr>
+        <tr><td><code>dirty_ratio</code></td><td>20%</td><td>写进程被同步阻塞的阈值</td></tr>
+        <tr><td><code>dirty_expire_centisecs</code></td><td>3000（30s）</td><td>脏页最长存活时间</td></tr>
+        <tr><td><code>dirty_writeback_centisecs</code></td><td>500（5s）</td><td>回写线程唤醒间隔</td></tr>
+        <tr><td><code>watermark_scale_factor</code></td><td>10</td><td>内存水位线间距</td></tr>
+        <tr><td>dm-snapshot chunk</td><td>8 sectors（4KB）</td><td>COW 粒度；LVM 常用 64KB</td></tr>
+        <tr><td>页大小</td><td>4KB（x86-64）</td><td>页缓存 / reflink 的基本粒度</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 27 ============ -->
+<section id="glossary">
+  <h2>27. 术语表</h2>
+  <div class="table-wrap">
+    <table>
+      <caption>核心术语</caption>
+      <thead>
+        <tr><th>术语</th><th>英文</th><th>含义</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>虚拟内存</td><td>Virtual Memory</td><td>每个进程独立的地址空间，经页表映射到物理页</td></tr>
+        <tr><td>VMA</td><td>vm_area_struct</td><td>描述一段虚拟地址的权限与后端（文件/匿名）</td></tr>
+        <tr><td>页表</td><td>Page Table</td><td>虚拟地址到物理页帧的多级映射结构</td></tr>
+        <tr><td>TLB</td><td>Translation Lookaside Buffer</td><td>MMU 的页表缓存</td></tr>
+        <tr><td>缺页</td><td>Page Fault</td><td>访问的页不在内存/PTE 未建立时触发的异常</td></tr>
+        <tr><td>页缓存</td><td>Page Cache</td><td>文件数据在内存中的缓存，按 inode + offset 索引</td></tr>
+        <tr><td>匿名页</td><td>Anonymous Page</td><td>无 backing file 的页（栈、堆），只能换出到 swap</td></tr>
+        <tr><td>回写</td><td>Writeback</td><td>把脏页异步写回磁盘</td></tr>
+        <tr><td>memcg</td><td>Memory Cgroup</td><td>cgroup v2 的内存控制器，提供配额与统计</td></tr>
+        <tr><td>userfaultfd</td><td>Userfaultfd</td><td>把缺页事件交给用户态处理的机制</td></tr>
+        <tr><td>VFS</td><td>Virtual File System</td><td>统一文件系统接口的抽象层</td></tr>
+        <tr><td>inode</td><td>Index Node</td><td>文件元数据与数据位置的内存表示</td></tr>
+        <tr><td>dentry</td><td>Directory Entry</td><td>目录项缓存，加速路径解析</td></tr>
+        <tr><td>extent</td><td>Extent</td><td>连续磁盘块的区间描述</td></tr>
+        <tr><td>reflink</td><td>Reference Link</td><td>文件间共享 extent 的机制</td></tr>
+        <tr><td>CoW</td><td>Copy-on-Write</td><td>写时复制：修改时才分配新数据</td></tr>
+        <tr><td>FICLONE</td><td>File Clone ioctl</td><td>克隆文件/区间的系统调用</td></tr>
+        <tr><td>refcount</td><td>Reference Count</td><td>共享 extent 的引用计数，归零才释放</td></tr>
+        <tr><td>bio</td><td>Block I/O</td><td>块层的一次 IO 描述符</td></tr>
+        <tr><td>blk-mq</td><td>Multi-Queue Block Layer</td><td>多队列块层，软/硬件队列 + tag</td></tr>
+        <tr><td>LBA</td><td>Logical Block Address</td><td>块设备上的逻辑块地址</td></tr>
+        <tr><td>dm</td><td>Device Mapper</td><td>块设备虚拟化/映射框架</td></tr>
+        <tr><td>dm-snapshot</td><td>—</td><td>基于 COW 设备的块级快照 target</td></tr>
+        <tr><td>dm-thin</td><td>Thin Provisioning</td><td>精简供给与共享块快照</td></tr>
+        <tr><td>FUA</td><td>Force Unit Access</td><td>写必须直达持久介质</td></tr>
+        <tr><td>flush</td><td>Cache Flush</td><td>刷设备易失写缓存</td></tr>
+        <tr><td>discard / TRIM</td><td>—</td><td>告知设备块不再使用</td></tr>
+        <tr><td>freeze</td><td>Filesystem Freeze</td><td>暂停文件系统写，获得一致点</td></tr>
+        <tr><td>快照</td><td>Snapshot</td><td>某一时刻的状态副本（磁盘/内存/设备）</td></tr>
+        <tr><td>脏页跟踪</td><td>Dirty Tracking</td><td>记录自上次快照以来被修改的页</td></tr>
+        <tr><td>UFFD 恢复</td><td>Lazy Restore</td><td>按需从快照文件加载内存页</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 28 ============ -->
+<section id="refs">
+  <h2>28. 参考资料</h2>
+  <div class="table-wrap">
+    <table>
+      <caption>推荐阅读顺序：先内核文档，再 LWN/书籍，最后源码与项目文档</caption>
+      <thead>
+        <tr><th>类别</th><th>资料</th><th>用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>内核文档</td><td><code>Documentation/filesystems/vfs.rst</code></td><td>VFS 对象与操作表</td></tr>
+        <tr><td>内核文档</td><td><code>Documentation/filesystems/xfs-delayed-logging-design.rst</code></td><td>XFS 日志与 reflink 设计</td></tr>
+        <tr><td>内核文档</td><td><code>Documentation/admin-guide/device-mapper/snapshot.rst</code></td><td>dm-snapshot 语义</td></tr>
+        <tr><td>内核文档</td><td><code>Documentation/admin-guide/device-mapper/thin-provisioning.rst</code></td><td>dm-thin 语义</td></tr>
+        <tr><td>内核文档</td><td><code>Documentation/admin-guide/mm/userfaultfd.rst</code></td><td>userfaultfd 接口</td></tr>
+        <tr><td>内核文档</td><td><code>Documentation/filesystems/fiemap.rst</code> / <code>locks.rst</code></td><td>extent 查询、锁语义</td></tr>
+        <tr><td>内核源码</td><td><code>mm/</code> · <code>fs/</code> · <code>block/</code> · <code>drivers/md/</code></td><td>实现细节</td></tr>
+        <tr><td>Man Pages</td><td><code>ioctl_ficlone(2)</code> · <code>ioctl_fiemap(2)</code> · <code>fsfreeze(8)</code> · <code>mmap(2)</code> · <code>fsync(2)</code> · <code>fallocate(2)</code></td><td>接口语义</td></tr>
+        <tr><td>LWN</td><td>XFS reflink、writeback、userfaultfd、blk-mq 系列文章</td><td>设计背景与演进</td></tr>
+        <tr><td>书籍</td><td>《Linux Kernel Development》·《Understanding the Linux Kernel》·《Linux Kernel Programming》·《Professional Linux Kernel Architecture》</td><td>系统学习</td></tr>
+        <tr><td>书籍</td><td>《Systems Performance》(Brendan Gregg)</td><td>性能分析与工具</td></tr>
+        <tr><td>VM</td><td>Firecracker snapshot 文档 · RustVMM snapshot 文档 · QEMU live migration 文档 · CRIU 文档</td><td>VM 快照实现</td></tr>
+        <tr><td>项目</td><td><a href="https://github.com/TencentCloud/CubeSandbox" target="_blank" rel="noopener">CubeSandbox 仓库</a> · <a href="https://github.com/TencentCloud/CubeSandbox/blob/master/docs/architecture/overview.md" target="_blank" rel="noopener">架构总览</a> · <a href="https://github.com/TencentCloud/CubeSandbox/blob/master/docs/architecture/network.md" target="_blank" rel="noopener">网络模型</a></td><td>落地实现</td></tr>
+        <tr><td>项目</td><td><a href="https://github.com/e2b-dev/infra" target="_blank" rel="noopener">E2B Runtime</a> · <a href="https://docs.e2b.dev/" target="_blank" rel="noopener">E2B 文档</a></td><td>对照实现</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="t">时效性声明</span>
+    <p>本文基于 2026 年 11 月的 Linux 内核文档、XFS/FICLONE 资料、Firecracker/RustVMM 文档与 CubeSandbox 架构文档整理。内核接口与 CubeSandbox 实现仍在演进，落地前请以目标内核版本与官方最新文档为准。</p>
+  </div>
+
+  <div class="hr"></div>
+  <footer>
+    <p><strong>Linux 内核 IO 栈 × 快照 · 面向 CubeSandbox 的学习指南</strong> · 单文件 HTML · 可直接用浏览器打开或打印为 PDF。</p>
+    <p>建议阅读顺序：第 1–2 章建立地图 → 第 3–15 章按依赖链精读 → 第 16–20 章理解快照设计 → 第 21–22 章落地 CubeSandbox → 第 23–25 章动手与排障。</p>
+  </footer>
+</section>
+</main>
+</div>
+<a class="top-link" href="#" aria-label="返回顶部">↑</a>
+</body>
+</html>
