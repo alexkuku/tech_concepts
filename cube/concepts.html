@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生命周期、Webhook 与 QoS | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>生命周期、Webhook 与 QoS</span>
+            </h1>
+            <p class="subtitle">从创建到销毁：状态机、自动暂停恢复、重启策略、事件通知与资源限速</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 05 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">生命周期、Webhook 与 QoS</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 05 章</span>
+                <h1>生命周期、Webhook 与 QoS</h1>
+                <p>沙箱不是「创建后就不管」的黑盒：它有明确的状态机、空闲超时与自动暂停/恢复策略，进程退出后还能按重启策略冷启动，生命周期事件可以推送到 Webhook，网络与块设备 I/O 可以按模板限速。本页把四个官方页面串成一条完整的运行期主线，并为下一章的模板与快照打基础。</p>
+                <div class="page-meta">
+                    <span>📖 预计 45 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 4 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#state-model">1. 沙箱状态模型</a></li>
+                    <li><a href="#lifecycle-ops">2. 生命周期操作</a></li>
+                    <li><a href="#auto-pause-resume">3. 自动暂停与自动恢复</a></li>
+                    <li><a href="#restart">4. 进程退出后的重启</a></li>
+                    <li><a href="#webhooks">5. 生命周期 Webhook</a></li>
+                    <li><a href="#qos">6. QoS 限速</a></li>
+                    <li><a href="#templates">7. 模板核心概念</a></li>
+                    <li><a href="#pitfalls-quiz">8. 易错点与自测</a></li>
+                </ul>
+            </div>
+
+            <section class="concept-section" id="state-model">
+                <h2><span class="section-num">1</span>沙箱状态模型</h2>
+                <p class="lead">沙箱（Sandbox）是 CubeSandbox 的核心运行单元。任一时刻，一个沙箱只处于下表的六种状态之一；状态迁移由 <code>timeout</code>（空闲秒数）和 <code>on_timeout</code>（<code>"kill"</code> 或 <code>"pause"</code>）两个参数驱动。</p>
+
+                <div class="arch-label">状态与迁移</div>
+                <div class="state-machine">
+                    <span class="state">create()</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">running</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state pending">pausing</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state paused">paused</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state pending">resuming</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">running</span>
+                </div>
+                <div class="state-machine">
+                    <span class="state running">running</span>
+                    <span class="diagram-arrow">— timeout &amp; on_timeout=kill →</span>
+                    <span class="state dead">terminated</span>
+                    <span class="diagram-arrow">← timeout &amp; on_timeout=kill —</span>
+                    <span class="state paused">paused</span>
+                </div>
+                <div class="state-machine">
+                    <span class="state running">running</span>
+                    <span class="diagram-arrow">— kill() →</span>
+                    <span class="state dead">terminated</span>
+                    <span class="diagram-arrow">← kill() —</span>
+                    <span class="state paused">paused</span>
+                </div>
+                <div class="state-machine">
+                    <span class="state dead">unknown</span>
+                    <span class="diagram-arrow">←</span>
+                    <span class="state">创建中 · 容器已退出 · 节点读取失败</span>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>状态</th><th>含义</th><th>是否瞬时</th><th>能否恢复</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>running</code></td><td>正在运行，CPU/内存被实际占用，可以接收请求与执行代码</td><td>否</td><td>—</td></tr>
+                            <tr><td><code>pausing</code></td><td>平台正在暂停沙箱（保存 VM 快照中）</td><td>是</td><td>—</td></tr>
+                            <tr><td><code>paused</code></td><td>已暂停，VM 内存已落盘为快照，<strong>不消耗</strong> CPU 与内存，状态完整保留</td><td>否</td><td>可以（connect / auto_resume）</td></tr>
+                            <tr><td><code>resuming</code></td><td>平台正在从快照恢复沙箱</td><td>是</td><td>—</td></tr>
+                            <tr><td><code>terminated</code></td><td>被显式销毁（<code>kill</code>）或因 <code>on_timeout="kill"</code> 超时回收</td><td>否（终态）</td><td><span class="cross">不可以</span></td></tr>
+                            <tr><td><code>unknown</code></td><td>CubeAPI 无法把沙箱映射为上表任一状态：仍在创建、容器已退出，或无法从节点读取状态</td><td>取决于原因</td><td>视情况而定</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="warning"><strong>unknown 不等于「已经没了」。</strong>上述三种情况 CubeAPI 都会报 <code>unknown</code>。上表的 <code>terminated</code> 描述的是 <code>kill()</code> 与 <code>on_timeout="kill"</code> 的结果；容器自行退出时报的是 <code>unknown</code>，而不是另一个独立的终态。只看 <code>state</code> 无法区分「还在启动」还是「已经死了」，判据是 <code>POST /sandboxes/&lt;id&gt;/connect</code>：容器已经退出时返回 HTTP 409（<code>... is not connectable in state 'stopped'</code>），另外两种情况仍能正常 connect。</div>
+
+                <h3>timeout 的取值语义</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>timeout 取值</th><th>行为</th></tr></thead>
+                        <tbody>
+                            <tr><td>不传</td><td>使用服务端配置的默认空闲超时；服务端未配置或设为 <code>&lt;= 0</code> 时，<strong>永不超时</strong></td></tr>
+                            <tr><td><code>NEVER_TIMEOUT</code>（<code>-1</code>）</td><td><strong>永不超时</strong>，不会因空闲被自动回收（Go：<code>cubesandbox.NeverTimeout</code>；Python：<code>from cubesandbox import NEVER_TIMEOUT</code>）</td></tr>
+                            <tr><td><code>0</code></td><td><strong>立刻超时</strong>，空闲后首次扫描即回收</td></tr>
+                            <tr><td>正整数 <code>N</code></td><td>空闲 <strong>N 秒</strong>后触发超时</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>timeout</code> 的单位是<strong>秒</strong>（e2b 的 <code>timeoutMs</code> 是毫秒）。<code>on_timeout</code> 默认为 <code>"kill"</code>；只有显式设为 <code>"pause"</code> 才会在超时后暂停而不是销毁。SDK 不再自带 300 秒之类的默认值。</p>
+
+                <h3>异常与退出原因（errorReason）</h3>
+                <p>当沙箱进入 <code>unknown</code> 或发生暂停失败时，可通过 <code>GET /sandboxes/&lt;id&gt;</code> 返回的 <code>errorReason</code> 查看原因。它是 CubeSandbox 扩展字段，e2b API 中无对应字段；仅反映主容器，正常运行或无异常记录时省略。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>errorReason</th><th>含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>Completed</code></td><td>主进程正常退出（退出码 0）</td></tr>
+                            <tr><td><code>Error</code></td><td>主进程异常退出（非零退出码或被信号终止）</td></tr>
+                            <tr><td><code>OOMKilled</code></td><td>因内存不足被终止</td></tr>
+                            <tr><td><code>SandboxCrashed</code></td><td>沙箱运行时异常中断</td></tr>
+                            <tr><td><code>PauseFailed</code></td><td>暂停失败（沙箱可能仍在运行）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>errorReason</code> 仅提供诊断信息，<strong>不改变 <code>state</code></strong>；沙箱恢复运行后会清除旧的退出原因，删除后不保留历史。若沙箱启用了自动重启，重启进度和最近一次触发重启的原因请看 <a href="#restart">查询重启状态</a>。</p>
+
+                <h3>endAt 与 endAtStatus</h3>
+                <p><code>endAt</code> 是沙箱预计超时的时间，用最后一次设置 <code>timeout</code> 的时刻（创建、<code>set_timeout</code>、<code>resume</code>）加上 <code>timeout</code> 算出来。有流量的沙箱会被保活，实际暂停可能晚于这个时间，所以把它当作「最早可能暂停的时间」，而不是准确时刻。暂停<strong>不会取消</strong>有限的超时，因此暂停中的沙箱在详情和列表 API 里仍返回相同的 <code>endAt</code>。E2B SDK 要求每个响应都带该字段，所以它总是存在；具体含义看旁边的 <code>endAtStatus</code>。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>endAtStatus</th><th>endAt</th><th>含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>deadline</code></td><td>预计时刻</td><td>存在有限的超时。它是估算值，有流量时实际暂停会更晚</td></tr>
+                            <tr><td><code>never</code></td><td><code>9999-12-31T23:59:59Z</code></td><td>沙箱永不超时。哨兵不是真实时刻</td></tr>
+                            <tr><td><code>unknown</code></td><td><code>9999-12-31T23:59:59Z</code></td><td>截止时间查询失败。按未知处理，不要据此回收沙箱</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>同一响应还会回显沙箱持久化的配置：<code>lifecycle</code>（<code>onTimeout</code> 与 <code>autoResume</code>）、<code>allowInternetAccess</code>（出网开关）、<code>network</code>（<code>allowOut</code>、<code>denyOut</code>、<code>allowPublicTraffic</code>、<code>maskRequestHost</code>）。字段缺席是因为持久化 spec 没读到（未知），或该项从未设置、由服务端默认值生效。egress 规则永远不会出现在这些响应里，因为规则可能携带 inject 密钥；当规则是沙箱唯一的出网策略时，<code>network</code> 只带 <code>"rulesPresent": true</code>，告知「存在策略」而不暴露内容。</p>
+            </section>
+
+            <section class="concept-section" id="lifecycle-ops">
+                <h2><span class="section-num">2</span>生命周期操作：创建、查询、销毁与暂停</h2>
+                <p class="lead">SDK 形态与 e2b 保持一致，便于已有 e2b 用户直接迁移。下面按「创建 → 查询/列出 → 销毁 → 暂停/恢复」给出最小可用代码与 API 语义。</p>
+
+                <h3>创建沙箱</h3>
+                <pre><code><span class="k">from</span> cubesandbox <span class="k">import</span> Sandbox
+
+<span class="c"># 创建沙箱，空闲 60 秒后自动销毁（默认 on_timeout="kill"）</span>
+sandbox = Sandbox.create(
+    template=<span class="s">"&lt;your-template-id&gt;"</span>,
+    timeout=<span class="n">60</span>,                <span class="c"># 单位：秒</span>
+)
+
+print(sandbox.sandbox_id)</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Sandbox.create() 参数</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>template</code></td><td>模板 ID，沙箱基于它启动；缺省读环境变量 <code>CUBE_TEMPLATE_ID</code></td></tr>
+                            <tr><td><code>timeout</code></td><td>可选，空闲超时（秒），取值见上一节</td></tr>
+                            <tr><td><code>lifecycle</code></td><td>生命周期策略，<code>{"on_timeout": "pause", "auto_resume": true}</code> 等形式</td></tr>
+                            <tr><td><code>metadata</code></td><td>任意键值对，写入沙箱元数据，可在列表 / 详情接口中读出</td></tr>
+                            <tr><td><code>env_vars</code></td><td>注入沙箱进程的环境变量</td></tr>
+                            <tr><td><code>allow_internet_access</code></td><td>是否允许出公网；<code>network</code> 提供更细粒度的出站策略</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="info">Cube 不像托管 e2b 那样有严格的 24h/1h 单次运行上限。省略 <code>timeout</code> 时，实际空闲 TTL 由集群运维在服务端配置（见 <a href="#auto-pause-resume">集群默认空闲超时</a>）。</div>
+
+                <h3>查询与列出</h3>
+                <pre><code>info = sandbox.get_info()
+print(info)
+<span class="c"># {</span>
+<span class="c">#   "sandboxID": "iiny0783cype8gmoawzmx-ce30bc46",</span>
+<span class="c">#   "templateID": "rki5dems9wqfm4r03t7g",</span>
+<span class="c">#   "state": "running",</span>
+<span class="c">#   "startedAt": "2026-06-17T12:34:56Z",</span>
+<span class="c">#   "endAt":       "2026-06-17T12:39:56Z",</span>
+<span class="c">#   "endAtStatus": "deadline",</span>
+<span class="c">#   "metadata":  {...}</span>
+<span class="c"># }</span></code></pre>
+                <pre><code><span class="k">for</span> sb <span class="k">in</span> Sandbox.list():
+    print(sb[<span class="s">"sandboxID"</span>], sb[<span class="s">"state"</span>])</code></pre>
+
+                <h3>显式销毁</h3>
+                <pre><code>sandbox.kill()</code></pre>
+                <p><code>kill()</code> 是不可逆的：与暂停不同，被 kill 的沙箱<strong>不能</strong>恢复。即便 <code>lifecycle.on_timeout="pause"</code>，调用 <code>kill()</code> 仍然立即终止并丢弃快照。</p>
+                <p><code>kill()</code> 和 <code>DELETE /sandboxes/{sandboxID}</code> 均可用于删除处于 <code>running</code> 或 <code>paused</code> 状态的沙箱。删除 <code>paused</code> 沙箱时，CubeSandbox <strong>不会</strong>先 Resume / 唤醒 MicroVM；控制面直接删除 paused tombstone、清理 pause 快照（catalog / CoW）并清除 pause 元数据。Plugin volume 的 refcount 已在 Pause 时调整，删除路径无需为销毁再挂载一遍。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>删除 paused 沙箱的返回</th><th>含义与处理</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>204 No Content</code></td><td>沙箱、pause 快照及相关资源已经完成清理；接口保持同步语义，只有清理完成后才返回</td></tr>
+                            <tr><td><code>503 Service Unavailable</code> + <code>Retry-After: 2</code></td><td>沙箱正在进入暂停状态，或其他生命周期操作（pause / resume / delete）尚未完成并持有沙箱锁；至少等待 2 秒后重试</td></tr>
+                            <tr><td><code>404</code> / <code>408</code></td><td>行为保持不变；<code>running</code> 沙箱的删除行为也保持不变</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>删除路径不是一次 Resume：不会触发 <code>sandbox.resumed</code> 生命周期事件、不会重置空闲超时、也不需要节点容量准入。<code>Retry-After</code> 的单位为秒，仅用于提示客户端等待后重试；它不表示 CubeSandbox 会在后台继续删除，也不会启动后台重试任务。</p>
+
+                <h3>暂停与恢复</h3>
+                <pre><code>sandbox.pause()                       <span class="c"># 主动保存快照，释放 CPU/内存</span>
+<span class="c"># ... 一段时间过去 ...</span>
+sandbox = Sandbox.connect(sandbox.sandbox_id, timeout=<span class="n">300</span>)  <span class="c"># 从快照恢复，并重置空闲超时</span>
+sandbox.run_code(<span class="s">"print('back!')"</span>)    <span class="c"># 像没暂停过一样继续用</span></code></pre>
+                <div class="warning">未关闭的 <code>cubecli exec</code> / 交互会话会阻止 Pause。Cubelet 返回 <code>TaskPauseFailed</code>（<code>130588</code>）和 <code>pause forbidding / terminate exec tasks first</code> 类错误，但沙箱保持 <code>running</code>（不会落成 <code>unknown(failed)</code>）；会话结束后 auto-pause 会重试。Cubelet 只有在 shim 声明支持 <code>CheckPauseAllowed</code>（<code>update.check_pause_allowed</code>）时才先做预检；没有声明的 shim 直接走 <code>PauseToSnapshot</code>，由它在冻结前做同样的检查。该 busy-reject 分类需要 Cubelet、CubeMaster 与 CubeShim 一起升级；新版 CubeShim 会在拒绝信息前加 <code>shim_error_pause_busy</code> 错误码，CubeMaster 同时识别该错误码与历史文案。</div>
+                <p><code>pause()</code> <strong>不会取消</strong>空闲回收。默认 <code>on_timeout="kill"</code> 时，之后被暂停的沙箱空闲仍超过 <code>timeout</code> 一样会被销毁。若要保住暂停中的沙箱，请传 <code>timeout=NEVER_TIMEOUT</code>、省略 <code>timeout</code>（且服务端未设正数默认）、或把 <code>timeout</code> 设得足够大。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th><code>connect(timeout=...)</code></th><th>效果</th></tr></thead>
+                        <tbody>
+                            <tr><td>不传 / <code>None</code></td><td>保持当前超时</td></tr>
+                            <tr><td><code>NEVER_TIMEOUT</code>（<code>-1</code>）</td><td>连接后永不超时</td></tr>
+                            <tr><td><code>N &gt; 0</code></td><td>确保至少剩余 N 秒；运行中或暂停中的沙箱保留更长的现有 deadline，否则在连接后重新开 N 秒窗口</td></tr>
+                            <tr><td><code>0</code> 或 <code>N &lt; -1</code></td><td>拒绝请求并返回 HTTP 400</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>连接或恢复暂停中的沙箱时，如果该沙箱上另一个生命周期操作尚未完成、沙箱还没有运行，CubeAPI 返回 HTTP 503 和 <code>Retry-After: 2</code>，请至少等待该时间后重试。如果并发请求已经把沙箱恢复，connect 会成功并返回连接信息，<code>POST /sandboxes/&lt;id&gt;/resume</code> 则返回 409（已在运行）。connect 返回 409 也可能是沙箱容器已经退出：这种状态不可恢复，重试不会成功。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>已弃用的 <code>resume(timeout=...)</code></th><th>效果</th></tr></thead>
+                        <tbody>
+                            <tr><td>不传 / <code>None</code></td><td>保持当前超时</td></tr>
+                            <tr><td><code>0</code></td><td>保持当前超时（立刻到期请用 <code>set_timeout(0)</code>）</td></tr>
+                            <tr><td><code>NEVER_TIMEOUT</code>（<code>-1</code>）</td><td>恢复后永不超时</td></tr>
+                            <tr><td><code>N &gt; 0</code></td><td>从恢复时刻起重新开 N 秒窗口</td></tr>
+                            <tr><td><code>N &lt; -1</code></td><td>拒绝请求并返回 HTTP 400</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>对于运行中的沙箱，<code>connect(timeout=...)</code> 的正数 timeout 只会在请求窗口更长时延长 deadline；如果要主动缩短生命周期，请使用 <code>set_timeout(...)</code>。跨机 Resume（<code>jfs</code> 或 <code>s3</code>，且 <code>remote_status=ready</code>）见 <a href="snapshots.html">快照与跨机迁移</a>。</p>
+
+                <h3>Resume 后的 CubeProxy 缓存</h3>
+                <div class="h-diagram">
+                    <div class="arch-box accent">Resume</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box compute">重建 guest NIC<small>与主机端口</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box data">重写 Redis 路由</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box control">清理后端缓存<small>POST /admin/backend_cache/delete</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box teal">清理 local_cache<small>流量可达</small></div>
+                </div>
+                <p>Resume 会重建 guest NIC／主机端口，并重写 Redis 沙箱代理路由。CubeMaster 随后调用 CubeProxy 的 <code>POST /admin/backend_cache/delete</code> 清理 <code>local_cache</code>，避免流量继续打到 pause 前的旧 IP；清理失败时，Resume 会直接返回错误。</p>
+                <div class="danger"><strong>CubeMaster 与 CubeProxy 必须配置相同的 admin token。</strong>Helm 安装由 Chart 自动完成，手写部署需自行对齐。两端不一致时清理会返回 <strong>403</strong>，旧路由不会自行过期，沙箱将一直不可达。轮换 <code>lifecycleManager.adminToken</code> 时，master、proxy、lifecycle-manager 会在同一次 <code>helm upgrade</code> 中依次滚动；滚动完成前发起的 Resume 可能因旧 token 仍被校验而失败，请等滚动结束后重试。</div>
+
+                <h3>操作与字段速查</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>操作</th><th>SDK / 接口</th><th>关键字段与语义</th></tr></thead>
+                        <tbody>
+                            <tr><td>创建</td><td><code>Sandbox.create()</code></td><td><code>template</code>、<code>timeout</code>、<code>lifecycle</code>、<code>metadata</code>、<code>env_vars</code>、<code>allow_internet_access</code></td></tr>
+                            <tr><td>详情</td><td><code>GET /sandboxes/&lt;id&gt;</code></td><td><code>state</code>、<code>endAt</code>、<code>endAtStatus</code>、<code>errorReason</code>、<code>restartStatus</code>、<code>lifecycle</code>、<code>network</code></td></tr>
+                            <tr><td>列表</td><td><code>Sandbox.list()</code></td><td>返回运行中的沙箱，可读 <code>sandboxID</code> 与 <code>state</code></td></tr>
+                            <tr><td>连接 / 恢复</td><td><code>POST /sandboxes/&lt;id&gt;/connect</code></td><td>可带 <code>timeout</code>；503 需等待 <code>Retry-After</code>，409 可能已运行或容器已退出</td></tr>
+                            <tr><td>恢复</td><td><code>POST /sandboxes/&lt;id&gt;/resume</code></td><td>并发已被 connect 恢复时返回 409（已在运行）</td></tr>
+                            <tr><td>暂停</td><td><code>sandbox.pause()</code></td><td>保存快照并释放 CPU/内存；未关闭的 exec 会话会阻止暂停</td></tr>
+                            <tr><td>销毁</td><td><code>sandbox.kill()</code> / <code>DELETE /sandboxes/{sandboxID}</code></td><td>不可逆；成功返回 204，持锁时 503 + <code>Retry-After: 2</code></td></tr>
+                            <tr><td>更新超时</td><td><code>sandbox.set_timeout(...)</code></td><td>主动缩短生命周期；<code>0</code> 表示立即截止</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="concept-section" id="auto-pause-resume">
+                <h2><span class="section-num">3</span>自动暂停与自动恢复</h2>
+                <p class="lead">很多 Agent 工作负载并不持续繁忙：用户敲一段代码 → 模型推理 → 沙箱执行 → 等待下一轮交互。在等待期间让沙箱<strong>自动暂停</strong>，下次请求来时再<strong>自动恢复</strong>，可以显著降低资源占用。Cube 提供与 e2b <code>lifecycle</code> 完全一致的配置形态。</p>
+
+                <pre><code>sandbox = Sandbox.create(
+    template=<span class="s">"&lt;your-template-id&gt;"</span>,
+    timeout=<span class="n">300</span>,                      <span class="c"># 5 分钟空闲后触发 on_timeout</span>
+    lifecycle={
+        <span class="s">"on_timeout"</span>: <span class="s">"pause"</span>,        <span class="c"># 空闲超时后 → 暂停（而不是销毁）</span>
+        <span class="s">"auto_resume"</span>: <span class="k">True</span>,          <span class="c"># 暂停后下一次请求 → 透明恢复</span>
+    },
+)</code></pre>
+
+                <h3>行为说明</h3>
+                <ul>
+                    <li><strong><code>on_timeout="pause"</code></strong>：沙箱空闲 <code>timeout</code> 秒后，平台调度暂停流程，<code>state</code> 变为 <code>paused</code>，VM 内存被冷藏到快照存储。</li>
+                    <li><strong><code>auto_resume=True</code></strong>：当再有任何请求路由到这个 <code>paused</code> 沙箱（HTTP 请求、<code>run_code</code>、文件读写等），平台自动唤醒它，调用方<strong>无需</strong>显式 <code>connect()</code>；典型恢复时间在亚秒级到秒级。</li>
+                    <li>如果 <code>auto_resume=False</code>（或省略），沙箱暂停后必须显式 <code>Sandbox.connect(sandbox_id=...)</code> 才能再用，适合「等用户决定」的场景。</li>
+                </ul>
+
+                <h3>何时算「活跃」与 timeout 重置</h3>
+                <p>下列动作都会重置 idle 计时：</p>
+                <ul>
+                    <li>通过 SDK 调用：<code>sandbox.run_code(...)</code>、<code>sandbox.commands.run(...)</code>、<code>sandbox.files.read(...)</code> / <code>write(...)</code>。</li>
+                    <li>通过 HTTP 直连沙箱内的服务（例如 <code>getHost()</code> 返回的 URL）。</li>
+                </ul>
+                <div class="warning"><strong>请求在开始时和响应结束时各算一次活跃，中间的执行时间不算。</strong>因此单个请求若运行时间超过 <code>timeout</code>（例如 <code>timeout=300</code> 时执行 <code>commands.run("sleep 900")</code>），可能在执行途中被暂停。对这类调用，请在长请求运行期间定期（间隔小于 <code>timeout</code>）向沙箱发送轻量请求，或先用 <code>set_timeout(...)</code> 调大超时。</div>
+                <p>每次自动恢复成功后，<strong>空闲计时重置，但超时时长不变</strong>。所以「恢复 → 短暂使用 → 再次空闲超时 → 再次暂停」的循环可以无缝持续。未配置 <code>auto_pause</code> / 不传 <code>lifecycle</code> 的沙箱默认行为是 <code>on_timeout="kill"</code>：空闲超过 <code>timeout</code> 秒后平台会主动销毁该沙箱。</p>
+
+                <h3>端到端示例</h3>
+                <div class="timeline">
+                    <div class="timeline-item done"><h4><span class="timeline-time">T+0</span>最后一次活跃</h4><p>一次 <code>run_code</code>、文件读写或 HTTP 响应结束，idle 计时重新开始。</p></div>
+                    <div class="timeline-item done"><h4><span class="timeline-time">T+timeout</span>空闲超时</h4><p><code>lifecycle.on_timeout="pause"</code>，平台调度暂停流程，进入 <code>pausing</code>。</p></div>
+                    <div class="timeline-item"><h4><span class="timeline-time">暂停中</span>pausing → paused</h4><p>VM 内存冷藏到快照存储，CPU 与内存物理释放，状态完整保留。</p></div>
+                    <div class="timeline-item"><h4><span class="timeline-time">T+X</span>请求到达</h4><p>HTTP、<code>run_code</code> 或文件操作被路由到 <code>paused</code> 沙箱。</p></div>
+                    <div class="timeline-item danger"><h4><span class="timeline-time">恢复中</span>resuming → running</h4><p><code>auto_resume=True</code> 自动恢复，调用方无需 <code>connect()</code>，典型亚秒到秒级。</p></div>
+                    <div class="timeline-item done"><h4><span class="timeline-time">恢复后</span>idle 计时重置</h4><p>超时时长不变，可继续循环；若 <code>on_timeout="kill"</code> 则超时后直接销毁。</p></div>
+                </div>
+                <p>平台提供两个互为镜像的端到端演示，对应 <code>on_timeout</code> 的两种取值：</p>
+                <pre><code><span class="k">export</span> CUBE_TEMPLATE_ID=&lt;your-template&gt;
+
+<span class="c"># 自动暂停 + 自动恢复</span>
+python examples/code-sandbox-quickstart/auto-resume.py
+
+<span class="c"># 自动销毁（不可恢复）</span>
+python examples/code-sandbox-quickstart/auto-kill.py</code></pre>
+                <ul>
+                    <li><code>auto-resume.py</code>：<code>on_timeout="pause"</code> + <code>auto_resume=True</code>。创建沙箱、空闲触发自动暂停、再发请求触发自动恢复，最终对比「内核内存 + 文件系统」两层状态，验证全状态保留。</li>
+                    <li><code>auto-kill.py</code>：<code>on_timeout="kill"</code>（默认行为）。创建沙箱、空闲触发自动销毁、验证后续请求以 <strong>410 Gone</strong> 快速失败、<code>Sandbox.list()</code> 不再返回该沙箱，并通过创建一个对照沙箱排除集群整体故障。</li>
+                </ul>
+
+                <h3>资源释放与节点调度配额</h3>
+                <p>沙箱暂停后，其 CPU 和内存在物理上已被回收；但在默认情况下，节点资源计账仍然将暂停中（<code>paused</code> / <code>pausing</code>）的沙箱视为「已占用」调度配额。这意味着：即使大量闲置沙箱被暂停，宿主机上仍然没有「空位」来创建新沙箱。</p>
+                <p>为此 Cube 提供节点级调节旋钮 <code>host.quota.paused_resource_release_ratio</code>（在 <code>Cubelet/config/config.toml</code> 中配置），值域 <code>[0, 1]</code>，默认 <code>0</code>。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>取值</th><th>行为</th><th>适用场景</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>0.0</code></td><td>暂停沙箱保留完整配额（与旧版本行为一致）。恢复始终有保障，不会因资源不足被拒绝</td><td>对可用性要求极高、不希望恢复失败的场景</td></tr>
+                            <tr><td><code>1.0</code></td><td>暂停沙箱的 CPU/内存配额<strong>全部释放</strong>给调度器。恢复变为尽力而为，节点资源不足时恢复会被拒绝</td><td>追求最大化部署密度、允许恢复偶尔失败的场景</td></tr>
+                            <tr><td><code>0 &lt; r &lt; 1</code></td><td>释放 <code>r</code> 比例，保留 <code>(1-r)</code> 作为余量。保留的配额仍计入调度器 CPU/内存使用量，暂停密集的节点会被自然降权</td><td>在可用性和高利用率之间折中</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code><span class="c"># Cubelet/config/config.toml</span>
+[host.quota]
+paused_resource_release_ratio = <span class="n">0.5</span>   <span class="c"># 释放一半，保留一半</span></code></pre>
+                <p>当 <code>ratio &gt; 0</code> 时，恢复操作会触发<strong>本地实时准入检查</strong>；如果节点当前无法容纳该沙箱释放出去的资源量，恢复会被拒绝：</p>
+                <pre><code>resume rejected by paused_resource_release_ratio policy: need 1024MB &gt; quota 512MB</code></pre>
+                <p>拒绝信息通过 <code>Cubelet (130409 Conflict)</code> → <code>CubeAPI (HTTP 409)</code> → <code>WebUI（显示容量诊断）</code> 透传给客户端。409 是可重试的状态码：当其他沙箱被销毁或暂停、节点资源释放后，恢复可以重新尝试。</p>
+                <div class="note"><strong>注意事项：</strong>磁盘和 <code>MvmNum</code> 不受 ratio 影响，暂停快照始终占用存储空间，沙箱对象始终存在；<code>ratio=0</code> 是零值安全的默认值；此项为节点级配置，不同节点可设不同比值；大批沙箱同时唤醒、单节点无法承载时，控制面返回 409 并给出具体配额数字，使用共享后端时调度器可回退到其他兼容节点。</div>
+
+                <h3>集群默认空闲超时（default_timeout_insec）</h3>
+                <p>客户端不传 <code>timeout</code> 时，由 CubeMaster 读取 <code>CubeMaster/conf.yaml</code> 中的 <code>cubelet_conf.default_timeout_insec</code>（one-click 安装路径：<code>/usr/local/services/cubetoolbox/CubeMaster/conf.yaml</code>）。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>配置值</th><th>客户端省略 timeout 时的效果</th></tr></thead>
+                        <tbody>
+                            <tr><td>未配置或 <code>&lt;= 0</code></td><td><strong>不设集群级空闲 TTL</strong>，沙箱不会因空闲被自动回收</td></tr>
+                            <tr><td>正整数 <code>N</code></td><td>默认空闲 <strong>N 秒</strong>后触发超时</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>仓库默认<strong>不配置</strong>集群级空闲超时（<code>default_timeout_insec: -1</code>）。若希望集群自动回收未显式传 <code>timeout</code> 的沙箱，可改为正数（例如 <code>300</code>），修改后需重启 <code>cube-sandbox-cubemaster.service</code>。同一段里的 <code>create_timeout_insec</code> 与空闲 TTL 无关，仅限制创建/调度 RPC 的截止时间。</p>
+
+                <h3>状态保真与运维</h3>
+                <ul>
+                    <li><strong>暂停的状态保真度</strong>：CPU 寄存器、进程内存、TCP 连接（无外部对端）、文件系统改动都会随快照保留；面向外部的连接（如沙箱主动建立的 outbound socket）会在暂停时断开，恢复后由应用层自行重连。</li>
+                    <li><strong>集群一致性</strong>：自动暂停由 <code>cube-lifecycle-manager</code> 协调，Helm chart 与 Terraform 一键部署默认都是两个温备副本。两个副本都消费生命周期事件、发现 CubeProxy 并处理恢复回调，由 Redis 租约选出一个副本执行空闲扫描、销毁和过期注册清理。leader 故障切换后沙箱可能多一次 pause/resume，下次请求会照常 auto-resume。每沙箱 Redis 状态转换与 CubeMaster lifecycle lock 共同串行化跨副本的有效暂停/恢复操作。</li>
+                    <li><strong>失败回退</strong>：自动恢复 RPC 失败时，CubeProxy 直接对客户端返回 <strong>503 + Retry-After</strong>，不会让用户卡在长超时上；当沙箱已经被销毁（<code>killing</code> / <code>killed</code>），则返回 <strong>410 Gone</strong> 让客户端立即停止重试。</li>
+                    <li><strong>故障排查</strong>：控制节点上执行 <code>docker logs cube-lifecycle-manager</code>，关键事件包括 <code>create event applied</code>、<code>auto-paused sandbox</code>、<code>auto-resumed sandbox</code>、<code>timeout-killed sandbox</code>。每个 CubeProxy 副本额外提供 <code>GET http://&lt;node-ip&gt;:8082/admin/healthz</code>，其中 <code>heartbeat_last_pushed_ms</code> 表示该副本最近一次向 manager 上报心跳的时间戳；管理端口默认 <code>8082</code>，被占用时可用 <code>CUBE_PROXY_ADMIN_PORT</code> 覆盖。</li>
+                </ul>
+            </section>
+
+            <section class="concept-section" id="restart">
+                <h2><span class="section-num">4</span>进程退出后的重启</h2>
+                <p class="lead">创建沙箱时可以带 <code>restartPolicy</code>，语义和 Kubernetes 的 <code>restartPolicy</code> 一样：重启由沙箱主进程（主容器的 init 进程）退出或存活探针失败触发，单位是整台沙箱（一台 MicroVM），不是沙箱里的某个进程。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>restartPolicy</th><th>行为</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>Never</code>（默认）</td><td>退出后不重启</td></tr>
+                            <tr><td><code>OnFailure</code></td><td>非 0 退出、OOM、沙箱崩溃，或存活探针失败时重启</td></tr>
+                            <tr><td><code>Always</code></td><td>任何退出都重启，包括正常退出；存活探针失败也会重启</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>退避与重启上限</h3>
+                <p>重启会保留磁盘、网络、卷与宿主目录挂载，以及沙箱 ID，再冷启动一次；<strong>内存不保留</strong>。连续失败从 <strong>10 秒</strong>开始退避，每次加倍，最长 <strong>300 秒</strong>；运行满 <strong>10 分钟</strong>视为稳定，重启计数清零。「稳定」从当前这次运行开始运行的时刻起算——即沙箱被创建、重启成功或从暂停中恢复的时刻。失败的重启尝试<strong>不会</strong>重置这个计时，因此崩溃循环无法给自己续命；稳定窗口一到，节点就会执行清零，不需要等到下一次退出。</p>
+                <p>重启次数上限由 <code>restartBackoff.maxRestarts</code> 控制，默认 <code>0</code> 表示不限；集群可以用 <code>cubelet_conf.max_restarts_cap</code> 设全局上限，配置后，<code>0</code>（不限）也会被收紧到该值。达到上限后不再重启，沙箱不再自动拉起，但仍计入节点 <code>MvmNum</code> 配额，直到空闲超时或被显式销毁。重启 Cubelet 也不会让已达到上限的沙箱复活：稳定期重置只负责归还重试额度，不会代替策略去启动一个已经放弃的沙箱。</p>
+
+                <h3>存活探针</h3>
+                <p>存活探针写在创建请求里。没有探针、且镜像带 envd（暴露 <code>49983</code>）时，节点会默认请求 <code>GET /health</code>；没有 envd 的镜像不会被探测，避免误重启。<code>Never</code> 配存活探针会被拒绝，返回 HTTP 400：探测永远不可能触发重启，只会把沙箱杀掉。</p>
+                <pre><code>{
+  <span class="s">"restartPolicy"</span>: <span class="s">"OnFailure"</span>,
+  <span class="s">"restartBackoff"</span>: {
+    <span class="s">"initialIntervalSecond"</span>: <span class="n">10</span>,
+    <span class="s">"multiplier"</span>: <span class="n">2</span>,
+    <span class="s">"maxIntervalSecond"</span>: <span class="n">300</span>,
+    <span class="s">"maxRestarts"</span>: <span class="n">5</span>
+  },
+  <span class="s">"livenessProbe"</span>: {
+    <span class="s">"httpGet"</span>: {
+      <span class="s">"path"</span>: <span class="s">"/health"</span>,
+      <span class="s">"port"</span>: <span class="n">8080</span>
+    },
+    <span class="s">"initialDelaySecond"</span>: <span class="n">30</span>,
+    <span class="s">"periodSecond"</span>: <span class="n">10</span>,
+    <span class="s">"probeTimeoutSecond"</span>: <span class="n">1</span>,
+    <span class="s">"failureThreshold"</span>: <span class="n">3</span>
+  }
+}</code></pre>
+                <p>上面的片段会检查 <code>8080</code> 端口上的 <code>GET /health</code>，连续失败三次后按 <code>OnFailure</code> 策略冷重启整个沙箱。如需 TCP 探测，可将 <code>httpGet</code> 替换为 <code>tcpSocket</code>；两种探测类型只能配置一种。探针时间的单位均为秒；未填写或填写非正数时，默认启动延迟 <strong>30 秒</strong>、检查周期 <strong>10 秒</strong>、单次超时 <strong>1 秒</strong>、连续失败阈值 <strong>3 次</strong>。</p>
+
+                <h3>查询重启状态</h3>
+                <p><code>GET /sandboxes/&lt;id&gt;</code> 和列表接口会返回 <code>restartStatus</code>，它是 <code>state</code> 之外的独立对象：<code>state</code> 回答「沙箱在生命周期哪一站」，<code>restartStatus</code> 回答「重启状态机走到哪、为什么停下」。容器自行退出后，<code>state</code> 只会报 <code>unknown</code>，只有靠这个对象才能分清正常退出、崩溃和放弃重启。</p>
+                <p>它不改变 <code>state</code>，只在策略为 <code>OnFailure</code> / <code>Always</code>、或沙箱发生过退出时出现；默认 <code>Never</code> 且从未退出过的沙箱没有它。<code>restartState</code> 首字母大写，和 <code>state</code> 的小写枚举不是一套；表中的「主进程」指主容器的 init 进程。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>restartState</th><th>含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>Running</code></td><td>重启状态机空闲：创建成功或最近一次重启成功。<strong>不代表沙箱正在运行</strong>，是否在运行看 <code>state</code></td></tr>
+                            <tr><td><code>Restarting</code></td><td>正在重建：销毁旧 VM，再冷启动新 VM</td></tr>
+                            <tr><td><code>BackOff</code></td><td>已退出，等待退避结束；<code>nextRestartAt</code> 是下次尝试时间</td></tr>
+                            <tr><td><code>GaveUp</code></td><td>达到 <code>maxRestarts</code>，或重建/销毁遇到不可恢复的失败（包括保留的根盘经 <code>e2fsck</code> 仍无法修到干净），不再重试</td></tr>
+                            <tr><td><code>Succeeded</code></td><td>主进程正常退出（退出码 0），策略决定不重启（<code>Never</code>，或 <code>OnFailure</code> 且退出码为 0）</td></tr>
+                            <tr><td><code>Failed</code></td><td>主进程异常退出，策略决定不重启（<code>Never</code> 下的任何失败）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>Restarting</code>、<code>BackOff</code> 是重启流程中的瞬时态；<code>GaveUp</code>、<code>Succeeded</code>、<code>Failed</code> 是终态，不会再自动拉起。<code>Always</code> 不会停在 <code>Succeeded</code> / <code>Failed</code>：它会一直重启；如果设了 <code>maxRestarts</code>，达到上限后进入 <code>GaveUp</code>。这两个瞬时态期间不会自动暂停；但空闲超时照常生效，重启操作也不会重置空闲计时。对象里还有 <code>restartCount</code>、<code>lastExitCode</code>、<code>lastExitReason</code>、<code>lastRestartAt</code> 等字段，可用于定位退出原因。</p>
+                <p>暂停不算一次重启：<code>pause()</code> 后恢复会保留 <code>restartCount</code> 与退出诊断信息，退避间隔也从该计数继续计算。只有稳定期重置才会清零它，因此已经达到 <code>maxRestarts</code> 的沙箱即便中间暂停再恢复，下一次退出后仍会停止重启。</p>
+                <div class="note"><strong><code>errorReason</code> 与 <code>restartStatus.lastExitReason</code> 的区别：</strong><code>errorReason</code>（仅详情接口）反映主容器<strong>当前</strong>保存的异常或退出原因，宿主机断电这类未产生退出事件的场景下可能为空；<code>restartStatus.lastExitReason</code> 反映重启管理器记录的<strong>最近一次触发重启决策的原因</strong>（包括存活探针失败 <code>LivenessProbeFailed</code>、宿主机断电 <code>SandboxCrashed</code> 等）。排查重启过程时以 <code>restartStatus</code> 为准。</div>
+
+                <h3>宿主机宕机与 Cubelet 重启后的恢复</h3>
+                <p>宿主机断电、内核崩溃或其他导致整机重启的故障不会留下退出事件：容器运行时状态在 tmpfs 上，随机器一起消失，沙箱来不及记录自己是怎么结束的。Cubelet 启动时会重新读取每个沙箱的真实状态，并按下列规则决定是否拉起：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>恢复时看到的状态</th><th>判定</th><th>结果</th></tr></thead>
+                        <tbody>
+                            <tr><td>找不到容器或 task，且此前没有记录过退出</td><td><code>SandboxCrashed</code>（<code>lastExitCode</code> 为 <code>0</code>）</td><td><code>OnFailure</code>、<code>Always</code> 按退避策略冷重启；<code>Never</code> 不重启</td></tr>
+                            <tr><td>task 处于停止状态，带真实退出码</td><td>按真实退出码判定：<code>0</code> 为 <code>Completed</code>，非 0 为 <code>Error</code></td><td><code>OnFailure</code> 只在非 0 时重启；退出码与原因会写入 <code>restartStatus</code></td></tr>
+                            <tr><td>崩溃前已因存活探针失败、OOM 等进入退避</td><td>沿用那条记录的原因</td><td>继续按原退避与 <code>maxRestarts</code> 计数重试</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>宿主机宕机按崩溃处理，因此<strong>断电重启不会让 <code>OnFailure</code> 沙箱停在 <code>Succeeded</code></strong>；<code>restartStatus.lastExitReason</code> 会记录 <code>"SandboxCrashed"</code>。</p>
+                <p>Cubelet 自身重启（不是宿主机宕机）时，VM 通常仍在运行，恢复只重挂存活探针，不改变任何状态。若 VM 恰好在 Cubelet 停止期间正常退出（退出码 0），<code>OnFailure</code> 仍按真实退出码判为 <code>Completed</code> 并进入 <code>Succeeded</code>，不会误重启；若它以非 0 退出，则按真实退出码重启。上一次运行留下的 <code>lastExitCode</code> / <code>lastExitReason</code> 只用于展示诊断信息，不参与本次判定。</p>
+                <div class="warning">以下情况一律不会被自动拉起：<code>Never</code>、暂停中的沙箱、已进入终态（<code>GaveUp</code>、<code>Succeeded</code>、<code>Failed</code>）的沙箱，以及正在被删除的沙箱。大批量沙箱同时恢复时，节点按固定并发上限分批重建（默认 <strong>16</strong>，远低于节点自身的创建/销毁并发上限），其余沙箱保持 <code>BackOff</code> 排队；排队期间不消耗 <code>maxRestarts</code>，被节点并发限制拒绝的尝试不算一次重启失败。</div>
+            </section>
+            <section class="concept-section" id="webhooks">
+                <h2><span class="section-num">5</span>生命周期 Webhook</h2>
+                <p class="lead">CubeMaster 会向运维配置的接收端 POST 生命周期通知。它是<strong>静态订阅</strong>，作用于整个集群，默认关闭，不是 SDK 管理的用户级订阅。Webhook 只观察既有业务结果，投递失败不改变这些结果。</p>
+
+                <h3>开启通知</h3>
+                <ol>
+                    <li>准备接收 JSON POST 的服务，处理重复请求，接纳下游工作后及时返回 2xx。</li>
+                    <li>将下面的配置块合并到<strong>各 Master</strong> 配置，替换占位 URL；保留其它平台设置，包括业务 Redis。</li>
+                    <li>使用一致配置<strong>重启所有 Master</strong>。运行中的订阅不热更新。执行真实沙箱操作，检查接收端记录和 Master 指标。</li>
+                </ol>
+                <pre><code>webhooks:
+  enabled: <span class="k">true</span>
+  ingress_capacity: <span class="n">1024</span>
+  workers: <span class="n">4</span>
+  request_timeout: <span class="n">5s</span>
+  max_attempts: <span class="n">3</span>
+  store:
+    max_records: <span class="n">10000</span>
+  subscriptions:
+    - id: lifecycle-receiver
+      enabled: <span class="k">true</span>
+      url: https://receiver.example.com/cubesandbox/events
+      events:
+        - sandbox.lifecycle.created
+        - sandbox.lifecycle.resumed
+        - sandbox.lifecycle.paused
+        - sandbox.lifecycle.checkpointed
+        - sandbox.lifecycle.updated
+        - sandbox.lifecycle.killed</code></pre>
+                <p>全局和订阅的 <code>enabled</code> 必须都为 <code>true</code>。过滤精确匹配完整事件名，不接受通配符和重复事件。订阅 ID 必须非空且唯一，用于标识订阅，不是沙箱 ID。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>webhooks 下的设置</th><th>默认值</th><th>接受范围 / 含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>enabled</code></td><td><code>false</code></td><td>全局开关</td></tr>
+                            <tr><td><code>ingress_capacity</code></td><td><code>1024</code></td><td>每 Master 1–4096 个捕获事件</td></tr>
+                            <tr><td><code>workers</code></td><td><code>4</code></td><td>每 Master 1–32 个投递 worker</td></tr>
+                            <tr><td><code>request_timeout</code></td><td><code>5s</code></td><td>整次 HTTP 操作 1ms–1m</td></tr>
+                            <tr><td><code>max_attempts</code></td><td><code>3</code></td><td>1–1000 次尝试，包含首次</td></tr>
+                            <tr><td><code>store.max_records</code></td><td><code>10000</code></td><td>每 Master 1–1000000 个 pending + inflight 目标任务</td></tr>
+                            <tr><td><code>allow_http</code></td><td><code>false</code></td><td>显式允许私网/本地 HTTP</td></tr>
+                            <tr><td><code>allowed_cidrs</code></td><td>空</td><td>最多 64 个有效 CIDR，允许私网/回环目标</td></tr>
+                            <tr><td><code>subscriptions</code></td><td>空</td><td>最多 64 个订阅</td></tr>
+                            <tr><td><code>subscriptions[].enabled</code></td><td><code>false</code></td><td>订阅开关</td></tr>
+                            <tr><td><code>subscriptions[].id</code> / <code>.url</code> / <code>.events</code></td><td>未设置</td><td>必填；ID ≤1024 字节，URL ≤4096 字节，1–6 个不同的支持事件</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>这些数量限制不是进程 RSS 上限。全局开启但没有活动订阅时，不执行捕获或投递；关闭时跳过通知准备，开启后仍消耗 CPU 和内存。</p>
+
+                <h3>事件流转</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>1. 业务成功</b>：创建、暂停、恢复、销毁等操作返回既有成功结果。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2. 捕获与过滤</b>：CubeMaster 捕获事件，按订阅精确匹配完整事件名，未匹配则丢弃。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>3. 编码与入队</b>：生成 <code>v2</code> payload，写入 ingress 缓冲，同时受 <code>ingress_capacity</code> 与 <code>store.max_records</code> 约束。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4. 投递</b>：worker 以 HTTP POST 发送，携带 <code>e2b-webhook-id</code> 与每次尝试新的 <code>e2b-delivery-id</code>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>5. 结果</b>：任意 2xx 成功；非 2xx、网络错误或超时按指数退避重试，预算耗尽后丢弃，接收端恢复也不会自动重放。</div>
+                </div>
+
+                <h3>事件与成功边界</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>完整事件名</th><th>CubeMaster 观察到成功的时点</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>sandbox.lifecycle.created</code></td><td>公开创建获得既有成功结果并完成成功分支后处理。普通模板快速启动仍为 <code>created</code></td></tr>
+                            <tr><td><code>sandbox.lifecycle.resumed</code></td><td>公开创建从可信用户快照模板启动成功，或暂停恢复的最终代理 purge 成功。不能仅凭调用方 annotation / ID 前缀判为快照</td></tr>
+                            <tr><td><code>sandbox.lifecycle.paused</code></td><td>Cubelet 本地暂停和 Master <code>pausesnap.Complete</code> 成功</td></tr>
+                            <tr><td><code>sandbox.lifecycle.checkpointed</code></td><td>实际执行的快照任务完成本地工作并持久化 <code>READY</code>，位于最终查询前。后续查询失败不撤回通知；只查询 <code>READY</code> 不重复发布</td></tr>
+                            <tr><td><code>sandbox.lifecycle.updated</code></td><td>公开 SetTimeout / Refresh 返回可用有限截止时间，或既有节点网络更新成功。best-effort spec 写失败不撤销节点网络成功</td></tr>
+                            <tr><td><code>sandbox.lifecycle.killed</code></td><td>既有同步销毁调用或异步 destroy handler 成功，包括原有容忍 / warn-only 情况。任务入队成功不发布</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ul>
+                    <li>XFS 与 S3 的 pause / checkpoint 都表示<strong>本地成功</strong>，不表示 S3 上传完成、远端耐久性或跨节点恢复能力；后续上传状态不撤回或重复事件。</li>
+                    <li>创建、暂停、<code>READY</code> 写入或最终 resume purge 失败，不发布其对应成功事件。内部创建回滚、暂停拆除和 resume timeout 刷新不额外产生用户级 killed / updated。Mock 旁路不是真实生命周期通知入口。</li>
+                    <li>SetTimeout 接受正数秒数、<code>0</code>（立即截止）和 <code>-1</code>（永不超时），<code>-1</code> 不发 timeout-only 事件。Refresh 只接受正数秒数，拒绝 <code>0</code> 和负数。有限成功响应的 <code>EndAt &gt; 0</code> 即可发布，provider 缺失或失败时也可能如此，因为截止时间可由既有 fallback 提供；这<strong>不确认 Redis HSET 或 XADD 成功</strong>。Resume 内部刷新不发布 updated。重复成功操作可各自产生新事件。</li>
+                    <li>创建取消遵循既有业务结果：取消先赢、操作返回失败时，后台随后成功和内部回收均不发布 created / resumed / killed。若业务成功先返回，之后请求在通知 hook 前取消，不抑制 created 或用户快照 resumed。投递仍为 best effort。</li>
+                    <li>Killed 遵循原业务对缺节点、nil / not-found 响应和 warn-only 清理的成功规则，不增加物理销毁或 binding 删除完成的独立证明。业务重试仍执行原节点调用，通知不引入完成门控或生产端去重。</li>
+                </ul>
+
+                <h3>接收与去重</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Header</th><th>值</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>Content-Type</code></td><td><code>application/json</code></td></tr>
+                            <tr><td><code>e2b-webhook-id</code></td><td>配置的订阅 ID</td></tr>
+                            <tr><td><code>e2b-delivery-id</code></td><td>每次投递尝试的新 UUID</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Payload <code>id</code> 和原始正文在重试及多订阅 fanout 间不变，应按 payload <code>id</code> 去重，必要时加入订阅作用域。<code>e2b-delivery-id</code> 标识一次尝试，<strong>不是幂等键</strong>。接收端应先保存必要的下游工作再确认，并容忍并发、乱序和重复。接收成功但响应丢失也可能导致重试。</p>
+                <p>任意 2xx 表示成功。非 2xx（含 3xx / 4xx / 5xx）、网络错误和超时受有限预算约束。Claim 即消耗一次，因此取消、身份生成或地址校验可能在 HTTP Header 写出前消耗预算。指数退避带抖动，最高 30s；预算耗尽后，接收端恢复也不会自动重放。</p>
+
+                <h3>Payload 兼容性</h3>
+                <p>本功能首版沿用现有 <strong><code>v2</code> payload</strong>，不宣称完整兼容 E2B 字段 / 操作。路径相对 JSON 根。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>顶层字段</th><th>来源及空值/省略规则</th><th>接收端影响</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>id</code></td><td>成功时捕获的 UUID</td><td>稳定的事件去重键</td></tr>
+                            <tr><td><code>version</code></td><td>固定 <code>"v2"</code></td><td>不是功能 / 签名版本</td></tr>
+                            <tr><td><code>type</code></td><td>六个完整名称之一</td><td>精确匹配</td></tr>
+                            <tr><td><code>timestamp</code></td><td>捕获时的 UTC RFC3339Nano 时间</td><td>不是 HTTP 发送时间或执行起点</td></tr>
+                            <tr><td><code>sandbox_id</code></td><td>真实响应 / 请求沙箱 ID</td><td>不是 E2B execution ID</td></tr>
+                            <tr><td><code>sandbox_template_id</code></td><td>可信创建解析结果或本来已读的 spec，否则 <code>""</code></td><td>Timeout / network / killed 不为补字段查询</td></tr>
+                            <tr><td><code>sandbox_execution_id</code> / <code>sandbox_build_id</code> / <code>sandbox_team_id</code></td><td>均为 <code>""</code></td><td>严格 UUID / 必填值 / team 校验的解码器可能拒绝</td></tr>
+                            <tr><td><code>event_category</code> / <code>event_label</code></td><td>均为 <code>""</code>，保留键</td><td>不伪造旧分类 / 标签</td></tr>
+                            <tr><td><code>events_ttl_days</code></td><td>省略</td><td>无事件历史留存服务</td></tr>
+                            <tr><td><code>event_data</code></td><td>空时省略</td><td>不假定总是存在</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>event_data 子字段</th><th>来源及空值/省略规则</th><th>接收端影响</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>sandbox_metadata</code></td><td>可信当前公开创建输入，模板合并前取得；nil / 未知省略，已知空 <code>{}</code></td><td>用户快照创建可携带当前输入；后续操作不继承</td></tr>
+                            <tr><td><code>execution</code></td><td>仅 paused / killed；至少 <code>{"started_at":""}</code></td><td>需容忍部分数据</td></tr>
+                            <tr><td><code>execution.started_at</code> / <code>execution_time</code></td><td>开始时间为 <code>""</code>；时长省略</td><td>空字符串不是有效 RFC3339；不伪造零，不用于计费</td></tr>
+                            <tr><td><code>execution.vcpu_count</code></td><td>已有单容器 <code>cubebox</code> CPU 为精确正整数时填写，否则省略</td><td><code>1000m</code> → 1；<code>1500m</code> 省略</td></tr>
+                            <tr><td><code>execution.memory_mb</code></td><td>已有单容器 <code>cubebox</code> 内存，先向上取整字节再取整数 MiB，否则省略</td><td><code>1Gi</code> → 1024；<code>512M</code> → 488；<code>1.5Mi</code> → 1</td></tr>
+                            <tr><td><code>set_timeout</code></td><td>捕获的有限响应 EndAt，UTC RFC3339 秒精度</td><td>可来自 fallback；不确认持久化，不编码 <code>-1</code></td></tr>
+                            <tr><td><code>network_egress.allowed_cidrs</code></td><td>请求 IPv4 IP / CIDR；IP → <code>/32</code>，CIDR 规范化；空为 <code>null</code></td><td>不是完整策略 diff；保留显式 DNS IP</td></tr>
+                            <tr><td><code>network_egress.denied_cidrs</code></td><td>请求 IPv4 deny；internet false 覆盖为 <code>["0.0.0.0/0"]</code>；空为 <code>null</code></td><td>Internet true / nil 使用本次请求 DenyOut</td></tr>
+                            <tr><td><code>network_egress.allowed_domains</code></td><td>AllowOut 域名 / 通配符，转小写去尾点；空为 <code>null</code></td><td>无 L7 Rules / Inject / 凭据或节点注入 DNS</td></tr>
+                            <tr><td><code>pause_mode</code> / <code>resume_mode</code></td><td>当前已确认暂停路径为 <code>"full"</code>；当前暂停 / 用户快照恢复路径为 <code>"restore"</code></td><td>不是内部 snapshot_type；不承诺未来所有路径</td></tr>
+                            <tr><td><code>kill_reason</code></td><td>保留显式原因；用户请求 <code>"request"</code>，超时 <code>"timeout"</code>，无来源 <code>"unknown"</code></td><td>不含内部错误文本，不额外通知清理</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code>{
+  <span class="s">"id"</span>: <span class="s">"d12727fc-ab97-43d8-80cf-556cc1215017"</span>,
+  <span class="s">"version"</span>: <span class="s">"v2"</span>,
+  <span class="s">"type"</span>: <span class="s">"sandbox.lifecycle.created"</span>,
+  <span class="s">"timestamp"</span>: <span class="s">"2026-10-14T12:00:00Z"</span>,
+  <span class="s">"event_category"</span>: <span class="s">""</span>,
+  <span class="s">"event_label"</span>: <span class="s">""</span>,
+  <span class="s">"sandbox_id"</span>: <span class="s">"sb-1"</span>,
+  <span class="s">"sandbox_execution_id"</span>: <span class="s">""</span>,
+  <span class="s">"sandbox_template_id"</span>: <span class="s">"tpl-1"</span>,
+  <span class="s">"sandbox_build_id"</span>: <span class="s">""</span>,
+  <span class="s">"sandbox_team_id"</span>: <span class="s">""</span>
+}</code></pre>
+                <div class="warning">Metadata 排除精确的 <code>host-mount</code>、<code>X-Caller</code> 和 <code>cube.master.</code> 命名空间；普通用户键含 token / secret / password 仍属用户数据，接收端日志应按此处理。创建捕获允许 64 个用户项、key/value 共 16 KiB、key ≤256 字节、value ≤4096 字节。未知 metadata 不从合并标签、缓存或私有存储字段补回。超限<strong>丢弃整条通知</strong>，不截断，不使业务失败。资源字段与缺失时间独立；其它实例类型、多容器、非法 / 分数 CPU 和未知数量不猜测；当前 killed 生产者无资源来源。网络投影不表达 IPv6 策略（当前节点拒绝）、全部 L7-only 变化或内部 DNS / 私网规则，不补 E2B 默认 DNS。空分类是 <code>null</code>，包括空列表经 protobuf 往返后；要求 <code>[]</code> 的接收端需适配。</div>
+                <div class="danger"><strong>没有 secret、自定义认证 Header、签名、<code>e2b-signature</code>、<code>e2b-signature-version</code> 或其它版本 Header。</strong>Header 和 ID 不能认证发送者；强制验签的接收端不兼容，选择集成方式时请保留其安全要求。也没有动态订阅 CRUD、用户级订阅和公开测试事件 API。</div>
+
+                <h3>容量、丢失与退出</h3>
+                <p>每 Master 有两级上限，由该 Master 全部订阅共享：</p>
+                <ul>
+                    <li><strong>Ingress</strong> 按等待 writer 的捕获事件计数，满时丢弃事件。</li>
+                    <li><strong><code>store.max_records</code></strong> 按目标任务计数，含 pending 重试和 inflight HTTP。一个事件匹配三个订阅需三条记录。Fanout 可部分成功，任务满时丢该目标，不等空位。Retry 复用原记录，成功 / 耗尽 / 取消释放容量。</li>
+                </ul>
+                <p>每个目标任务的编码正文最多 <strong>256 KiB</strong>。目标副本和 worker / transport 也占用内存，因此这些上限不限制进程 RSS。通知状态由 <code>DeliveryStore</code> 后的进程内存保存；重启、崩溃或退出可丢失剩余工作。各 Master 不共享通知积压、不互相接管。没有磁盘 / Redis 持久化、严格顺序、恰好一次、零丢失、历史 / 查询或 replay API；Redis 持久化 / HA 留待后续，业务 Redis 仍是平台依赖。</p>
+                <p>Webhook 先停止接收，在<strong>单一两秒总预算</strong>或 caller 更早截止时间内尽力 drain，然后取消通知 HTTP / 等待并丢弃剩余工作。不保证全部投完，也不限制整个 App / systemd 两秒退出；<code>SIGKILL</code> 跳过 drain。App 组装当前 memory + HTTP adapter，Go 调用者可通过公开 <code>NewRuntime</code>、通用 options 和静态订阅注入 <code>DeliveryStore</code> / <code>DeliverySender</code>；没有新增 backend YAML 键或持久实现。Put / Claim / Retry / Complete 均有界（App 为 1s），清理共享剩余退出预算。Complete 失败不能确认终态；Close 只统计实际丢弃，未来持久 backend 保留的工作不算丢弃。实现必须遵守 context 取消，<code>sender.Close</code> 只做快速本地释放。</p>
+
+                <h3>HTTP 与配置安全</h3>
+                <ul>
+                    <li>公网目标要求 HTTPS，正常验证证书 / 主机名。私网 / 回环 HTTPS 还要求显式匹配的 <code>allowed_cidrs</code>。</li>
+                    <li>本地 HTTP 测试时，将 <code>allow_http: true</code> 与 <code>allowed_cidrs: ["127.0.0.1/32"]</code> 合并到 <code>webhooks</code>，并将订阅 URL 改为 <code>http://127.0.0.1:18096/events</code>。HTTP 必须同时显式开启并匹配私网 / 回环 CIDR，公网 HTTP 仍被阻止。</li>
+                    <li>CIDR 不关闭 TLS，不放行 metadata、link-local、未指定、组播或文档地址等被禁特殊地址。全部 DNS 结果均须符合策略，混合允许 / 禁止结果被拒绝。新连接直接拨号到已检查 IP，已检查连接可复用。</li>
+                    <li>禁环境代理、重定向和自动 POST 重放。拒绝 URL 用户凭据 / fragment、未知键和错误类型。响应 body 读取 8 KiB、Header 16 KiB。</li>
+                    <li>非法 webhook 配置只禁用通知，诊断脱敏 webhook 值。主 YAML 非法或其它模块仍沿用原错误策略。API 健康不代表 webhook 已开启。</li>
+                    <li>敏感撤销前先停止全部旧投递实例，再应用新启动配置；混合配置期间仍可发给旧目标。已开始请求无法撤回。重启丢弃旧内存积压，新订阅不接收历史事件。</li>
+                </ul>
+
+                <h3>排查与验证</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>指标</th><th>含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>cubemaster_webhook_operations_total{operation,result}</code></td><td>本地 capture / ingress、映射 / 编码、put / claim / complete / retry、send / HTTP / status 和终结结果</td></tr>
+                            <tr><td><code>cubemaster_webhook_claim_age_seconds</code></td><td>领取时距目标任务创建的年龄直方图，含重试；不是执行时长</td></tr>
+                            <tr><td><code>cubemaster_webhook_ingress_depth</code></td><td>Writer 观察的本地缓冲深度，可能落后于接收；不是目标任务积压</td></tr>
+                            <tr><td><code>cubemaster_webhook_inflight</code></td><td>本地活动 worker 任务，含发送前检查</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>常用计数对：<code>capture/oversized</code>、<code>ingress/full</code>、<code>event/unmatched</code>、<code>put/capacity</code>、<code>http/attempt</code>、<code>http/success</code>、<code>terminal/failed</code>、<code>terminal/cancelled</code>、<code>task/shutdown_discarded</code>、<code>ingress/unprocessed_shutdown</code>。HTTP attempt 计 Header 写出，不是 Claim 或接收端确认处理次数；有限诊断标签不是持久历史，也没有共享 Redis backlog 指标。HTTP attempt / status / success 仅由 HTTP adapter 计数。<code>send/timeout</code> 表示单次截止或传输超时，<code>send/cancelled</code> 表示显式取消；请求超时仍按有限预算重试，最终可为 <code>terminal/failed</code>。HTTP 2xx 与 Runtime 终态是不同层次，取消可在 Complete 前生效；非 HTTP sender 根据 <code>SendResult.Succeeded</code> 成功，无需 HTTP 状态。</p>
+                <p>漏通知的排查顺序：先查两级启动开关、精确过滤、真实业务成功点、capture / ingress 丢弃、mapping / put 结果，再查接收端 HTTP 状态、超时与地址 / TLS 策略，最后确认是否重启或预算耗尽。不要为了获得通知而放宽 TLS 或改业务。</p>
+                <div class="info"><strong>迁移早期 PR 试用配置：</strong>删除 <code>store.backend</code>、<code>store.redis</code>、<code>lease</code>、旧 store 连接池键、<code>operation_timeout</code> 和 <code>terminal_retention</code>，通知 store 块只保留 <code>store.max_records</code>。废弃键通过严格校验禁用通知，不静默选择内存或保留耐久性；无自动 Redis→memory backlog 迁移或重放。核对两级开关、订阅和容量后重启所有 Master，平台业务 Redis 配置原样保留。</div>
+            </section>
+            <section class="concept-section" id="qos">
+                <h2><span class="section-num">6</span>QoS：网络与块设备 I/O 限速</h2>
+                <p class="lead">QoS（Quality of Service）用来限制<strong>单个沙箱</strong>的网络和块设备 I/O 消耗。当前版本中该功能默认关闭，且<strong>只能在创建模板时配置</strong>；模板中的限制会分别应用到每个由它创建的沙箱。网络 QoS 只影响流量速率，不改变沙箱的网络可达范围；块设备 I/O QoS 限制吞吐量和操作速率，不改变文件系统容量或权限。</p>
+                <div class="info">按源文档口径，本章的 <code>qos</code> 配置只覆盖<strong>网络</strong>（<code>network</code>）与<strong>块设备 I/O</strong>（<code>blockIo</code>）。CPU 与内存不属于该 <code>qos</code> 字段的限速范围；它们的资源回收与调度计账由暂停/恢复、<code>paused_resource_release_ratio</code> 和节点 <code>MvmNum</code> 配额等机制承担（见第 3 节）。不要为了限制 CPU / 内存而臆造 <code>qos</code> 子字段，源文档未定义这些字段。</div>
+
+                <h3>工作原理</h3>
+                <p>QoS 配置从模板进入沙箱运行时，最后由 CubeShim 在 virtio-net 和 virtio-blk 数据路径中执行：</p>
+                <div class="arch-diagram">
+                    <div class="arch-label">控制面</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">模板 QoS<small>network / blockIo</small></div>
+                        <div class="arch-box control">CubeMaster<small>模板运行时配置</small></div>
+                        <div class="arch-box compute">Cubelet<small>设备请求</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 下发到节点数据路径</div>
+                    <div class="arch-label">数据面</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">CubeShim<small>virtio 执行点</small></div>
+                        <div class="arch-box network">virtio-net<small>上 / 下行独立限速</small></div>
+                        <div class="arch-box storage">virtio-blk<small>每设备吞吐与 IOPS</small></div>
+                    </div>
+                </div>
+                <ul>
+                    <li><strong>网络</strong>分别限制每个沙箱的两个方向：上传从沙箱发往外部网络，下载从外部网络进入沙箱。配置的带宽上限和数据包处理速率上限会独立应用到上传和下载。</li>
+                    <li><strong>块设备 I/O</strong>分别限制沙箱中的每个 virtio-blk 设备。同一设备的读取和写入<strong>共享</strong>配置的吞吐量桶和操作速率桶，不单独设置读写上限。</li>
+                    <li>底层分别使用吞吐量和操作速率 <strong>Token Bucket</strong>：吞吐量桶按处理的字节数扣减，操作速率桶每处理一次操作扣减一次。额度按固定速率恢复；桶里有余量时允许短时突发，额度耗尽后需要等待恢复。因此很短的测速可能暂时超过配置值，持续测试的平均速率应接近配置上限。额度大小和恢复速度由平台自动设置，用户只需填写公开的限制值。</li>
+                    <li>QoS 是<strong>运行时配置</strong>，不会修改模板的 rootfs。文件系统输入相同时，不同 QoS 配置仍可复用同一份 rootfs artifact。</li>
+                </ul>
+
+                <h3>配置语义</h3>
+                <pre><code>{
+  <span class="s">"network"</span>: {
+    <span class="s">"bandwidthMbps"</span>: <span class="n">100</span>,
+    <span class="s">"packetsPerSecond"</span>: <span class="n">5000</span>
+  },
+  <span class="s">"blockIo"</span>: {
+    <span class="s">"throughputMiBps"</span>: <span class="n">64</span>,
+    <span class="s">"iops"</span>: <span class="n">1000</span>
+  }
+}</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>字段</th><th>含义</th><th>约束</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>network.bandwidthMbps</code></td><td>每个沙箱每秒兆比特数，上传与下载分别使用独立额度</td><td>与 <code>packetsPerSecond</code> 至少配置一个，且为大于 0 的整数</td></tr>
+                            <tr><td><code>network.packetsPerSecond</code></td><td>每秒 virtio-net 数据包处理操作数。启用分段等卸载功能时，一个操作可能对应多个线上数据包，实际线上 PPS 可能与配置值不同</td><td>同上；不同沙箱之间不共享额度</td></tr>
+                            <tr><td><code>blockIo.throughputMiBps</code></td><td>持续块设备吞吐量，单位 MiB/s</td><td>与 <code>iops</code> 至少配置一个；同一组限制独立应用到每个 virtio-blk 设备</td></tr>
+                            <tr><td><code>blockIo.iops</code></td><td>每秒块设备 I/O 操作数</td><td>同上；每个设备分别维护自己的额度</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>可以只配置网络限制、只配置块设备 I/O 限制，或同时配置两者。当前版本只支持在创建模板时配置 QoS：使用该模板创建的每个沙箱都会应用相同的限制，创建沙箱时不能单独设置或覆盖 QoS。模板未配置 <code>qos</code> 时，不会设置网络或块设备 I/O 限制。</p>
+
+                <h3>使用边界</h3>
+                <ul>
+                    <li><code>bandwidthMbps</code> 只限制单个沙箱的最大网络速率。节点级、租户级或 NAT 出口的总带宽仍由底层基础设施决定；所有活跃沙箱的需求超过实际链路容量时，沙箱之间仍会竞争带宽。</li>
+                    <li>当前上传和下载使用相同的带宽和数据包处理速率配置，暂不支持分别设置两个方向的上限；块设备 I/O 也不区分读取和写入限制。</li>
+                    <li>QoS 不提供优先级、最低保障吞吐量或权重调度。</li>
+                </ul>
+
+                <h3>内部注解与兼容性</h3>
+                <p>网络和块设备 I/O QoS 内部使用 <code>cube.master.net</code> 和 <code>cube.master.blk.qos</code> 注解存储。它们是运行时契约，不属于公开 API：</p>
+                <ul>
+                    <li>沙箱或模板请求中直接设置这两个注解会被拒绝，请改用模板的 <code>qos</code> 字段。</li>
+                    <li>模板的 <code>create_request</code>、preview 和 snapshot 响应不再包含这两个注解，请读取 <code>configuredQos</code>。</li>
+                    <li>带 <code>create_request</code> override 的模板 commit 仍会读取源沙箱的持久化创建请求，以便继承模板托管的 QoS；如果该记录不可读，commit 会失败，而不是生成一个没有限速的模板。</li>
+                </ul>
+
+                <h3>配置模板</h3>
+                <p>创建模板时通过 <code>--qos</code> 或 CubeAPI 请求体设置限制。下面的示例配置了每个沙箱上传、下载各 100 Mbps 和 5000 个数据包处理操作/秒的上限，同时配置每个块设备 64 MiB/s 和 1000 IOPS 的上限。</p>
+                <div class="code-label">CLI 内联 JSON</div>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --writable-layer-size 1G \
+  --qos <span class="s">'{"network":{"bandwidthMbps":100,"packetsPerSecond":5000},"blockIo":{"throughputMiBps":64,"iops":1000}}'</span></code></pre>
+                <div class="code-label">CLI JSON 文件</div>
+                <pre><code>{
+  <span class="s">"network"</span>: {
+    <span class="s">"bandwidthMbps"</span>: <span class="n">100</span>,
+    <span class="s">"packetsPerSecond"</span>: <span class="n">5000</span>
+  },
+  <span class="s">"blockIo"</span>: {
+    <span class="s">"throughputMiBps"</span>: <span class="n">64</span>,
+    <span class="s">"iops"</span>: <span class="n">1000</span>
+  }
+}</code></pre>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --writable-layer-size 1G \
+  --qos @qos.json</code></pre>
+                <div class="code-label">CubeAPI</div>
+                <pre><code><span class="k">POST</span> /cubeapi/v1/templates
+<span class="k">Content-Type</span>: application/json
+
+{
+  <span class="s">"image"</span>: <span class="s">"cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest"</span>,
+  <span class="s">"writableLayerSize"</span>: <span class="s">"1G"</span>,
+  <span class="s">"qos"</span>: {
+    <span class="s">"network"</span>: {
+      <span class="s">"bandwidthMbps"</span>: <span class="n">100</span>,
+      <span class="s">"packetsPerSecond"</span>: <span class="n">5000</span>
+    },
+    <span class="s">"blockIo"</span>: {
+      <span class="s">"throughputMiBps"</span>: <span class="n">64</span>,
+      <span class="s">"iops"</span>: <span class="n">1000</span>
+    }
+  }
+}</code></pre>
+                <p>CubeMaster 会在创建模板前校验 <code>qos</code>。每个已配置的部分必须至少包含一个大于 0 的整数限制；显式传入 <code>0</code>、负数、非整数、空配置部分或未知字段时，请求会被拒绝。</p>
+
+                <h3>查看配置与应用状态</h3>
+                <pre><code>cubemastercli tpl info &lt;template-id&gt;</code></pre>
+                <p>CubeAPI 对应 <code>GET /cubeapi/v1/templates/&lt;template-id&gt;</code>。配置了 QoS 的模板会返回 <code>configuredQos</code>：</p>
+                <pre><code>{
+  <span class="s">"configuredQos"</span>: {
+    <span class="s">"network"</span>: {
+      <span class="s">"bandwidthMbps"</span>: <span class="n">100</span>,
+      <span class="s">"packetsPerSecond"</span>: <span class="n">5000</span>
+    },
+    <span class="s">"blockIo"</span>: {
+      <span class="s">"throughputMiBps"</span>: <span class="n">64</span>,
+      <span class="s">"iops"</span>: <span class="n">1000</span>
+    }
+  }
+}</code></pre>
+                <p>查询沙箱使用 <code>cubemastercli cubebox info --sandboxid &lt;sandbox-id&gt;</code>，CLI 会显示 <code>NETWORK_QOS</code> 和 <code>BLOCK_IO_QOS</code>；CubeAPI 的 <code>GET /cubeapi/v1/sandboxes/&lt;sandbox-id&gt;</code> 返回对应的 <code>configuredQos</code> 字段。</p>
+                <div class="warning"><code>configuredQos</code> 表示<strong>记录的 QoS 配置</strong>。如果 CubeMaster 保存的沙箱创建请求中没有 QoS annotation，则从模板读取配置。这是配置记录，<strong>不能证明 limiter 已在 hypervisor 生效</strong>，也不能证明每项限制都已配置。</div>
+                <p>节点网络 QoS 排障：Cubelet 在创建沙箱 tap 时会记录网络初始化请求，在沙箱所在节点按沙箱 ID 检索日志：</p>
+                <pre><code>tap create ensure request: sandbox_id=&lt;sandbox-id&gt; ... persist_metadata={"qos_enabled":"true",...}</code></pre>
+                <p><code>qos_enabled</code> 表示该请求携带了网络 Token Bucket 配置；它不反映块设备 I/O QoS，也不属于公开 API。Cubelet 的只读诊断接口 <code>GET /v1/network/taps</code>（也可使用 <code>cubecli container taps</code>）会列出每个沙箱的 tap 状态；它能确认 tap 存在且状态正常，但不包含 QoS 信息。控制面的 <code>configuredQos</code> 记录的是请求的配置，不是实际生效速率；限速是否生效请用下面的 iperf3 测量验证。</p>
+
+                <h3>使用 iperf3 验证网络限速</h3>
+                <p>先创建带网络 QoS 的模板并等待模板进入 <code>READY</code> 状态，再使用该模板创建待测沙箱。下面的客户端命令都在这个沙箱内执行。iperf3 不一定预装在服务端或沙箱镜像中，测试前先在两端运行 <code>iperf3 --version</code>；不存在时按系统或镜像使用的包管理器安装，例如 Debian/Ubuntu：</p>
+                <pre><code>apt-get update
+apt-get install -y iperf3</code></pre>
+                <p>在沙箱能够访问的机器上启动服务端，并确认沙箱能访问服务端 IP、防火墙已放通所选 TCP 端口：</p>
+                <pre><code>iperf3 -s -p <span class="n">5201</span>
+
+<span class="c"># 沙箱上传到服务端</span>
+iperf3 -c &lt;server-ip&gt; -p <span class="n">5201</span> -t <span class="n">10</span> -O <span class="n">3</span> -P <span class="n">4</span>
+
+<span class="c"># 沙箱从服务端下载</span>
+iperf3 -c &lt;server-ip&gt; -p <span class="n">5201</span> -t <span class="n">10</span> -O <span class="n">3</span> -P <span class="n">4</span> -R</code></pre>
+                <p>测试结果会受到协议开销、Token Bucket 短时突发和测量窗口影响。100 Mbps 的配置通常会测得接近 100 Mbps，不要求精确相等。模板返回 <code>configuredQos</code> 只能说明配置已经保存，带宽限速需要通过持续上传、下载测试确认实测值接近配置上限。<code>iperf3</code> 不能直接测量数据包处理操作数；如果只配置 PPS，应使用固定大小的数据包工作负载，并在测试端点通过报文计数器验证，同时注意卸载功能可能导致线上 PPS 与配置的操作速率不同。</p>
+                <p>验证多沙箱并发带宽限制时，一个 iperf3 server 进程通常一次只处理一个测试；多个客户端连接同一个 server 端口时测试可能被串行执行，无法反映并发带宽。为每个沙箱启动独立端口：</p>
+                <pre><code><span class="k">for</span> port <span class="k">in</span> <span class="n">5301</span> <span class="n">5302</span> <span class="n">5303</span> <span class="n">5304</span> <span class="n">5305</span>; <span class="k">do</span>
+  iperf3 -s -p <span class="s">"$port"</span> -D
+<span class="k">done</span></code></pre>
+                <p>同时启动沙箱客户端，分别连接 5301 到 5305。如果模板配置为 100 Mbps，并且宿主机和网络容量足够，5 个沙箱应各自接近 100 Mbps，总吞吐接近 500 Mbps。多沙箱测试还需保证配置的带宽上限之和不超过测试链路容量，否则结果会同时受到共享链路竞争影响，不能只根据单个沙箱低于配置上限判断带宽 limiter 是否正常。</p>
+
+                <h3>使用 fio 验证块设备 I/O</h3>
+                <p>先创建带块设备 I/O QoS 的模板并等待模板进入 <code>READY</code> 状态，再使用该模板创建待测沙箱。fio 不一定预装在沙箱镜像中，测试前先运行 <code>fio --version</code>；不存在时按镜像使用的包管理器安装，例如 Debian/Ubuntu：<code>apt-get update &amp;&amp; apt-get install -y fio</code>。</p>
+                <p>先在沙箱中执行 <code>lsblk</code>，选择位于可写 virtio-blk 文件系统中的测试目录；不要直接对根块设备执行破坏性测试。下面的命令使用 <code>/tmp/qos-fio</code> 文件，并绕过 guest page cache：</p>
+                <pre><code><span class="c"># 持续顺序写吞吐量</span>
+fio --name=block-qos-bw --filename=/tmp/qos-fio \
+  --size=<span class="n">1G</span> --rw=write --bs=<span class="n">1M</span> --direct=<span class="n">1</span> --runtime=<span class="n">30</span> --time_based
+
+<span class="c"># 随机读 IOPS</span>
+fio --name=block-qos-iops --filename=/tmp/qos-fio \
+  --size=<span class="n">1G</span> --rw=randread --bs=<span class="n">4k</span> --direct=<span class="n">1</span> --iodepth=<span class="n">32</span> \
+  --runtime=<span class="n">30</span> --time_based
+
+rm -f /tmp/qos-fio</code></pre>
+                <p>初始 Token Bucket 额度耗尽后，持续吞吐量和 IOPS 应接近配置上限。virtio-fs 或内存中的文件不会经过 virtio-blk limiter，不能用于这项验证。</p>
+            </section>
+            <section class="concept-section" id="templates">
+                <h2><span class="section-num">7</span>模板核心概念</h2>
+                <p class="lead">模板是 CubeSandbox 创建沙箱时使用的<strong>可复用运行环境</strong>。它不仅包含来自 OCI 镜像的根文件系统，还包含沙箱启动所需的配置和<strong>预热后的 MicroVM 快照</strong>。基于同一个模板可以反复创建相互隔离、环境一致的沙箱，并通过恢复快照缩短启动时间。</p>
+
+                <h3>OCI 镜像</h3>
+                <p>OCI（Open Container Initiative）定义了容器镜像的开放标准。日常使用的 Docker 镜像通常就是 OCI 镜像：它由一组只读文件系统层和镜像配置组成，记录了操作系统文件、应用及依赖，以及 <code>ENTRYPOINT</code>、<code>CMD</code>、环境变量等启动信息。镜像一般以 <code>仓库/名称:标签</code> 引用，例如 <code>docker.io/library/python:3.11</code>，也可以用 digest 锁定具体内容。</p>
+                <p>CubeSandbox <strong>不会</strong>把 OCI 镜像直接当作沙箱运行。它会拉取并展开镜像，将其转换为适合 MicroVM 使用的 rootfs，按镜像中的启动配置运行服务，然后生成可快速恢复的模板快照。因此，OCI 镜像是模板的<strong>输入</strong>，模板才是创建沙箱时使用的<strong>产物</strong>。</p>
+
+                <h3>什么时候制作模板快照</h3>
+                <p>CubeSandbox 拉取 OCI 镜像后，会用它启动一个临时 MicroVM。镜像中的入口程序、系统服务和应用会像正常启动沙箱一样运行。Cube 不会在进程刚启动时立刻制作模板，而是<strong>等待指定的 HTTP 探针返回 2xx</strong>；这个响应表示环境已经到达适合保存的时刻。随后 Cube 冻结此时的文件系统和内存状态并生成模板快照。</p>
+                <div class="h-diagram">
+                    <div class="arch-box">OCI 镜像</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box control">临时 MicroVM<small>按启动配置运行</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box accent">HTTP 探针 2xx<small>定义启动完成</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box compute">冻结文件系统 / 内存</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box teal">模板快照<small>可快速恢复</small></div>
+                </div>
+                <p>选择探针，本质上是在定义「什么时候算启动完成」。探针返回得太早，快照可能生成在应用仍在初始化或依赖尚未预热时；探针始终不成功，模板构建则会超时。理想的探针端点应在模板中需要预热的服务都准备完成后才返回 2xx。</p>
+
+                <h3>用端口和探针定义就绪时机</h3>
+                <p>Cube 平台在制作模板时，会启动容器并通过 HTTP 探测容器是否已就绪。因此：</p>
+                <ol>
+                    <li>你的容器镜像<strong>必须</strong>在某个固定端口上启动一个 HTTP 服务器，并提供返回 2xx 的就绪端点；它可以来自 <code>envd</code>，也可以来自你的应用。</li>
+                    <li>创建模板时<strong>必须</strong>指定以下参数：<code>--expose-port &lt;port&gt;</code>（声明 HTTP 服务监听的端口）、<code>--probe &lt;port&gt;</code>（告诉 Cube 要探测哪个端口）、<code>--probe-path &lt;path&gt;</code>（Cube 将 <code>GET</code> 的 HTTP 路径，如 <code>/</code> 或 <code>/health</code>）。</li>
+                    <li>被选择的探针端点应在<strong>需要预热的服务完全准备好之后</strong>才返回 HTTP 2xx。Cube 会以此为信号制作快照；如果探测的是 <code>envd</code>，该信号只表示 <code>envd</code> 本身已经就绪。</li>
+                </ol>
+                <p>一次模板构建选择一个探针端口和路径，Cube 会持续请求 <code>http://&lt;sandbox&gt;:&lt;probe-port&gt;&lt;probe-path&gt;</code>，直到收到 HTTP 2xx 响应后制作快照。</p>
+                <p><code>envd</code> 是预装在 CubeSandbox 基础镜像中的一个后台服务：沙箱创建后，SDK 的「执行命令」「读写文件」和「打开终端」等操作，实际都会请求沙箱内的 <code>envd</code>。<code>envd</code> 默认监听 <code>49983</code>，其 <code>/health</code> 接口会在 <code>envd</code> 可以接收这些请求时返回 204。最常见的配置是开放 <code>envd</code> 的 49983 端口，监听探测 49983 端口，并在 <code>/health</code> 返回成功后制作模板快照：</p>
+                <pre><code>--expose-port <span class="n">49983</span> --probe <span class="n">49983</span> --probe-path /health</code></pre>
+                <div class="warning"><code>envd</code> 就绪只代表 SDK 数据面已经就绪，<strong>不一定代表业务应用也已完成启动</strong>。如果模板需要预热 Web 应用、Jupyter 等其他服务，应把探针指向能够反映该应用就绪状态的端口和路径。<code>envd</code> 也不是制作模板的必需组件：只提供自有 Web 服务且不使用命令、文件或终端等 SDK 能力的镜像，可以不安装 <code>envd</code>，直接探测应用自己的健康检查端点；需要这些 SDK 能力时，则应使用包含 <code>envd</code> 的基础镜像，或在构建模板时注入 <code>envd</code>。</div>
+
+                <h3>沙箱就绪语义</h3>
+                <p>被探测的端口同时也是沙箱的<strong>就绪契约</strong>：由于模板只有在探针返回 HTTP 2xx 后才会被标记为就绪，因此由该模板创建的<strong>运行中</strong>沙箱，其被探测端口在创建返回时即可提供服务。客户端无需在 <code>create</code> 创建沙箱后额外等待或重试；通过 resume / 自动恢复重新运行起来的沙箱同样适用。</p>
+                <ul>
+                    <li><strong>该保证只覆盖被探测的端口。</strong>仅用 <code>--expose-port</code> 暴露而未被探测的端口，其上的服务在沙箱开始接收流量时可能仍在启动中；如果需要同样的就绪保证，请改为探测该端口。</li>
+                    <li><strong>服务自身必须健康。</strong>该保证针对的是平台侧的端口可达性——运行中的沙箱里若服务崩溃或停止监听，在其恢复之前仍然不可访问。</li>
+                </ul>
+
+                <h3>模板与镜像的关系</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th></th><th>OCI 镜像</th><th>CubeSandbox 模板</th></tr></thead>
+                        <tbody>
+                            <tr><td>包含内容</td><td>根文件系统和容器元数据</td><td>根文件系统、MicroVM 快照及沙箱运行配置</td></tr>
+                            <tr><td>主要用途</td><td>分发和复现软件环境</td><td>快速创建 CubeSandbox 沙箱</td></tr>
+                            <tr><td>使用方式</td><td>需要先转换为模板</td><td>可以直接用于创建沙箱</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>因此，同一个 OCI 镜像可以根据 CPU、内存、网络、启动命令等配置制作出不同的模板；从运行中沙箱提交的模板，则会保留该沙箱提交时的文件系统和内存状态。</p>
+
+                <h3>如何制作与收敛模板</h3>
+                <p>CubeSandbox 支持两种制作方式：</p>
+                <ul>
+                    <li><strong>从 OCI 镜像制作</strong>：准备包含系统、工具和应用依赖的 OCI 镜像，再由 CubeSandbox 将其转换为模板。这是创建可复现模板的常用方式。</li>
+                    <li><strong>从运行中的沙箱制作</strong>：先在沙箱内安装软件或调整环境，再将其当前文件系统和内存状态提交为新模板。适合交互式调试和快速固化环境。</li>
+                </ul>
+                <p>无论采用哪种方式，模板制作过程都可以概括为：准备根文件系统，启动 MicroVM 并等待环境就绪，生成快照，最后注册并发布模板。模板就绪后，CubeSandbox 可以用它快速创建新的沙箱。如果是历史模板或旧部署中仍保存在 CubeMaster 本地盘上的 artifact，也可以后续再用 <code>cubemastercli tpl merge &lt;template-id&gt;</code> 把该 rootfs 迁入 TC 管理的 artifact 存储。</p>
+                <div class="note">对<strong>存量镜像对应的历史模板</strong>，文档口径应统一为：<strong><code>tpl merge</code> 解决历史 artifact 的存储收敛问题，<code>tpl redo</code> 解决节点侧重新分发 / 必要时重建问题。</strong>典型场景是后续开启 <code>s3Backed=true</code>，需要将历史 artifact 从本地盘迁移到 <strong>S3 托管存储</strong>；若同一次运维还需要重新覆盖节点，则在 <code>merge</code> 完成后再执行 <code>redo</code>。</div>
+            </section>
+
+            <section class="concept-section" id="pitfalls-quiz">
+                <h2><span class="section-num">8</span>易错点、记忆卡片与自测</h2>
+
+                <h3>易错点</h3>
+                <div class="danger"><strong>1. unknown ≠ 已经没了。</strong><code>terminated</code> 只描述 <code>kill()</code> 与 <code>on_timeout="kill"</code> 的结果；容器自行退出时 <code>state</code> 报 <code>unknown</code>。用 <code>POST /sandboxes/&lt;id&gt;/connect</code> 是否返回 409（<code>... is not connectable in state 'stopped'</code>）来区分「容器已退出」与「仍在启动 / 状态读取失败」。</div>
+                <div class="danger"><strong>2. <code>pause()</code> 不会取消空闲回收。</strong>默认 <code>on_timeout="kill"</code> 时，暂停后的沙箱空闲仍超过 <code>timeout</code> 一样会被销毁。要保住它，请用 <code>NEVER_TIMEOUT</code>、省略 <code>timeout</code>（且服务端未设正数默认），或把超时设得足够大。</div>
+                <div class="warning"><strong>3. 自动恢复重置的是「计时」，不是「时长」。</strong>恢复后 idle 计时从零开始，但 <code>timeout</code> 不变；长请求中间的执行时间不算活跃，可能执行到一半被暂停。</div>
+                <div class="warning"><strong>4. 删除 paused 沙箱不是一次 Resume。</strong>不会触发 <code>sandbox.resumed</code>、不重置空闲超时、不需要节点容量准入；持锁时返回 503 + <code>Retry-After: 2</code>，等待后重试，不要假设后台会继续删除。</div>
+                <div class="warning"><strong>5. Webhook 的 <code>e2b-delivery-id</code> 不是幂等键。</strong>它是每次投递尝试的新 UUID；去重请用 payload <code>id</code>（必要时加订阅作用域）。Webhook 也没有签名 / 认证 Header，且默认关闭、运行中不热更新，改配置必须重启所有 Master。</div>
+                <div class="warning"><strong>6. <code>configuredQos</code> 只是配置记录。</strong>它不能证明 limiter 已在 hypervisor 生效；限速要用 iperf3 / fio 持续测试验证。QoS 只能在创建模板时配置，创建沙箱时不能覆盖。</div>
+                <div class="warning"><strong>7. 探针只保证被探测的端口。</strong><code>envd</code> 就绪只代表 SDK 数据面就绪，不代表业务应用就绪；需要业务就绪时，把 <code>--probe</code> 指向业务健康端点。</div>
+                <div class="warning"><strong>8. 达到 <code>maxRestarts</code> 后，暂停再恢复也不会复活。</strong>暂停保留 <code>restartCount</code> 与退出诊断，退避从该计数继续；只有运行满 10 分钟的稳定期重置才会清零。</div>
+
+                <h3>记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>六态</b>running / pausing / paused / resuming / terminated / unknown。</div>
+                    <div class="memory-card"><b>两个旋钮</b><code>timeout</code>（秒）+ <code>on_timeout</code>（kill 默认 / pause）。</div>
+                    <div class="memory-card"><b>endAt</b>最后一次设 timeout 的时刻 + timeout；有流量会更晚，暂停不取消。</div>
+                    <div class="memory-card"><b>活跃</b>请求开始与响应结束各算一次；执行中间不算。</div>
+                    <div class="memory-card"><b>重启退避</b>10 秒起，每次加倍，封顶 300 秒；稳定 10 分钟清零。</div>
+                    <div class="memory-card"><b>Webhook 去重</b>payload <code>id</code> 稳定；delivery id 每次尝试都不同。</div>
+                    <div class="memory-card"><b>QoS 两个桶</b>吞吐量按字节扣减，操作速率按次数扣减；短测可突发。</div>
+                    <div class="memory-card"><b>模板就绪</b>探针 2xx 才做快照；被探测端口即沙箱就绪契约。</div>
+                </div>
+
+                <h3>自测</h3>
+                <div class="quiz">
+                    <h4>3 道自测题</h4>
+                    <details>
+                        <summary>1. 一个沙箱处于 <code>unknown</code>，如何判断它是「还在启动」还是「容器已经退出」？</summary>
+                        <p>调用 <code>POST /sandboxes/&lt;id&gt;/connect</code>：容器已经退出时返回 HTTP 409（<code>... is not connectable in state 'stopped'</code>），不可恢复；仍在创建或无法从节点读取状态时仍能正常 connect。不要仅凭 <code>state=unknown</code> 就判定沙箱已死。</p>
+                    </details>
+                    <details>
+                        <summary>2. 使用 <code>timeout=300</code> 且 <code>lifecycle.on_timeout="pause"</code>，执行 <code>commands.run("sleep 900")</code> 会发生什么？为什么？</summary>
+                        <p>可能在执行途中被暂停。请求只在开始和响应结束时各算一次活跃，中间 900 秒的执行时间不计入活跃；当空闲达到 300 秒就会触发 pause。应在长请求期间以小于 <code>timeout</code> 的间隔发送轻量请求，或先用 <code>set_timeout(...)</code> 调大超时。</p>
+                    </details>
+                    <details>
+                        <summary>3. 模板返回了 <code>configuredQos</code>，能否直接断定 100 Mbps 限速已经生效？怎样验证？</summary>
+                        <p>不能。<code>configuredQos</code> 只是记录的请求配置，不能证明 limiter 已在 hypervisor 生效，也不能证明每项限制都已配置。应创建待测沙箱，用 iperf3 分别做持续上传和下载测试，确认实测值接近配置上限；块设备 I/O 用 fio 顺序写与随机读测试。只配置 PPS 时，还需要固定大小数据包负载与端点报文计数器。</p>
+                    </details>
+                </div>
+            </section>
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

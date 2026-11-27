@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络策略与沙箱互访 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>网络策略与沙箱互访</span>
+            </h1>
+            <p class="subtitle">从沙箱网卡到出网策略、L7 代理、DNS 学习、路由感知出网与沙箱互访，建立完整的网络数据面模型</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 09 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">网络策略与沙箱互访</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 09 章</span>
+                <h1>网络策略与沙箱互访</h1>
+                <p>本页把 CubeSandbox 的网络数据面拆成四层：出网策略（CubeVS eBPF）、L7 代理（CubeEgress）、入站路由（CubeProxy / 域名）与 DNS 学习（CoreDNS + Cubelet）。读完后你应能判断一个包是被直接转发、被 RST 拒绝、被 DNS 学习忽略，还是进入 HTTP/HTTPS 代理；并能配置沙箱间互访、入口 token 鉴权和 HTTPS 证书。</p>
+                <div class="page-meta">
+                    <span>📖 预计 45 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 5 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#architecture">1. 总体网络架构</a></li>
+                    <li><a href="#policy-fields">2. 出网策略字段与优先级</a></li>
+                    <li><a href="#control-plane">3. 控制面合并与下发</a></li>
+                    <li><a href="#update-policy">4. 更新运行中沙箱的策略</a></li>
+                    <li><a href="#from-cube">5. from_cube 判断路径</a></li>
+                    <li><a href="#dns-learning">6. DNS allow-list 与学习机制</a></li>
+                    <li><a href="#egress-scope">7. 哪些流量进入 CubeEgress</a></li>
+                    <li><a href="#examples">8. 常见配置示例</a></li>
+                    <li><a href="#behavior-table">9. 行为速查与排障</a></li>
+                    <li><a href="#route-aware">10. 路由感知出网</a></li>
+                    <li><a href="#sandbox-to-sandbox">11. 沙箱间互访</a></li>
+                    <li><a href="#restrict-public">12. 限制公开访问</a></li>
+                    <li><a href="#https-domain">13. HTTPS 与域名</a></li>
+                    <li><a href="#pitfalls">14. 易错点、记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <section class="concept-section" id="architecture">
+                <h2><span class="section-num">1</span>总体网络架构</h2>
+                <p>CubeSandbox 的出网控制不是单一开关，而是一条分层链路：<strong>API 校验 → 模板合并 → Cubelet 内置 network runtime 下发 → CubeVS eBPF 数据面 → CubeEgress L7 代理</strong>。理解这条链路后，配置 <code>allow_out</code>、<code>deny_out</code> 和 <code>rules</code> 时就能判断某个包会被直接转发、被拒绝、被 DNS 学习忽略，还是进入 HTTP/HTTPS 代理。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">控制面 · 决定策略</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">CubeAPI<small>E2B 兼容 · 映射请求</small></div>
+                        <div class="arch-box control">CubeMaster<small>模板合并 · 调度</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 合并后的 CubeNetworkConfig</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">Cubelet network runtime<small>转 MVMOptions · 写 eBPF map</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 数据面执行</div>
+                    <div class="arch-label">数据面 · 执行策略</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">沙箱网卡 TAP<small>169.254.68.6</small></div>
+                        <div class="arch-box compute">CubeVS<small>from_cube / from_world eBPF</small></div>
+                        <div class="arch-box security">CubeEgress<small>L7 透明代理 80/443</small></div>
+                        <div class="arch-box accent">CubeProxy<small>入站 Host 路由</small></div>
+                        <div class="arch-box teal">CoreDNS<small>*.&lt;domain&gt; 泛解析</small></div>
+                    </div>
+                </div>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">出网全链路 · 沙箱 → 网络运行时 → 出网策略 → 代理/NAT</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box primary">沙箱进程</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box network">TAP 网卡</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box compute">CubeVS<small>from_cube</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box">出网策略<small>allow / deny</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box security">CubeEgress<small>L7</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box">外部服务</div>
+                    </div>
+                    <div class="arch-connector">命中 L7_REQUIRED 且端口 80/443 进入 CubeEgress；其余走 CubeVS SNAT/NAT 直出</div>
+                </div>
+
+                <h3>组件职责</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>组件</th><th>主要职责</th></tr></thead>
+                        <tbody>
+                            <tr><td>CubeAPI</td><td>接收 SDK/API 请求，映射网络配置，并转成 CubeMaster 请求。</td></tr>
+                            <tr><td>CubeMaster</td><td>把模板里的网络配置与本次创建请求里的网络配置合并，再调度到 Cubelet 内置 network runtime。</td></tr>
+                            <tr><td>Cubelet 内置 network runtime</td><td>把 <code>CubeNetworkConfig</code> 转成 CubeVS 可理解的 <code>MVMOptions</code>；从 L7 <code>rules</code> 抽取网络可达目标；注册或更新 TAP 的 eBPF map；在受控域名的 DNS 投递路径上学习 A 记录并注入回 TAP。</td></tr>
+                            <tr><td>CubeVS</td><td>宿主机 eBPF 数据面。负责 per-sandbox L3/L4 allow/deny、跟踪已配置域名的 DNS 查询、session/NAT、TCP RST 拒绝，以及是否把流量送到 L7 代理。</td></tr>
+                            <tr><td>CubeEgress</td><td>透明 HTTP/HTTPS 代理。只处理被 CubeVS 标记为需要 L7 检查的 TCP/80、TCP/443 流量，执行完整 <code>rules</code>。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>另有两条与出网正交的路径：<strong>CubeProxy</strong> 负责入站，按 <code>Host</code> 头把公网 URL 路由到目标沙箱；<strong>CoreDNS</strong>（一键安装内置）负责 <code>*.<em>domain</em></code> 的泛解析，供本机快速体验。两者都在后续「沙箱间互访」「HTTPS 与域名」两节展开。</p>
+
+                <div class="note"><strong>关键点：</strong>出站策略的主动判断发生在沙箱流量进入 TAP 后的 <code>from_cube</code> 方向。宿主机网卡上的 <code>from_world</code> 方向主要处理已有会话的回包反向 NAT、端口映射流量，以及 DNS 响应学习，它不是出站 allow/deny 的主判断入口。</div>
+            </section>
+
+            <section class="concept-section" id="policy-fields">
+                <h2><span class="section-num">2</span>出网策略字段与优先级</h2>
+                <p>创建沙箱时，以下字段共同决定出网行为。它们最终落到三个 eBPF map：<code>allow_out_v2</code>、<code>deny_out</code>、<code>dns_allow</code>。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>字段</th><th>配置位置</th><th>生效层</th><th>含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>allow_internet_access</code></td><td><code>Sandbox.create(allow_internet_access=...)</code></td><td>CubeVS</td><td>是否默认允许公网出网。默认 <code>true</code>。为 <code>false</code> 时，CubeVS 安装 <code>0.0.0.0/0</code> 的 deny-all 规则，再依靠显式 allow 放行。</td></tr>
+                            <tr><td><code>allow_out</code></td><td><code>network["allow_out"]</code></td><td>CubeVS</td><td>显式允许的 IPv4、CIDR 或 DNS 域名。IP/CIDR 写入 <code>allow_out_v2</code>；域名写入 <code>dns_allow</code>，通过 DNS 查询和响应学习变成临时 IP allow。</td></tr>
+                            <tr><td><code>deny_out</code></td><td><code>network["deny_out"]</code></td><td>CubeVS</td><td>显式拒绝的 IPv4 或 CIDR。<strong>这里不接受域名</strong>。</td></tr>
+                            <tr><td><code>rules</code></td><td><code>network["rules"]</code></td><td>CubeVS + CubeEgress</td><td>HTTP/HTTPS L7 规则。CubeVS 只抽取其中的 <code>match.sni</code> / <code>match.host</code> 作为网络可达目标并打上 L7 标记；CubeEgress 才执行完整 match/action。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>优先级：allow &gt; deny &gt; default allow</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>① 先查 <code>allow_out_v2</code></b>：命中则允许；如果条目带 <code>L7_REQUIRED</code> 标记，后续 TCP/80、TCP/443 还会被送入 CubeEgress。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>② 再查 <code>deny_out</code></b>：命中则拒绝。TCP 尽量返回 RST，非 TCP 直接 drop。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>③ 都不命中默认允许</b>：除非 <code>allow_internet_access=false</code> 已通过 <code>deny_out</code> 安装了 <code>0.0.0.0/0</code>。</div>
+                </div>
+
+                <div class="warning"><strong>内置内部网段保护：</strong>当 <code>allow_internet_access</code> 不是 <code>false</code> 时，CubeVS 会默认把沙箱私有网段和宿主机内部网段加入 <code>deny_out</code>：<code>10.0.0.0/8</code>、<code>127.0.0.0/8</code>、<code>169.254.0.0/16</code>、<code>172.16.0.0/12</code>、<code>192.168.0.0/16</code>，避免工作负载借公共出网策略访问 Cube 内部基础设施。当 <code>allow_internet_access=false</code> 时，后端安装的是 <code>0.0.0.0/0</code> deny-all；显式 <code>allow_out</code> 和 L7 目标仍然可以优先放行。</div>
+
+                <h3>数量上限</h3>
+                <p>在修改 eBPF map 之前，CubeVS 会统计由 <code>allow_out</code>、<code>deny_out</code> 和从 <code>rules</code> 抽取出的网络目标生成的<strong>最终唯一 map key</strong>。超限错误会经 Cubelet、CubeMaster 和 CubeAPI 逐层返回给创建沙箱的调用方。</p>
+                <div class="stat-grid">
+                    <div class="stat"><div class="stat-value">8192</div><div class="stat-label">allow_out_v2 条数上限</div></div>
+                    <div class="stat"><div class="stat-value">8192</div><div class="stat-label">deny_out 条数上限</div></div>
+                    <div class="stat"><div class="stat-value">1024</div><div class="stat-label">dns_allow 域名上限</div></div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>最终 map 计数</th><th>上限</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>network.allow_out_v2</code>：来自 <code>allow_out</code> 和 <code>rules[].match.host/sni</code> 的唯一 IP/CIDR allow key</td><td><code>8192</code> 条</td></tr>
+                            <tr><td><code>network.deny_out</code>：最终唯一 deny key；启用内置内部网段时也计入其中</td><td><code>8192</code> 条</td></tr>
+                            <tr><td><code>network.dns_allow</code>：来自 <code>allow_out</code> 和 <code>rules[].match.host/sni</code> 的唯一域名 key</td><td><code>1024</code> 条</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>等价目标按最终 map key 去重：例如 <code>198.51.100.1</code> 和 <code>198.51.100.1/32</code> 只算一个 IP key；域名 key 会转为小写并忽略尾部的 <code>.</code>。超限时错误会带上实际数量与最大值：</p>
+                <pre><code>network.allow_out_v2 exceeds maximum entries: got 8193, max 8192
+network.deny_out exceeds maximum entries: got 8193, max 8192
+network.dns_allow exceeds maximum entries: got 1025, max 1024</code></pre>
+
+                <h3>配置语法与通配 <code>*</code></h3>
+                <p><code>allow_out</code> 支持 IPv4（内部按 <code>/32</code> 处理）、IPv4 CIDR、普通 DNS 域名与 <code>*.</code> 前缀通配域名。<code>deny_out</code> 只支持 IPv4/CIDR——拒绝域名需要处理 DNS 解析、多 A 记录、TTL、CNAME、缓存污染等问题，而当前拒绝逻辑是纯 IP/CIDR LPM 匹配。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>配置</th><th>匹配</th><th>不匹配</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>*.example.com</code></td><td><code>api.example.com</code>、<code>a.b.example.com</code></td><td><code>example.com</code>（通配只匹配子域，不匹配 apex）</td></tr>
+                            <tr><td><code>example.com</code></td><td><code>example.com</code></td><td><code>api.example.com</code></td></tr>
+                            <tr><td><code>*</code>（单独通配）</td><td>所有通过 DNS A 查询解析出的名字</td><td>未发出 DNS 查询的连接（含已缓存地址、直接填写的公网 IP）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="warning"><strong>域名 allow-list 必须配合 deny-all 兜底：</strong>当 <code>allow_out</code> 包含 DNS 域名时，请求必须同时建立 deny-all 兜底，二选一——设置 <code>allow_internet_access=false</code>（自动写入 <code>0.0.0.0/0</code>），或显式在 <code>deny_out</code> 中包含 <code>0.0.0.0/0</code>。否则未学习到的目的 IP 仍会被默认放行，域名 allow-list 就会产生误导。</div>
+                <div class="tip"><strong><code>*</code> 的端口语义：</strong>规则写了 <code>port</code> 就打开该端口；没写 <code>port</code> 时按 scheme 取默认端口（<code>http</code> → 80，<code>https</code> → 443）；<code>port</code> 和 <code>scheme</code> 都没写则打开 TCP/80 与 TCP/443。精确域名和 <code>*.example.com</code> 仍然优先于 <code>*</code>。</div>
+            </section>
+
+            <section class="concept-section" id="control-plane">
+                <h2><span class="section-num">3</span>控制面合并与下发（四步）</h2>
+                <p>从用户请求到 eBPF map，配置要经过四步。每一步都可能改写字段，理解后能判断「我写的规则最终变成了什么」。</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>步骤 1 · CubeAPI 映射</b>：接收 <code>SandboxNetworkConfig</code>，映射成 CubeMaster 的 <code>CubeNetworkConfig</code>，转发 <code>allow_out</code>、<code>deny_out</code> 和完整的 <code>rules</code> 列表。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>步骤 2 · CubeMaster 模板合并</b>：把模板里的 <code>CubeNetworkConfig</code> 与请求配置合并，得到最终 <code>allowInternetAccess</code> / <code>allowOut</code> / <code>denyOut</code> / <code>rules</code>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>步骤 3 · Cubelet 提取网络目标</b>：内置 network runtime 构造 <code>MVMOptions</code>，从 <code>rules[].match.sni/host</code> 抽取 <code>L7AllowOut</code>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>步骤 4 · CubeVS 写 map</b>：校验最终唯一 key 后写入 <code>allow_out_v2</code> / <code>deny_out</code> / <code>dns_allow</code>；CubeEgress 同时收到完整 <code>rules</code>。</div>
+                </div>
+
+                <h3>步骤 2 的合并语义</h3>
+                <ul>
+                    <li><code>allowInternetAccess</code>：请求中显式设置则覆盖模板值。</li>
+                    <li><code>allowOut</code>：请求列表追加到模板列表后，按字符串去重。</li>
+                    <li><code>denyOut</code>：请求列表追加到模板列表后，按字符串去重。</li>
+                    <li><code>rules</code>：请求规则排在模板规则之前。若两者 <code>name</code> 相同，由于 first-match-wins，CubeEgress 优先匹配请求规则；同名模板规则不会被覆盖或删除，而是保留在合并后列表的后续位置。</li>
+                </ul>
+
+                <h3>步骤 3 的 L7 目标抽取规则</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>来源</th><th>处理方式</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>match.sni</code></td><td>只接受合法域名或 <code>*.</code> 通配域名；转小写，去掉尾部 <code>.</code>；<strong>不接受 IP</strong>。</td></tr>
+                            <tr><td><code>match.host</code> 为 <code>host:port</code></td><td>去掉端口，只保留 host。</td></tr>
+                            <tr><td><code>match.host</code> 为 IPv4</td><td>保留为 <code>/32</code> 形式的 IP 目标。</td></tr>
+                            <tr><td><code>match.host</code> 为 IPv4 CIDR</td><td>保留 CIDR。</td></tr>
+                            <tr><td><code>match.host</code> 为域名或 <code>*.</code> 通配域名</td><td>规范化为小写域名目标。</td></tr>
+                            <tr><td>无效 host/SNI</td><td>不作为 CubeVS 目标下发。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code>rules = [
+    Rule(match=Match(sni="API.Example.COM."), action=Action(allow=True)),
+    Rule(match=Match(host="gateway.example.com:8443"), action=Action(allow=True)),
+    Rule(match=Match(host="1.2.3.4:443"), action=Action(allow=True)),
+    Rule(match=Match(host="10.1.2.3/8"), action=Action(allow=True)),
+]
+
+<span class="c"># 会抽取出类似目标（全部带 L7_REQUIRED 标记）：</span>
+api.example.com
+gateway.example.com
+1.2.3.4
+10.0.0.0/8</code></pre>
+
+                <h3>步骤 4 的 map 写入</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>来源</th><th>写入位置</th><th>带 L7_REQUIRED</th><th>作用</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>allow_out</code> IPv4/CIDR</td><td><code>allow_out_v2[ifindex]</code></td><td>否</td><td>允许直接 L3/L4 出网。</td></tr>
+                            <tr><td><code>allow_out</code> 域名</td><td><code>dns_allow[ifindex]</code></td><td>否</td><td>跟踪匹配的 DNS A 查询，并把响应中的 A 记录临时学习到 <code>allow_out_v2</code>。要求同时设置 <code>allow_internet_access=false</code> 或显式 <code>deny_out=["0.0.0.0/0"]</code>。</td></tr>
+                            <tr><td><code>rules[].match.host/sni</code> IPv4/CIDR</td><td><code>allow_out_v2[ifindex]</code></td><td>是</td><td>允许访问该 IP/CIDR，并让 TCP/80、TCP/443 进入 CubeEgress。</td></tr>
+                            <tr><td><code>rules[].match.host/sni</code> 域名</td><td><code>dns_allow[ifindex]</code></td><td>是</td><td>跟踪匹配的 DNS A 查询并学习带 L7 标记的 IP；不影响无关 DNS 名称。</td></tr>
+                            <tr><td><code>deny_out</code></td><td><code>deny_out[ifindex]</code></td><td>不适用</td><td>拒绝匹配目的 IP/CIDR 的流量，除非先命中 allow。</td></tr>
+                            <tr><td>内置内部网段</td><td><code>deny_out[ifindex]</code></td><td>不适用</td><td>防止访问 Cube 内部基础设施。</td></tr>
+                            <tr><td><code>allow_internet_access=false</code></td><td><code>deny_out[ifindex]</code></td><td>不适用</td><td>写入 <code>0.0.0.0/0</code> deny-all。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="info">如果同一个 IP/CIDR 既来自普通 <code>allow_out</code>，又来自 L7 规则，CubeVS 会保留 <code>L7_REQUIRED</code> 标记。静态 <code>allow_out</code> 条目不过期；DNS 学习出的条目带 <code>expires_at_ns</code>，会按 TTL 过期。</div>
+            </section>
+
+            <section class="concept-section" id="update-policy">
+                <h2><span class="section-num">4</span>更新运行中沙箱的策略</h2>
+                <p><code>PUT /sandboxes/{sandboxID}/network</code> 用于替换正在运行的沙箱的出站策略。请求体就是创建时那个 <code>network</code> 对象，语义是<strong>整体替换而不是增量打补丁</strong>：没传的字段会被清空。注意策略字段在<strong>顶层</strong>，而不是像创建沙箱那样嵌在 <code>network</code> 里——这是为了和 E2B 更新接口保持一致。</p>
+
+                <pre><code>curl -X PUT "$CUBE_API/sandboxes/$SANDBOX_ID/network" \
+  -H 'Content-Type: application/json' \
+  -d '{"allowInternetAccess": false, "allowOut": ["api.example.com"], "denyOut": ["0.0.0.0/0"]}'</code></pre>
+
+                <div class="danger"><strong>省略 <code>allowInternetAccess</code> 会恢复公网访问。</strong>「没传就清空」作用在这个开关上时：清空意味着回到「未显式设置」，而它的默认值是允许出网，于是 <code>0.0.0.0/0</code> 的 deny-all 会被撤掉。一个创建时带 <code>allow_internet_access=false</code> 的沙箱，只要有一次更新没重新写上这个字段，就会重新能访问公网——即使这次更新本来只想改 <code>allowOut</code>。要让沙箱保持隔离，<strong>每次更新都必须发送完整的期望策略</strong>，其中包括 <code>"allowInternetAccess": false</code>。（内置的内部网段保护仍然生效，恢复的只是公网出网。）</div>
+
+                <p><code>rules</code> 两种形状都接受：CubeEgress 的规则数组，或 E2B 的 <code>{host: [{transform: {headers: {...}}}]}</code> 映射。数组是规范形式，因为 E2B 的映射表达不了拒绝判决、审计级别，以及除 host 之外的任何匹配条件。E2B 的映射会被转换成等价的放行加注入规则，命名为 <code>e2b-transform-&lt;host&gt;</code>。各 SDK 分别暴露为 <code>sandbox.update_network(...)</code>（Python）、<code>sandbox.updateNetwork(...)</code>（Node）和 <code>sandbox.UpdateNetwork(...)</code>（Go）。</p>
+
+                <h3>已经建立的连接会怎样</h3>
+                <p>和单纯重写 map 不同，更新也会作用到已有流量。每个沙箱带一个策略代际（<code>mvm_meta.policy_version</code>），在 CubeEgress 和 CubeVS map 都写入新策略之后才递增。每条 session 会缓存自己被放行时的代际，因此每次更新后，存量流的下一个包会被重新判定一次，且只判定一次：</p>
+                <ul>
+                    <li><strong>仍然放行且判决不变</strong>——session 被重新盖上新代际后照常继续。这是常见情况，每条流每次更新只多付一次策略查表。</li>
+                    <li><strong>不再放行，或判决发生变化</strong>（例如某个 host 在普通 SNAT 和 L7 代理之间切换）——session 立即作废：出入两个方向的连接跟踪记录都被删掉，该 4 元组立刻空出可供重连。TCP 会收到 RST；UDP 和 ICMP 直接丢弃。</li>
+                </ul>
+                <div class="warning"><strong>三个需要提前规划的点：</strong>
+                    <ul>
+                        <li><strong>删掉一个域名会收回它教过的地址。</strong>更新生效时这些 IP 离开 allow map，除非另一个仍生效的名字还持有同一地址。这仅在同时有 deny-all 或其它拒绝规则时才会阻断流量。</li>
+                        <li><strong>快照丢失后接管的行是例外。</strong>它们从现网 map 抄回，没有 QName，之后撤销域名不会删掉它们，会留到各自的到期时间。接管时把到期时间截到 24 小时。</li>
+                        <li><strong>更新在多个平面之间不是事务性的。</strong>先更新 CubeEgress，再更新 CubeVS，最后才写持久化状态，因此中途失败时沙箱所处的状态不会比「新旧策略的并集」更宽松。重放同一个请求即可收敛；Cubelet 重启后会重新应用最后一次成功持久化的策略。</li>
+                    </ul>
+                </div>
+                <div class="note">重判是由流量驱动的，不是主动推送的：一条空闲的存量连接要等沙箱下一次在它上面发包时才会被判定。因此一条打开但一直不说话的连接会留在 session 表里，直到它再次发包或按正常超时被回收。</div>
+            </section>
+
+            <section class="concept-section" id="from-cube">
+                <h2><span class="section-num">5</span><code>from_cube</code> 判断路径</h2>
+                <p><code>from_cube</code> 是挂在沙箱 TAP ingress 上的 TC eBPF 程序，每个沙箱发出的包都会先进入这里。它按固定顺序做六类判断，命中即返回。</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>① 非 IPv4 / ARP</b>：ARP 请求由 eBPF 直接构造 ARP reply（让沙箱认为网关存在）；其他非 IPv4 包丢弃。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>② 目的 = 沙箱网关 <code>169.254.68.5</code></b>：走内部 <code>cube-dev</code> 路径，不按普通公网策略处理。只允许 ICMP 和 TCP 非 SYN 包；TCP SYN 和其他协议丢弃。允许的内部包 DNAT 到 <code>cubegw0_ip</code> 再重定向到 <code>cube-dev</code>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>③ 本地端口映射优化</b>：对 TCP，若沙箱源端口对应某个宿主机端口映射，执行端口 SNAT 并直接重定向到宿主机网卡。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>④ 出站网络策略 <code>check_net_policy</code></b>：先用目的 IP 在 <code>allow_out_v2</code> 做 LPM 查找（命中且未过期 → 允许；带 <code>L7_REQUIRED</code> 则后续 80/443 进代理）；未命中再用 <code>deny_out</code> 查找（命中 → 拒绝）；都不命中默认允许。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>⑤ L7 代理路径</b>：命中带 <code>L7_REQUIRED</code> 的 <code>allow_out_v2</code> 且目的端口为 TCP 80/443 → 原始包重定向到 <code>cube-dev</code> ingress，宿主机 TPROXY 按 <code>iif cube-dev + dport 80/443</code> 交给 CubeEgress。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>⑥ 普通 NAT / session 路径</b>：不需要 L7 的 TCP/UDP/ICMP 走 CubeVS NAT/session（见下表）。</div>
+                </div>
+
+                <h3>六条判断路径速查</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>条件</th><th>动作</th></tr></thead>
+                        <tbody>
+                            <tr><td>①</td><td>ARP；或其他非 IPv4 包</td><td>ARP 代答（认为网关存在）；其他非 IPv4 丢弃。</td></tr>
+                            <tr><td>②</td><td>目的地址为沙箱网关 <code>169.254.68.5</code></td><td>只放行 ICMP 与 TCP 非 SYN；DNAT 到 <code>cubegw0_ip</code> 并重定向到 <code>cube-dev</code>。</td></tr>
+                            <tr><td>③</td><td>TCP 源端口命中 <code>local_port_mapping</code></td><td>端口 SNAT 后直接重定向到宿主机网卡（端口映射优化路径）。</td></tr>
+                            <tr><td>④</td><td>普通外部流量</td><td><code>allow_out_v2</code> 命中→允许；<code>deny_out</code> 命中→拒绝；都不命中→默认允许。</td></tr>
+                            <tr><td>⑤</td><td>命中 <code>L7_REQUIRED</code> 且 dport 80/443</td><td>重定向到 <code>cube-dev</code> ingress，由 TPROXY 交给 CubeEgress。</td></tr>
+                            <tr><td>⑥</td><td>其余 TCP/UDP/ICMP</td><td>走 NAT/session：TCP SYN 首包建 session；UDP 首包建 <code>UNREPLIED</code> session；ICMP 只处理 Echo Request。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info"><strong>被拒绝的包：</strong>TCP 会尽量原地构造一个 TCP RST 回给沙箱，所以用户态通常看到 <code>Connection refused</code> 或连接立即失败，而不是长时间 timeout；UDP/ICMP 直接丢弃。</div>
+                <div class="tip"><strong>TCP 非 SYN 无 session：</strong>对 TCP 出站 NAT 来说，只有 <code>SYN &amp;&amp; !ACK &amp;&amp; !FIN &amp;&amp; !RST</code> 的首包才能创建新 session。若沙箱发出一个非 SYN 的 TCP 包但没有 session，CubeVS 会返回 TCP RST，而不是为它新建连接。这个逻辑发生在 <code>from_cube</code> 方向；<code>from_world</code> 方向只对已有 <code>ingress_sessions</code> 做回包反向 NAT，没有命中的包通常放行给内核继续处理。</div>
+                <p>普通 NAT 路径的 SNAT 会把沙箱内部源地址 <code>169.254.68.6</code> 改写为宿主机可路由的 SNAT IP，并分配动态源端口，然后重定向到宿主机网卡。</p>
+            </section>
+
+            <section class="concept-section" id="dns-learning">
+                <h2><span class="section-num">6</span>DNS allow-list 与学习机制</h2>
+                <p>域名策略是这套机制里最容易误解的部分。CubeVS 并不是直接「允许域名」，因为真实数据包只有目的 IP。它的做法是：<strong>跟踪已配置域名的 DNS A 查询，再把匹配响应中的 A 记录学习成临时 IP allow 条目</strong>。没有配置的域名不会在 DNS 阶段被拦截；它们只是不会创建学习到的 IP allow 条目。</p>
+
+                <h3><code>dns_allow</code> 的结构</h3>
+                <p>每个沙箱有一个 <code>dns_allow[ifindex]</code> inner map。它是 LPM trie，key 是反转后的域名：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>配置</th><th>反转 key 思路</th><th>匹配语义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>example.com</code></td><td><code>moc.elpmaxe\0</code></td><td>精确匹配 <code>example.com</code>。</td></tr>
+                            <tr><td><code>*.example.com</code></td><td><code>moc.elpmaxe.</code></td><td>匹配子域，例如 <code>api.example.com</code>，不匹配 <code>example.com</code>。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>dns_allow</code> 只存域名规则和规则自身的标记（例如 <code>L7_REQUIRED</code>）。沙箱级 DNS policy mode 存放在 <code>ifindex_to_mvmmeta[].dns_policy_flags</code> 中：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>模式</th><th>域名来源</th><th>查询行为</th><th>学习行为</th></tr></thead>
+                        <tbody>
+                            <tr><td>Off</td><td><code>allow_out</code> 和 L7 rules 都没有域名</td><td>DNS 按普通 UDP 出站。</td><td>不进行 DNS 响应学习。</td></tr>
+                            <tr><td>Track</td><td>至少有一个 <code>allow_out</code> 域名或 L7 rules 域名</td><td>所有域名都放行；只跟踪命中的已配置域名。</td><td>命中的 A 记录会学习到 <code>allow_out_v2</code>，并保留 L7 标记。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>查询 → 响应 → 注入 → 回收</h3>
+                <div class="timeline">
+                    <div class="timeline-item done">
+                        <h4>① 查询：解析并记录 pending</h4>
+                        <p>只处理标准、格式正确的 IN A 查询。解析 QNAME 转小写、反转成 LPM trie key；用反转 QNAME 匹配域名规则。未命中则正常 UDP NAT 但不建 pending；命中则在 <code>dns_query_track</code> 写入 pending query，key 包含 sandbox ifindex、DNS server IP、UDP 源端口、DNS ID、QNAME hash，生命周期 <strong>10 秒</strong>。查询本身继续走 UDP NAT 发往真实 DNS server。</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>② 响应：from_world 分类</h4>
+                        <p>DNS 响应从外部回来先进入宿主机网卡上的 <code>from_world</code>，通过 <code>ingress_sessions</code> 找到对应 UDP session。只有 learning flag 开启、且响应匹配 pending query 时才学习。只有<strong>正向 IPv4 A 应答</strong>可以学习（AAAA / IPv6 不会写入 <code>allow_out_v2</code>）。</p>
+                    </div>
+                    <div class="timeline-item done">
+                        <h4>③ 注入：Cubelet 写 allow 条目</h4>
+                        <p>跟踪过且可学习的应答不转发，帧交给 Cubelet；Cubelet 解析后把学到的 IP 以 <code>/32</code> 写入 <code>allow_out_v2[ifindex]</code>，<code>expires_at_ns</code> 取自 DNS TTL；域名规则带 <code>L7_REQUIRED</code> 时学到的 IP 也继承该标记，然后把帧注入沙箱 TAP。注入之前沙箱看不到这条应答。对不上、或 NXDOMAIN / NODATA / 其它非成功 rcode / TC=1 的应答仍由数据面转发。</p>
+                    </div>
+                    <div class="timeline-item danger">
+                        <h4>④ 回收：reaper 定时清理</h4>
+                        <p>Cubelet 内置 network runtime / CubeVS 用户态侧有 reaper 定期扫描：删除 <code>allow_out_v2</code> 中已过期的 DNS-learned 临时条目，删除 <code>dns_query_track</code> 中超过 10 秒仍未收到响应的 pending query。因此域名 DNS TTL 很短时，对应 IP allow 也会较快过期，下一次访问前需要再次 DNS 查询并学习。若同一 IP 已是静态 <code>allow_out</code>，DNS 学习不会把它变成会过期的临时条目，静态条目保持不过期并合并 flags。</p>
+                    </div>
+                </div>
+
+                <div class="warning"><strong>Cubelet 是受控域名 DNS 的硬依赖。</strong>受控域名是命中 <code>dns_allow</code> 规则的名字（<code>allow_out</code> 里的域名、L7 的 <code>host</code>/<code>sni</code>、<code>*.suffix</code> 通配，以及 <code>*</code> 兜底）。这类名字上可学习的正向应答会从内核路径上拿掉，只有 Cubelet 写入 allow 条目并把帧注入回 TAP。Cubelet 停机期间，这些应答会被丢弃，受控域名的 DNS 失败；装了 <code>*</code> 兜底时所有名字都是受控域名。静态 IP/CIDR 规则和已学到的地址留在内核 map 里，发往它们的流量会持续到 TTL 到期；受控域名的新解析要等 Cubelet 重新运行才会成功。</div>
+                <div class="danger"><strong>当前只学习 IPv4 A 记录。</strong>IPv6 / AAAA 响应不会进入 <code>allow_out_v2</code>，<code>deny_out</code> 也仍然是 IPv4/IP-CIDR 策略。</div>
+            </section>
+
+            <section class="concept-section" id="egress-scope">
+                <h2><span class="section-num">7</span>哪些流量进入 CubeEgress</h2>
+                <p>CubeEgress 并不会看到所有出站包。进入 CubeEgress 必须<strong>同时满足</strong>「网络目标来自 L7 规则（带 <code>L7_REQUIRED</code>）」和「端口是 HTTP/HTTPS 透明代理端口（80/443）」。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>流量</th><th>是否进入 CubeEgress</th><th>原因</th></tr></thead>
+                        <tbody>
+                            <tr><td>TCP 目的端口 <code>80</code>，目的 IP 命中带 <code>L7_REQUIRED</code> 的 <code>allow_out_v2</code></td><td><span class="check">是</span></td><td>HTTP 需要由 CubeEgress 执行完整 <code>rules</code>。</td></tr>
+                            <tr><td>TCP 目的端口 <code>443</code>，目的 IP 命中带 <code>L7_REQUIRED</code> 的 <code>allow_out_v2</code></td><td><span class="check">是</span></td><td>HTTPS 需要由 CubeEgress 根据 SNI/Host 等执行规则。</td></tr>
+                            <tr><td>TCP <code>80/443</code>，但目的 IP 只来自普通 <code>allow_out</code>，没有 L7 标记</td><td><span class="cross">否</span></td><td>只做 L3/L4 放行和 NAT。</td></tr>
+                            <tr><td>TCP 非 <code>80/443</code>，即使命中 L7 目标</td><td><span class="cross">否</span></td><td>CubeEgress 是 HTTP/HTTPS 透明代理，目前只接管 80/443。</td></tr>
+                            <tr><td>UDP/53 DNS 查询</td><td><span class="cross">否</span></td><td>由 CubeVS DNS 学习逻辑处理。</td></tr>
+                            <tr><td>UDP、ICMP、其他 TCP 端口</td><td><span class="cross">否</span></td><td>走 CubeVS NAT/session。</td></tr>
+                            <tr><td>命中 <code>deny_out</code> 且没有先命中 allow 的流量</td><td><span class="cross">否</span></td><td>在 CubeVS 侧拒绝。</td></tr>
+                            <tr><td><code>from_world</code> 回包</td><td><span class="cross">否</span></td><td>回包方向按 session 做反向 NAT，不做 L7 代理入口判断。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>一条 L7 规则的完整旅程</h3>
+                <pre><code>rules = [
+    Rule(
+        name="allow_api",
+        match=Match(scheme="https", sni="api.example.com", host="api.example.com"),
+        action=Action(allow=True),
+    )
+]</code></pre>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>1</b>：沙箱查询 <code>api.example.com</code> 的 A 记录。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2</b>：CubeVS 允许 DNS 查询，并记录 pending query。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>3</b>：DNS 响应回来，CubeVS 学习 A 记录，例如 <code>203.0.113.10/32</code>，并打上 <code>L7_REQUIRED</code>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4</b>：沙箱连接 <code>203.0.113.10:443</code>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>5</b>：<code>from_cube</code> 命中带 L7 标记的 <code>allow_out_v2</code> 条目，重定向到 <code>cube-dev</code>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>6</b>：TPROXY 把连接交给 CubeEgress，检查完整规则，决定 allow/deny/audit/inject。</div>
+                </div>
+            </section>
+
+            <section class="concept-section" id="examples">
+                <h2><span class="section-num">8</span>常见配置示例</h2>
+                <p>七个由松到紧的典型场景，可直接复制。所有示例都强调一点：<strong>受限出网下，L7 规则必须写 <code>host</code> 或 <code>sni</code></strong>——CubeVS 只从这两者抽取网络可达目标，只写 <code>method</code>/<code>path</code> 的规则可能永远到不了 CubeEgress。</p>
+
+                <h3>示例 1：完全禁止公网</h3>
+                <p>适合纯离线代码执行、数据处理等场景。</p>
+                <pre><code>from cubesandbox import Sandbox
+
+with Sandbox.create(
+    template="tpl_xxx",
+    allow_internet_access=False,
+) as sb:
+    result = sb.commands.run("curl -m 2 https://example.com")
+    print(result.stderr)</code></pre>
+                <ul>
+                    <li>CubeVS 安装 <code>0.0.0.0/0</code> deny-all。</li>
+                    <li>没有显式 <code>allow_out</code> 或 L7 目标时，普通外部访问都会被拒绝。</li>
+                    <li>TCP 通常快速收到 RST；UDP/ICMP 通常被 drop。</li>
+                </ul>
+
+                <h3>示例 2：只允许访问固定 IP/CIDR</h3>
+                <p>适合只允许访问固定出口服务、内网服务或指定 DNS server。</p>
+                <pre><code>from cubesandbox import Sandbox
+
+with Sandbox.create(
+    template="tpl_xxx",
+    allow_internet_access=False,
+    network={
+        "allow_out": [
+            "1.1.1.1/32",
+            "203.0.113.0/24",
+        ],
+    },
+) as sb:
+    sb.commands.run("curl http://1.1.1.1")</code></pre>
+                <ul>
+                    <li><code>1.1.1.1/32</code> 和 <code>203.0.113.0/24</code> 写入 <code>allow_out_v2</code>。</li>
+                    <li><code>0.0.0.0/0</code> 在 <code>deny_out</code> 中作为兜底拒绝；allow 优先级高于 deny，所以这两个目标仍可访问。</li>
+                </ul>
+
+                <h3>示例 3：默认允许公网，但拒绝敏感地址段</h3>
+                <p>适合保留一般公网访问，同时阻断元数据地址或敏感内网。</p>
+                <pre><code>from cubesandbox import Sandbox
+
+with Sandbox.create(
+    template="tpl_xxx",
+    allow_internet_access=True,
+    network={
+        "deny_out": [
+            "169.254.169.254/32",
+            "10.0.0.0/8",
+        ],
+    },
+) as sb:
+    sb.commands.run("curl https://example.com")</code></pre>
+                <ul>
+                    <li>未命中 deny 的公网目标默认允许；命中 <code>deny_out</code> 的目标被拒绝。</li>
+                    <li>如果某个目标同时也被 <code>allow_out</code> 放行，则 allow 优先。</li>
+                </ul>
+
+                <h3>示例 4：只允许访问指定域名</h3>
+                <p>适合「只允许访问某几个域名，但不做 HTTP 请求级检查」的场景。</p>
+                <pre><code>from cubesandbox import Sandbox
+
+with Sandbox.create(
+    template="tpl_xxx",
+    allow_internet_access=False,
+    network={
+        "allow_out": [
+            "api.github.com",
+            "*.example.com",
+        ],
+    },
+) as sb:
+    sb.commands.run("curl https://api.github.com")</code></pre>
+                <ul>
+                    <li><code>api.github.com</code> 和 <code>*.example.com</code> 写入 <code>dns_allow</code>，允许匹配域名的 DNS A 查询；DNS 响应中的 A 记录临时写入 <code>allow_out_v2</code>。</li>
+                    <li>后续到这些 IP 的 TCP/443 直接 NAT 出网，<strong>不进入 CubeEgress</strong>，因为普通 <code>allow_out</code> 没有 L7 标记。</li>
+                </ul>
+                <div class="warning">如果应用跳过 DNS 直接访问域名当前解析出的 IP，而该 IP 尚未通过沙箱 DNS 查询被学习，严格 allow-list 下会被 deny-all 拒绝。</div>
+
+                <h3>示例 5：L7 规则限制 HTTP 方法和路径</h3>
+                <p>适合只允许调用某个 API 的特定路径。</p>
+                <pre><code>from cubesandbox import Sandbox, Rule, Match, Action
+
+rules = [
+    Rule(
+        name="allow_deepseek_chat",
+        match=Match(
+            scheme="https",
+            sni="api.deepseek.com",
+            host="api.deepseek.com",
+            method=["POST"],
+            path="/v1/*",
+        ),
+        action=Action(allow=True, audit="metadata"),
+    ),
+]
+
+with Sandbox.create(
+    template="tpl_xxx",
+    allow_internet_access=False,
+    network={"rules": rules},
+) as sb:
+    sb.commands.run("curl -s https://api.deepseek.com/v1/chat/completions")</code></pre>
+                <ul>
+                    <li><code>api.deepseek.com</code> 从 <code>sni</code>/<code>host</code> 中被抽取为 L7 allow target；DNS A 记录学习到的 IP 带 <code>L7_REQUIRED</code>。</li>
+                    <li>TCP/443 进入 CubeEgress，执行 <code>scheme</code>、<code>sni</code>、<code>host</code>、<code>method</code>、<code>path</code> 的完整匹配。</li>
+                </ul>
+
+                <h3>示例 6：L7 deny 返回请求级 403</h3>
+                <p>希望对某类 HTTP/HTTPS 请求返回明确的请求级拒绝，而不是网络层 drop。</p>
+                <pre><code>from cubesandbox import Sandbox, Rule, Match, Action
+
+rules = [
+    Rule(
+        name="deny_example_subdomains",
+        match=Match(scheme="https", sni="*.example.net"),
+        action=Action(allow=False, audit="metadata"),
+    ),
+]
+
+with Sandbox.create(
+    template="tpl_xxx",
+    allow_internet_access=False,
+    network={"rules": rules},
+) as sb:
+    sb.commands.run("curl -i https://api.example.net")</code></pre>
+                <ul>
+                    <li>虽然 <code>action.allow=False</code>，但 <code>*.example.net</code> 仍会作为 L7 target 下发给 CubeVS，这样 TCP/443 能进入 CubeEgress。</li>
+                    <li>CubeEgress 匹配 deny 规则后返回请求级 403，并记录审计信息。如果不把目标送入 CubeEgress，底层网络策略只能 drop/RST，无法产生 HTTP 403。</li>
+                </ul>
+
+                <h3>示例 7：混合 L3 allow 和 L7 rules</h3>
+                <pre><code>from cubesandbox import Sandbox, Rule, Match, Action
+
+rules = [
+    Rule(
+        name="allow_payment_api",
+        match=Match(
+            scheme="https",
+            sni="pay.example.com",
+            host="pay.example.com",
+            method=["POST"],
+            path="/api/payments/*",
+        ),
+        action=Action(allow=True, audit="full"),
+    ),
+]
+
+with Sandbox.create(
+    template="tpl_xxx",
+    allow_internet_access=False,
+    network={
+        "allow_out": [
+            "1.1.1.1/32",        <span class="c"># e.g. DNS resolver or fixed service</span>
+            "downloads.example.com",
+        ],
+        "deny_out": ["203.0.113.0/24"],
+        "rules": rules,
+    },
+) as sb:
+    sb.commands.run("curl https://pay.example.com/api/payments/create")</code></pre>
+                <ul>
+                    <li><code>1.1.1.1/32</code> 静态放行，不进 CubeEgress；<code>downloads.example.com</code> 通过 DNS 学习后放行，不进 CubeEgress。</li>
+                    <li><code>pay.example.com</code> 通过 DNS 学习后带 <code>L7_REQUIRED</code>，TCP/443 进 CubeEgress。</li>
+                    <li><code>203.0.113.0/24</code> 会被拒绝，除非某个具体 IP 同时先命中了 allow。</li>
+                </ul>
+            </section>
+
+            <section class="concept-section" id="behavior-table">
+                <h2><span class="section-num">9</span>行为速查与排障</h2>
+                <h3>行为速查表</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>配置</th><th>目标</th><th>结果</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>allow_internet_access=True</code>，无 <code>allow_out</code>/<code>deny_out</code>/<code>rules</code></td><td>普通公网 IP</td><td>默认允许，走 NAT。</td></tr>
+                            <tr><td><code>allow_internet_access=False</code>，无 allow</td><td>任意公网 IP</td><td>被 <code>0.0.0.0/0</code> 拒绝。TCP RST，非 TCP drop。</td></tr>
+                            <tr><td><code>allow_internet_access=False</code> + <code>allow_out=["1.1.1.1"]</code></td><td><code>1.1.1.1</code></td><td>允许，走 NAT。</td></tr>
+                            <tr><td><code>allow_internet_access=False</code> + <code>allow_out=["api.example.com"]</code></td><td>先 DNS，再访问学习到的 IP</td><td>DNS A 响应学习后允许，走 NAT。</td></tr>
+                            <tr><td><code>allow_internet_access=False</code> + <code>rules</code> 中有 <code>sni="api.example.com"</code></td><td><code>api.example.com:443</code></td><td>DNS 学习出的 IP 带 L7 标记，TCP/443 进入 CubeEgress。</td></tr>
+                            <tr><td><code>rules</code> 只写 <code>path="/v1/*"</code>，没有 <code>host</code>/<code>sni</code></td><td>严格 allow-list</td><td>可能到不了 CubeEgress，因为 CubeVS 没有网络目标可放行。</td></tr>
+                            <tr><td><code>deny_out=["203.0.113.0/24"]</code></td><td><code>203.0.113.10</code></td><td>若未先命中 allow，则拒绝。</td></tr>
+                            <tr><td><code>allow_out=["203.0.113.10"]</code> + <code>deny_out=["203.0.113.0/24"]</code></td><td><code>203.0.113.10</code></td><td>allow 优先，允许。</td></tr>
+                            <tr><td><code>allow_out=["*.example.com"]</code></td><td><code>example.com</code></td><td>不匹配（通配只匹配子域）。</td></tr>
+                            <tr><td><code>allow_out=["*.example.com"]</code></td><td><code>api.example.com</code></td><td>匹配。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>查看 CubeVS map</h3>
+                <p><code>cubevsmapdump</code> 是宿主机侧查看 CubeVS 业务 map 的工具，发布/安装包会把它安装到正常命令路径中，部署节点上直接使用即可。</p>
+                <pre><code>sudo cubevsmapdump --list-maps
+sudo cubevsmapdump --map dns_allow,dns_query_track,allow_out_v2,deny_out
+sudo cubevsmapdump --ifindex tapxxx --map dns_allow,allow_out_v2,deny_out</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>字段</th><th>含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>ifindex_to_mvmmeta[].dns_policy_flags</code></td><td>沙箱级 DNS policy mode 的原始 flags。</td></tr>
+                            <tr><td><code>ifindex_to_mvmmeta[].dns_learning_enabled</code></td><td>当前沙箱是否启用 DNS 响应学习。</td></tr>
+                            <tr><td><code>dns_allow[].rules[].domain</code></td><td>当前沙箱安装的域名策略规则。</td></tr>
+                            <tr><td><code>dns_allow[].rules[].l7_required</code></td><td>这个域名学习出的 IP 后续是否需要进入 CubeEgress。</td></tr>
+                            <tr><td><code>dns_allow[].enabled</code> / <code>learning_enabled</code> / <code>flags</code></td><td>兼容展示字段，数据来自 <code>ifindex_to_mvmmeta</code>，不是 <code>dns_allow</code> 中存储的条目。</td></tr>
+                            <tr><td><code>dns_query_track</code></td><td>当前正在等待响应的 DNS 查询，通常生命周期很短。</td></tr>
+                            <tr><td><code>allow_out_v2[].entries[].expires_at_ns</code> / <code>expires_in</code></td><td><code>0</code> 或空表示静态 allow；非零表示 DNS 学习出的临时条目。</td></tr>
+                            <tr><td><code>allow_out_v2[].entries[].l7_required</code></td><td>访问该 IP 的 TCP/80、TCP/443 是否进入 CubeEgress。</td></tr>
+                            <tr><td><code>deny_out</code></td><td>当前沙箱的 deny CIDR，包括用户配置、内置内部网段或 deny-all。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>查看服务状态</h3>
+                <pre><code>sudo systemctl status cube-sandbox-cubelet.service
+sudo systemctl status cube-sandbox-cube-egress.service
+sudo systemctl restart cube-sandbox-compute.target</code></pre>
+            </section>
+
+            <section class="concept-section" id="route-aware">
+                <h2><span class="section-num">10</span>路由感知出网</h2>
+                <p>默认情况下，CubeVS 会把沙箱出站包直接送到节点主网卡。这条路径简单，适合单网卡节点，但无法让 Linux 路由表选择其他出口设备。可选的 <strong>cube-router</strong> 模式只改变宿主机侧的出网路径；沙箱网络策略、DNS allow-list 学习、CubeEgress L7 代理、端口映射的语义保持不变。</p>
+
+                <h3>什么时候启用</h3>
+                <ul>
+                    <li>节点有多块网卡，不同目的 CIDR 需要走不同出口。</li>
+                    <li>某些目标只能通过 GRE、VXLAN、WireGuard 或内部 VPN 等隧道设备访问。</li>
+                    <li>希望支持 route-aware sandbox egress，但不想修改宿主机全局默认路由。</li>
+                </ul>
+                <p>如果主网卡直出已经满足需求，保持关闭即可。为了兼容升级，默认不启用。</p>
+
+                <h3>工作方式</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">关闭 cube-router（默认）· 直接 SNAT 路径</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box primary">沙箱</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box network">TAP</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box compute">from_cube</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box">主网卡直出</div>
+                    </div>
+                </div>
+                <div class="arch-diagram">
+                    <div class="arch-label">启用 cube-router · 交给内核路由</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box primary">沙箱</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box network">TAP</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box compute">from_cube</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box">cube-router<small>dummy 设备</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box">Linux 路由表</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box">选中的出口设备</div>
+                    </div>
+                </div>
+                <p>启用 cube-router 时，CubeVS 先把出站包归一化到一个内部 NAT IP，再注入到名为 <code>cube-router</code> 的内部 dummy 设备。随后由 Linux 内核完成正常的 forwarding、conntrack、路由查询和最终 MASQUERADE。这意味着 CubeSandbox 不需要理解每一种网络设备类型——只要 Linux 能把流量路由到该设备，沙箱出网就可以使用它。</p>
+                <div class="info"><strong>端口映射仍绑定在节点主网卡上</strong>，不会暴露到所有可能的出网设备。</div>
+
+                <h3>安装时启用</h3>
+                <p>在运行 one-click 安装或升级前，在 <code>deploy/one-click/.env</code> 中设置：</p>
+                <pre><code>CUBE_SANDBOX_CUBE_ROUTER_ENABLE=1
+<span class="c"># 可选。留空时会从 CUBE_SANDBOX_NETWORK_CIDR 派生地址。</span>
+CUBE_SANDBOX_CUBE_ROUTER_CIDR=</code></pre>
+                <p>如果 <code>CUBE_SANDBOX_CUBE_ROUTER_CIDR</code> 为空，CubeSandbox 会从沙箱 CIDR 末尾保留两个可用 IP。默认沙箱 CIDR 是 <code>192.168.0.0/18</code>，对应为：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>地址</th><th>用途</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>192.168.63.253/32</code></td><td><code>cube-router</code> 设备 IP</td></tr>
+                            <tr><td><code>192.168.63.254</code></td><td>进入宿主机路由前使用的内部 SNAT IP</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>如果指定自定义 cube-router CIDR，它必须是对齐的私有 IPv4 CIDR，掩码范围为 <code>/16</code> 到 <code>/30</code>。CubeSandbox 使用 <code>.1</code> 作为 router IP，<code>.2</code> 作为内部 SNAT IP：</p>
+                <pre><code>CUBE_SANDBOX_CUBE_ROUTER_ENABLE=1
+CUBE_SANDBOX_CUBE_ROUTER_CIDR=10.254.0.0/24</code></pre>
+                <div class="warning">自定义 CIDR 不能和宿主机已有路由或接口地址冲突。首次启用 cube-router 时，已有沙箱的外访存量连接会中断；应用重连后会按新的 cube-router 路径正常建立连接。</div>
+
+                <h3>验证方式</h3>
+                <pre><code>ip addr show cube-router
+ip route | grep cube-router
+iptables -t nat -S POSTROUTING | grep MASQUERADE</code></pre>
+                <p>创建一个具备出网权限的沙箱，然后访问一个应当走非主网卡路由的目标：</p>
+                <pre><code>ip route get &lt;destination-ip&gt;
+tcpdump -ni cube-router host &lt;destination-ip&gt;
+tcpdump -ni &lt;egress-device&gt; host &lt;destination-ip&gt;</code></pre>
+                <p>正常情况下，能先在 <code>cube-router</code> 上看到包，再在宿主机路由选中的出口设备上看到包。最终出口设备上的包源地址应当是 MASQUERADE 后的宿主机出口 IP。</p>
+
+                <h3>注意事项</h3>
+                <ul>
+                    <li>cube-router 不改变沙箱的 <code>allow_out</code>、<code>deny_out</code> 或 L7 <code>rules</code> 语义。</li>
+                    <li>CubeEgress 仍然处理由 CubeVS 和宿主机 TPROXY 规则选中的 HTTP/HTTPS 流量。</li>
+                    <li>不要为了测试 cube-router 修改宿主机全局默认路由。建议为待验证目标添加更精确的 host route 或策略路由。</li>
+                    <li>如需关闭该功能，设置 <code>CUBE_SANDBOX_CUBE_ROUTER_ENABLE=0</code>，然后走正常升级/重装流程，让生成配置和宿主机网络状态重新收敛。</li>
+                </ul>
+
+                <h3>示例 1：GRE Remote 作为公网网关</h3>
+                <p>把默认出网路径切到 GRE 隧道，由 GRE remote 节点转发访问公网；<code>10.0.0.0/8</code>、<code>172.16.0.0/12</code>、<code>192.168.0.0/16</code> 等私网流量仍走 Cube 节点物理网卡。云厂商安全组或防火墙需要放通两个 underlay IP 之间的 GRE 流量（IP protocol <code>47</code>）。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>角色</th><th>示例值</th></tr></thead>
+                        <tbody>
+                            <tr><td>Cube 节点 underlay IP</td><td><code>203.0.113.10</code></td></tr>
+                            <tr><td>Cube 节点物理网卡</td><td><code>eth0</code></td></tr>
+                            <tr><td>Cube 节点物理网关</td><td><code>203.0.113.1</code></td></tr>
+                            <tr><td>GRE remote underlay IP</td><td><code>198.51.100.20</code></td></tr>
+                            <tr><td>GRE tunnel 名称</td><td><code>natgre</code></td></tr>
+                            <tr><td>Cube 侧 GRE IP</td><td><code>169.254.100.1/30</code></td></tr>
+                            <tr><td>Remote 侧 GRE IP</td><td><code>169.254.100.2/30</code></td></tr>
+                            <tr><td>GRE remote 公网出口网卡</td><td><code>eth0</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>在 GRE remote 节点执行：</p>
+                <pre><code>#!/usr/bin/env bash
+set -euo pipefail
+
+CUBE_UNDERLAY_IP="203.0.113.10"
+REMOTE_UNDERLAY_IP="198.51.100.20"
+REMOTE_EGRESS_NIC="eth0"
+TUNNEL_NAME="natgre"
+REMOTE_TUNNEL_CIDR="169.254.100.2/30"
+
+modprobe ip_gre
+ip tunnel del "${TUNNEL_NAME}" 2&gt;/dev/null || true
+ip tunnel add "${TUNNEL_NAME}" mode gre local "${REMOTE_UNDERLAY_IP}" remote "${CUBE_UNDERLAY_IP}" ttl 255
+ip addr replace "${REMOTE_TUNNEL_CIDR}" dev "${TUNNEL_NAME}"
+ip link set "${TUNNEL_NAME}" up mtu 1476
+
+sysctl -w net.ipv4.ip_forward=1
+iptables -t nat -C POSTROUTING -s 169.254.100.0/30 -o "${REMOTE_EGRESS_NIC}" -j MASQUERADE 2&gt;/dev/null \
+  || iptables -t nat -A POSTROUTING -s 169.254.100.0/30 -o "${REMOTE_EGRESS_NIC}" -j MASQUERADE</code></pre>
+                <p>在 Cube 节点执行：</p>
+                <pre><code>#!/usr/bin/env bash
+set -euo pipefail
+
+CUBE_UNDERLAY_IP="203.0.113.10"
+REMOTE_UNDERLAY_IP="198.51.100.20"
+UNDERLAY_NIC="eth0"
+UNDERLAY_GW="203.0.113.1"
+TUNNEL_NAME="natgre"
+CUBE_TUNNEL_CIDR="169.254.100.1/30"
+SSH_CLIENT_IP=""
+
+modprobe ip_gre
+ip tunnel del "${TUNNEL_NAME}" 2&gt;/dev/null || true
+ip tunnel add "${TUNNEL_NAME}" mode gre local "${CUBE_UNDERLAY_IP}" remote "${REMOTE_UNDERLAY_IP}" ttl 255
+ip addr replace "${CUBE_TUNNEL_CIDR}" dev "${TUNNEL_NAME}"
+ip link set "${TUNNEL_NAME}" up mtu 1476
+
+<span class="c"># 固定 GRE underlay 路径，避免默认路由切到 GRE 后，GRE 外层包也被送回 GRE。</span>
+ip route replace "${REMOTE_UNDERLAY_IP}/32" via "${UNDERLAY_GW}" dev "${UNDERLAY_NIC}" src "${CUBE_UNDERLAY_IP}"
+
+<span class="c"># 私网流量仍然走物理网卡，而不是 GRE 公网网关。请根据你的内网实际拓扑调整。</span>
+ip route replace 10.0.0.0/8 via "${UNDERLAY_GW}" dev "${UNDERLAY_NIC}" src "${CUBE_UNDERLAY_IP}"
+ip route replace 172.16.0.0/12 via "${UNDERLAY_GW}" dev "${UNDERLAY_NIC}" src "${CUBE_UNDERLAY_IP}"
+ip route replace 192.168.0.0/16 via "${UNDERLAY_GW}" dev "${UNDERLAY_NIC}" src "${CUBE_UNDERLAY_IP}"
+
+<span class="c"># 如果通过 SSH 远程操作，建议把 SSH_CLIENT_IP 设置为你的 SSH 客户端源 IP，</span>
+<span class="c"># 避免替换默认路由后 SSH 会话断开。</span>
+if [[ -n "${SSH_CLIENT_IP}" ]]; then
+  ip route replace "${SSH_CLIENT_IP}/32" via "${UNDERLAY_GW}" dev "${UNDERLAY_NIC}" src "${CUBE_UNDERLAY_IP}"
+fi
+
+<span class="c"># 默认出网路径切到 GRE remote 网关。</span>
+ip route replace default dev "${TUNNEL_NAME}"</code></pre>
+                <p>预期路由表片段：</p>
+                <pre><code>default dev natgre scope link
+10.0.0.0/8 via 203.0.113.1 dev eth0 src 203.0.113.10
+172.16.0.0/12 via 203.0.113.1 dev eth0 src 203.0.113.10
+192.168.0.0/16 via 203.0.113.1 dev eth0 src 203.0.113.10
+198.51.100.20 via 203.0.113.1 dev eth0 src 203.0.113.10
+169.254.100.0/30 dev natgre proto kernel scope link src 169.254.100.1</code></pre>
+                <p>在 Cube 节点验证：</p>
+                <pre><code>ip addr show natgre
+ip route get 1.1.1.1
+ip route get 10.1.2.3
+tcpdump -ni cube-router 'host 1.1.1.1 or host 169.254.100.2'
+tcpdump -ni natgre 'host 1.1.1.1 or host 169.254.100.2'
+tcpdump -ni eth0 'proto gre or host 198.51.100.20 or net 10.0.0.0/8'</code></pre>
+                <p>随后创建一个 <code>allow_out</code> 包含隧道对端、公网目标和待验证内网目标的沙箱（例如 <code>169.254.100.2/32</code>、<code>1.1.1.1/32</code> 和 <code>10.1.2.3/32</code>）。正常情况下，公网流量会先出现在 <code>cube-router</code>，再进入 <code>natgre</code>，最后由 GRE remote 节点做 NAT 后访问公网；私网流量会先出现在 <code>cube-router</code>，随后从物理网卡发出。</p>
+
+                <h3>示例 2：双网卡，一个访问公网，一个访问内网</h3>
+                <p>让宿主机默认路由走一块网卡访问公网，同时让私网流量走另一块物理网卡。沙箱流量进入 <code>cube-router</code> 后，会按同一套路由表选择出口。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>角色</th><th>示例值</th></tr></thead>
+                        <tbody>
+                            <tr><td>公网出口网卡</td><td><code>eth0</code>，<code>10.206.0.4</code></td></tr>
+                            <tr><td>公网网关</td><td><code>10.206.0.1</code></td></tr>
+                            <tr><td>内网出口网卡</td><td><code>eth1</code>，<code>10.206.0.15</code></td></tr>
+                            <tr><td>内网网关</td><td><code>10.206.0.1</code></td></tr>
+                            <tr><td>公网目标</td><td><code>1.1.1.1</code></td></tr>
+                            <tr><td>内网目标</td><td><code>10.50.0.12</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>在 Cube 节点配置路由：</p>
+                <pre><code><span class="c"># 公网默认流量走 eth0。</span>
+ip route replace default via 10.206.0.1 dev eth0 src 10.206.0.4
+
+<span class="c"># 私网流量走 eth1。</span>
+ip route replace 10.0.0.0/8 via 10.206.0.1 dev eth1 src 10.206.0.15
+ip route replace 172.16.0.0/12 via 10.206.0.1 dev eth1 src 10.206.0.15
+ip route replace 192.168.0.0/16 via 10.206.0.1 dev eth1 src 10.206.0.15</code></pre>
+                <p>预期路由表片段：</p>
+                <pre><code>default via 10.206.0.1 dev eth0 src 10.206.0.4
+10.0.0.0/8 via 10.206.0.1 dev eth1 src 10.206.0.15
+172.16.0.0/12 via 10.206.0.1 dev eth1 src 10.206.0.15
+192.168.0.0/16 via 10.206.0.1 dev eth1 src 10.206.0.15</code></pre>
+                <p>测试沙箱前，先确认宿主机路由选择符合预期：</p>
+                <pre><code>ip route get 1.1.1.1
+ip route get 10.50.0.12</code></pre>
+                <p>第一条应该选择 <code>eth0</code>，第二条应该选择 <code>eth1</code>。创建一个 <code>allow_out</code> 包含两个目标的沙箱（例如 <code>1.1.1.1/32</code> 和 <code>10.50.0.12/32</code>），然后在沙箱里执行：</p>
+                <pre><code>ping -c 4 1.1.1.1
+ping -c 4 10.50.0.12</code></pre>
+                <p>在 Cube 节点抓包验证：</p>
+                <pre><code>tcpdump -ni cube-router 'host 1.1.1.1 or host 10.50.0.12'
+tcpdump -ni eth0 'host 1.1.1.1 or host 10.50.0.12'
+tcpdump -ni eth1 'host 1.1.1.1 or host 10.50.0.12'</code></pre>
+                <p>预期结果：访问 <code>1.1.1.1</code> 的流量先出现在 <code>cube-router</code>，随后出现在 <code>eth0</code>；访问 <code>10.50.0.12</code> 的流量先出现在 <code>cube-router</code>，随后出现在 <code>eth1</code>；最终物理网卡上的源 IP 是 MASQUERADE 后的对应网卡 IP。</p>
+            </section>
+
+            <section class="concept-section" id="sandbox-to-sandbox">
+                <h2><span class="section-num">11</span>沙箱间互访</h2>
+                <p>一个沙箱访问另一个沙箱中的服务有两条数据面路径：<strong>CubeProxy Host 路由</strong>（与公网 URL 相同的入口）和<strong>母机端口映射</strong>（CubeVS eBPF DNAT）。方式一通过 HTTP <code>Host</code> 头指定访问的沙箱 id 和 port（<code>&lt;port&gt;-&lt;sandboxID&gt;.cube.app</code>），由 CubeProxy 做路由转发代理到目标沙箱；方式二直接访问目标沙箱的 <code>nodeIP:hostPort</code>。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">方式一 · CubeProxy Host 路由（L7）</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box primary">源沙箱 A</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box accent">CubeProxy<small>Host: &lt;port&gt;-B.cube.app</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box network">目的节点 hostIP:hostPort</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box compute">沙箱 B :8080</div>
+                    </div>
+                </div>
+                <div class="arch-diagram">
+                    <div class="arch-label">方式二 · 母机端口映射（eBPF DNAT，L4）</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box primary">源沙箱 A</div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box compute">from_cube<small>SNAT + 软件环回</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box network">节点网卡 from_world<small>DNAT</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box compute">沙箱 B :8080</div>
+                    </div>
+                    <div class="arch-connector">同节点：SNAT 后 bpf_redirect（BPF_F_INGRESS）软件环回，不依赖网卡/交换机 hairpin；跨节点：经物理链路到达同一 ingress 路径</div>
+                </div>
+
+                <h3>如何选择</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>维度</th><th>方式一：CubeProxy Host 路由</th><th>方式二：母机端口映射</th></tr></thead>
+                        <tbody>
+                            <tr><td>协议</td><td>仅 HTTP / HTTPS / gRPC（L7，按 Host 头路由）</td><td>任意 TCP 协议（L4 DNAT）</td></tr>
+                            <tr><td>数据面路径</td><td>经 CubeProxy 转发，多一跳代理</td><td>eBPF DNAT 直连沙箱，无代理开销</td></tr>
+                            <tr><td>入口鉴权</td><td>支持 <code>allow_public_traffic=False</code> 的 per-sandbox token</td><td>不支持 token，由网络策略与 expose-port 控制暴露面</td></tr>
+                            <tr><td>服务端口来源</td><td>URL 的 <code>&lt;port&gt;</code> 前缀指定 B 的容器端口</td><td>info API 查询 B 的容器端口对应的 <code>hostIP:hostPort</code></td></tr>
+                            <tr><td>端点稳定性</td><td>域名格式固定，暂停/恢复后不变</td><td><code>hostIP:hostPort</code> 可能在暂停/恢复后改变</td></tr>
+                            <tr><td>沙箱内 DNS</td><td>不需要（<code>--resolve</code> 钉到 proxy IP）</td><td>不需要（直接用节点 IP）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-grid">
+                    <div class="card"><span class="icon">🌐</span><h3>方式一典型场景</h3><p>沙箱内 Agent 调用另一个沙箱托管的 HTTP API / gRPC 服务；需要复用 CubeProxy 的 token 鉴权；希望端点 URL 稳定、免去查询 hostPort。</p></div>
+                    <div class="card"><span class="icon">🔌</span><h3>方式二典型场景</h3><p>沙箱间跑任意 TCP 协议（数据库、消息队列、自定义二进制协议）；对时延敏感、想绕过代理；端口可在模板中预先声明。</p></div>
+                </div>
+
+                <h3>模板构建：声明服务端口</h3>
+                <p>两种方式都以模板 <code>--expose-port</code> 声明的端口为服务端口契约——调用方只需知道 B 的容器端口，<strong>无需感知是否与 B 同节点</strong>。以 8080 为例（<code>49999/49983</code> 是 sandbox-code 镜像自身的端口，把 8080 换成你的服务端口）：</p>
+                <pre><code><span class="c"># 49999/49983 是 sandbox-code 镜像自身的 code interpreter / envd 端口；</span>
+<span class="c"># 把 8080 换成你的服务端口。</span>
+cubemastercli tpl create-from-image \
+  --image cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --writable-layer-size 1G \
+  --expose-port 49999 \
+  --expose-port 49983 \
+  --expose-port 8080 \
+  --probe 49999</code></pre>
+                <ul>
+                    <li><code>--expose-port</code> 可重复多次；只有声明过的端口才会分配 hostPort 映射（方式二与方式一的跨节点路径都依赖它）。</li>
+                    <li><code>--probe</code> 是模板就绪探针端口，<code>sandbox-code</code> 用 49999；命令会打印 <code>template_id</code> 并等待构建完成（<code>READY</code>），也可用 <code>cubemastercli tpl list</code> 查看状态。</li>
+                    <li>已有模板追加端口只能重新构建——expose-port 是模板属性，运行时不可改。创建沙箱时使用新模板 ID 即可，端口映射由 Cubelet 在沙箱启动时自动完成。</li>
+                </ul>
+
+                <h3>方式一：CubeProxy Host 路由</h3>
+                <p>CubeProxy 按 <code>&lt;port&gt;-&lt;sandboxID&gt;.&lt;domain&gt;</code> 形式的 Host 头路由到对应沙箱。沙箱 A 内用 curl <code>--resolve</code> 把域名钉到 CubeProxy 节点 IP，无需 DNS：</p>
+                <pre><code>curl -sS --resolve 8080-&lt;sandboxID-B&gt;.cube.app:80:&lt;proxy节点IP&gt; \
+     http://8080-&lt;sandboxID-B&gt;.cube.app/</code></pre>
+                <p>B 用按上文声明了服务端口的模板创建。调用方在 Host 头里指定 B 的容器端口：同节点时 CubeProxy 直接拨 <code>sandboxIP:容器端口</code>；跨节点时经该端口对应的 <code>hostIP:hostPort</code> 映射进入 B（未声明的端口跨节点返回 404）。</p>
+                <div class="warning"><strong>实现细节：</strong>同节点时 CubeProxy 的同机直连不检查端口映射，未声明的端口也能访问——但这是宽松行为，A、B 一旦被调度到不同节点就会 404，不应依赖。</div>
+                <ul>
+                    <li><strong>鉴权语义一致</strong>：与公网 URL 走同一入口。B 以 <code>network={"allow_public_traffic": False}</code> 创建时，请求必须携带 <code>e2b-traffic-access-token</code> 头。</li>
+                    <li><strong>依赖 CubeProxy 可用</strong>；<strong>仅支持 L7 协议</strong>（HTTP / HTTPS / gRPC）；服务端口需经模板 <code>--expose-port</code> 声明。</li>
+                </ul>
+
+                <h3>方式二：母机端口映射（hostIP:hostPort）</h3>
+                <p>模板以 <code>--expose-port</code> 声明端口后，Cubelet 在创建沙箱时向 CubeVS 下发端口映射：发往 <code>&lt;节点IP&gt;:&lt;hostPort&gt;</code> 的 TCP 流量由主网卡 ingress 上的 <code>from_world</code> eBPF 程序直接 DNAT 进沙箱，<strong>不经过 CubeProxy</strong>。</p>
+                <p>前提：cubemaster 配置 <code>cubelet_conf.enable_exposed_port: true</code>（默认开启）；模板已声明服务端口。hostPort 按沙箱动态分配，用 SDK 查询（推荐）：</p>
+                <pre><code>endpoint = sandbox_b.get_exposed_port_endpoint(8080)
+<span class="c"># "9.135.152.214:20006"——恒为 hostIP:hostPort 形式</span></code></pre>
+                <p>该端点适用于跨节点和沙箱内调用方：同节点沙箱流量由 CubeVS hairpin 回环到主网卡 ingress 完成投递。如果调用进程运行在目标节点本机，请改用 CubeProxy Host 路由——host-local 流量不经过 <code>from_world</code>/hairpin DNAT 路径。Go / Node SDK 同样有 <code>GetExposedPortEndpoint</code> / <code>getExposedPortEndpoint</code>。</p>
+                <div class="info"><strong>节点版本要求：</strong>同节点沙箱互访依赖含 hairpin 的 CubeVS（与本 API 同版本发布）。旧节点没有同节点访问能力，升级节点即可获得，调用方无需改代码。</div>
+                <p>HTTP 兜底（CubeAPI 转发到 CubeMaster）：</p>
+                <pre><code>curl -s 'http://&lt;cubeapi&gt;:3000/sandboxes/&lt;B&gt;/exposed-ports/8080'
+<span class="c"># → {"sandboxID":"&lt;B&gt;","containerPort":8080,"mode":"host_port",</span>
+<span class="c">#    "endpoint":"9.135.152.214:20006","hostIP":"9.135.152.214","hostPort":20006}</span></code></pre>
+                <p>沙箱 A 访问：</p>
+                <pre><code>curl -sS http://&lt;节点IP&gt;:&lt;hostPort&gt;/</code></pre>
+                <ul>
+                    <li>数据面直连，无代理开销；<strong>支持任意 TCP 协议</strong>（HTTP、数据库、消息队列、自定义二进制协议均可）。</li>
+                    <li>不经过 CubeProxy，因此<strong>不适用</strong> <code>allow_public_traffic</code> token 鉴权，暴露面由网络策略与模板 expose-port 共同控制。</li>
+                    <li><strong>仅 TCP</strong>，不支持 UDP；服务端口必须是模板 <code>--expose-port</code> 声明过的端口。</li>
+                    <li><strong>暂停/恢复后端点可能变化</strong>：hostPort 在沙箱创建（含 resume 时的内部重建）时动态分配，pause → resume 后 <code>hostIP:hostPort</code> 可能不同（跨节点调度时 hostIP 也会变）。调用方必须在 B 恢复后重新查询 info 接口获取新端点，不要缓存长期使用。</li>
+                </ul>
+
+                <h3>补充：控制面方式（SDK connect）</h3>
+                <p>如果需求是「在 A 里操作 B」（执行命令、读写文件）而非访问 B 的服务端口，可以在 A 内安装 <code>cubesandbox</code> SDK 并 <code>Sandbox.connect(B的ID)</code>：</p>
+                <pre><code>from cubesandbox import Sandbox
+sandbox_b = Sandbox.connect("&lt;sandboxID-B&gt;")
+sandbox_b.commands.run("echo hello")</code></pre>
+                <p>A 内需设置 <code>CUBE_API_URL</code>（指向 CubeAPI 节点可达地址，注意 <code>.env</code> 里的 <code>127.0.0.1</code> 在沙箱内指沙箱自身）与 <code>CUBE_PROXY_NODE_IP</code>。完整示例见 <code>sandbox-in-sandbox.py</code>。</p>
+
+                <h3>测试与注意点</h3>
+                <p>两种方式都有可运行的端到端示例脚本：<code>sandbox-curl-sandbox.py</code>（方式一，服务端口固定 8080）与 <code>sandbox-port-mapping.py</code>（方式二，端口可用 <code>CUBE_SERVICE_PORT</code> 覆盖，默认 8080）。两者都应使用声明了对应端口的模板（<code>CUBE_TEMPLATE_ID</code>）。若 A 内 curl 返回 ECONNREFUSED（退出码 2），<code>sandbox-port-mapping.py</code> 会打印排查清单（端口未 expose、<code>enable_exposed_port</code> 未开、出口策略拦截）。</p>
+                <div class="warning"><strong>通用注意点：</strong>
+                    <ul>
+                        <li><strong>出口策略</strong>：A 若配置了 <code>allow_out</code> / <code>deny_out</code>，白名单需覆盖 CubeAPI / CubeProxy / 宿主节点 IP。</li>
+                        <li><strong>API 地址</strong>：沙箱内访问控制面时，loopback 地址（<code>127.0.0.1</code>）指向沙箱自身，必须替换为节点可达地址。</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="concept-section" id="restrict-public">
+                <h2><span class="section-num">12</span>限制公开访问</h2>
+                <p>默认情况下，Cube Sandbox 的公网 URL 任何知道沙箱 ID 的人都能访问——URL 不可预测，但这也是工作负载与外网之间<strong>唯一</strong>的屏障。对敏感场景，可在请求触达沙箱内部服务之前，要求调用方先用每沙箱独立的 token 完成鉴权。本页与 E2B 共享 <code>network.allowPublicTraffic</code> 参数与 <code>e2b-traffic-access-token</code> header，原有 e2b 代码可零改动迁移。</p>
+
+                <h3>工作原理</h3>
+                <p>使用 <code>network.allow_public_traffic = false</code> 创建沙箱时，创建响应里会带回一个每沙箱独立的 <code>traffic_access_token</code>。之后所有访问该沙箱公网 URL 的入站请求都必须在以下两个等价 header 中任选其一携带该 token：</p>
+                <ul>
+                    <li><code>e2b-traffic-access-token</code>（与 E2B 完全兼容）</li>
+                    <li><code>cube-traffic-access-token</code>（CubeSandbox 原生别名）</li>
+                </ul>
+                <p>缺失 header、或携带错误 token 的请求会在触达沙箱之前被 <strong>HTTP 403</strong> 拒绝。</p>
+                <pre><code>from cubesandbox import Sandbox
+import requests
+
+sandbox = Sandbox.create(
+    template=template_id,
+    network={"allow_public_traffic": False},
+)
+
+print(sandbox.traffic_access_token)
+<span class="c"># 例如：4f8a2b1c9d7e3f5a6b0c8d2e4f6a9b1c3d5e7f9a0b2c4d6e8f1a3b5c7d9e0f2a</span>
+
+url = f"http://{sandbox.get_host(80)}/"
+
+<span class="c"># 不带 token → 403</span>
+resp = requests.get(url)
+assert resp.status_code == 403
+
+<span class="c"># 带 E2B 兼容 header → 200</span>
+resp = requests.get(
+    url,
+    headers={"e2b-traffic-access-token": sandbox.traffic_access_token},
+)
+assert resp.status_code == 200
+
+<span class="c"># 带 CubeSandbox 原生别名 header → 也 200</span>
+resp = requests.get(
+    url,
+    headers={"cube-traffic-access-token": sandbox.traffic_access_token},
+)
+assert resp.status_code == 200</code></pre>
+
+                <h3>默认行为</h3>
+                <p>不传 <code>allow_public_traffic</code>（或显式传 <code>True</code>）保留历史行为——「任何知道 URL 的人都可访问」。此时不签发 token，<code>sandbox.traffic_access_token</code> 为 <code>None</code>。这意味着<strong>升级到带本特性的版本后，所有存量调用方无需改动即可继续工作</strong>。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>调用意图</th><th>怎么传</th><th><code>traffic_access_token</code></th><th>入站请求行为</th></tr></thead>
+                        <tbody>
+                            <tr><td>默认 —— 公网可达</td><td>不传 <code>network</code>，或 <code>allow_public_traffic=True</code></td><td><code>None</code></td><td>接受所有请求</td></tr>
+                            <tr><td>锁定访问</td><td><code>network={"allow_public_traffic": False}</code></td><td>不透明 token</td><td>拒绝未携带正确 token 的请求（403）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>CubeProxy 的所有入站监听（HTTP、HTTPS 以及默认明文 gRPC 端口 <code>9090</code>）均执行相同校验。gRPC 客户端应通过 metadata 发送 <code>e2b-traffic-access-token</code> 或 <code>cube-traffic-access-token</code>。</p>
+
+                <h3>Header 语义</h3>
+                <p>两个 header 接受相同形式的不透明 token，按 HTTP 规则<strong>不区分大小写</strong>，按顺序取值——两个都存在时以 <code>e2b-</code> 为准。可通过任意 HTTP 客户端发送（token 值不会出现在日志中）：</p>
+                <pre><code>curl -H "e2b-traffic-access-token: $TOKEN" \
+     "http://80-$SANDBOX_ID.cube.app/"</code></pre>
+                <pre><code>fetch(url, { headers: { "e2b-traffic-access-token": token } })</code></pre>
+
+                <h3>生命周期与持久化</h3>
+                <ul>
+                    <li><strong>仅一次下发。</strong>Token 只挂在原始创建请求的响应里。如果后续流程还要用到，调用方需要在创建那一刻自行持久化。</li>
+                    <li><strong>无 rotation API。</strong>一个沙箱在其整个生命周期内只持有一个 token。需要轮换请新建沙箱。</li>
+                    <li><strong>不影响 <code>connect()</code> / <code>resume()</code>。</strong>暂停的沙箱被恢复时不会重发 token——已有调用方继续使用原 token 即可。</li>
+                    <li><strong>自动清理。</strong>销毁沙箱时 token 一并清除。</li>
+                </ul>
+
+                <h3>与其他网络策略组合</h3>
+                <p><code>allow_public_traffic</code> 控制<strong>入站</strong>，与出站 CIDR 白/黑名单（<code>allow_out</code>/<code>deny_out</code>、<code>allow_internet_access</code>）和出网安全代理<strong>正交</strong>，可独立或叠加使用。典型的「私有 Agent」部署会三者叠加：网络策略限制出站只允许几个 SaaS API、安全代理在出站端注入 API 凭证以避免密钥进入沙箱、本页 token 机制要求所有入站请求都携带凭证。</p>
+
+                <h3>错误模型</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>HTTP 状态</th><th>触发条件</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>200</code>（或上游返回的状态码）</td><td>token 匹配</td></tr>
+                            <tr><td><code>403</code></td><td>沙箱被标记为 <code>allow_public_traffic=false</code>，但请求未携带 <code>e2b-traffic-access-token</code> / <code>cube-traffic-access-token</code>，或 token 值不匹配</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>所有其他错误路径（沙箱不存在、上游不健康等）与默认公开访问模式下完全一致，本特性不引入新的失败模式。</p>
+            </section>
+
+            <section class="concept-section" id="https-domain">
+                <h2><span class="section-num">13</span>HTTPS 与域名</h2>
+                <div class="note"><strong>先厘清一件事：</strong>TLS 配置仅影响<strong>客户端访问 CubeProxy</strong> 的方式。<code>E2B_API_URL</code> 始终指向 <strong>Cube API Server</strong>（默认端口 <code>3000</code>），与 CubeProxy 是独立的组件。</div>
+
+                <h3>沙箱域名机制</h3>
+                <p>E2B 客户端访问沙箱时，域名是<strong>动态生成</strong>的，格式如下：</p>
+                <pre><code>&lt;sandbox-service-port&gt;-&lt;sandboxId&gt;.&lt;domain&gt;</code></pre>
+                <p>例如：</p>
+                <pre><code>49983-1aa1fae8fb364edaa8203a7481995b4d.cube.app</code></pre>
+                <ul>
+                    <li><code>sandbox-service-port</code>：沙箱内业务服务监听的端口（如 <code>49999</code>）。</li>
+                    <li><code>sandboxId</code>：沙箱唯一 ID。</li>
+                    <li><code>domain</code>：基础域名，默认为 <code>cube.app</code>，可通过 <code>--sandbox-domain</code> 自定义。</li>
+                </ul>
+                <p>由于域名中的 <code>sandboxId</code> 部分随每个沙箱动态变化，<strong>E2B 客户端所在的网络环境必须具备泛域名（wildcard）解析能力</strong>，即将 <code>*.<em>domain</em></code> 解析到 CubeProxy 所在机器的 IP。</p>
+                <div class="info"><strong>内置 CoreDNS（体验用）：</strong>Cube 一键安装脚本会在安装节点上启动一个 CoreDNS 服务，自动处理 <code>*.cube.app</code> 的泛解析，使你能在该机器上直接体验完整流程，无需额外配置 DNS。注意内置 CoreDNS 仅供本机/快速体验使用，不适合生产环境或多机共享部署。</div>
+                <p>生产环境中，建议使用自己的域名并配置泛解析 DNS 记录：</p>
+                <pre><code>*.your.domain.com  →  &lt;CubeProxy 所在节点的 IP&gt;</code></pre>
+                <p>然后在启动 Cube API Server 时通过启动参数或环境变量指定该域名：</p>
+                <pre><code><span class="c"># 启动参数</span>
+./cube-api --sandbox-domain your.domain.com
+
+<span class="c"># 或环境变量</span>
+export CUBE_API_SANDBOX_DOMAIN=your.domain.com
+./cube-api</code></pre>
+                <p>这样 API 响应中的 <code>domain</code> 字段会返回 <code>your.domain.com</code>，E2B SDK 才能正确构建沙箱访问地址。</p>
+
+                <h3>路径式快速访问（免 DNS / 免证书）</h3>
+                <p>除 Host 模式外，CubeProxy 还支持通过 URL <strong>路径</strong>路由到沙箱，适用于本地 Demo、内网临时分享，以及不便配置泛解析 DNS 和 TLS 证书的场景：</p>
+                <pre><code>http://&lt;cube-proxy-host&gt;:&lt;http-port&gt;/sandbox/&lt;sandbox-id&gt;/&lt;container-port&gt;/&lt;剩余路径&gt;?&lt;query&gt;</code></pre>
+                <p>例如，沙箱 <code>abc123</code> 暴露了 <code>49999</code> 端口，CubeProxy 部署在 <code>10.0.0.5:80</code>：</p>
+                <pre><code>http://10.0.0.5/sandbox/abc123/49999/
+http://10.0.0.5/sandbox/abc123/49999/health
+http://10.0.0.5/sandbox/abc123/49999/api/v1/items?limit=10</code></pre>
+                <p>CubeProxy 会在转发时剥离 <code>/sandbox/&lt;id&gt;/&lt;port&gt;</code> 前缀，沙箱内的应用看到的 URI 与从根路径直接访问相同。同一 location 内复用了原有的 <code>Upgrade</code> / <code>Connection</code> 头处理，因此 WebSocket 升级也照常工作。为方便应用与前缀协作，CubeProxy 额外会：</p>
+                <ul>
+                    <li>在转发到上游的请求里附加 <code>X-Forwarded-Prefix: /sandbox/&lt;id&gt;/&lt;port&gt;</code>。</li>
+                    <li>改写响应中以根开头的 <code>Location</code> 头，把它重新放回 <code>/sandbox/&lt;id&gt;/&lt;port&gt;/...</code> 前缀下（比如上游返回 <code>Location: /login</code> 时仍能正确跳转）。</li>
+                    <li>把上游 Set-Cookie 中的 <code>Path=/</code> 限定到 <code>Path=/sandbox/&lt;id&gt;/&lt;port&gt;/</code>，避免与同一 CubeProxy 上其他沙箱的 cookie 相互影响。</li>
+                </ul>
+                <div class="card-grid">
+                    <div class="card"><span class="icon">🏷️</span><h3>Host 模式</h3><p><code>&lt;port&gt;-&lt;id&gt;.&lt;domain&gt;</code>：更适合 SPA 以及任何用根绝对路径加载静态资源（如 <code>/static/app.js</code>）的前端，CubeProxy 不会改写 HTML body。</p></div>
+                    <div class="card"><span class="icon">🛤️</span><h3>路径模式</h3><p><code>/sandbox/&lt;id&gt;/&lt;port&gt;/...</code>：更适合 HTTP API、简单页面、快速预览和一次性分享，省去 DNS 和证书配置成本。</p></div>
+                </div>
+                <p>两种模式在每个 CubeProxy 实例上<strong>同时启用</strong>，共享同一份 Redis 路由元数据，无需额外配置即可使用路径形式。</p>
+
+                <h3>面向 E2B SDK 的 header 路由（免 DNS）</h3>
+                <p>CubeProxy 还有第三种回退路由来源，面向官方 E2B SDK：当 <code>Host</code> 不带 <code>&lt;port&gt;-&lt;sandbox-id&gt;.&lt;domain&gt;</code> 路由属性时，改为读取请求 header <code>E2b-Sandbox-Id</code>（必填）和 <code>E2b-Sandbox-Port</code>（可选，默认为 <code>49983</code>）。读取 <code>E2B_SANDBOX_URL</code> 的 E2B SDK 会在沙箱数据面请求上携带这些 header，因此无需泛域名 DNS 即可直接按 IP 指向 CubeProxy。Host 路由保持优先，存量泛域名流量不受影响。与路径模式一样，该方式在明文端口上暴露整条数据面，<strong>请仅在可信网络中使用</strong>。</p>
+
+                <h3>自定义沙箱服务收到的 Host</h3>
+                <p>部分 Web 框架会校验 HTTP <code>Host</code>，而 Cube 的 public URL Host 默认是 <code>&lt;port&gt;-&lt;sandbox-id&gt;.&lt;domain&gt;</code>。创建沙箱时可通过 E2B 兼容的 <code>network.maskRequestHost</code> 设置 CubeProxy 转发给用户服务的 Host：</p>
+                <pre><code>from cubesandbox import Sandbox
+
+sandbox = Sandbox.create(
+    network={
+        "mask_request_host": "localhost:${PORT}",
+    },
+)</code></pre>
+                <p><code>${PORT}</code> 会在每次请求时替换为 public URL 或 Path 模式中的沙箱服务端口（访问 3000 端口 → <code>Host: localhost:3000</code>；访问 8080 端口 → <code>Host: localhost:8080</code>）。外部 URL、DNS 与 TLS SNI 均不改变。掩码生效时，CubeProxy 还会把原始请求 Host 写入 <code>X-Forwarded-Host</code>。该配置同时适用于 Host 模式、Path 模式以及用户服务的 WebSocket 握手。</p>
+                <div class="warning"><code>maskRequestHost</code> 是按 sandbox 配置的 <strong>create-only</strong> 选项，运行中不可更新。为避免影响 commands/files/PTY 等内部数据面协议，envd 端口 <code>49983</code> 不应用该掩码。直接访问 SandboxIP 或节点 HostPort 会绕过 CubeProxy，因此也不会发生 Host 改写。</div>
+
+                <h3>gRPC 接入（明文 HTTP/2）</h3>
+                <p>CubeProxy 还提供独立的沙箱 gRPC 接入监听端口。一键部署默认使用 <code>9090</code>，可通过 <code>.env</code> 中的 <code>CUBE_PROXY_GRPC_PORT</code> 调整。客户端以明文 HTTP/2 连接 CubeProxy IP，并通过 gRPC <code>:authority</code> 指定目标沙箱，格式与 Host 模式一致：</p>
+                <pre><code>&lt;container-port&gt;-&lt;sandbox-id&gt;</code></pre>
+                <p>例如，经部署在 <code>10.0.0.5</code> 的 CubeProxy 访问沙箱 <code>abc123</code> 的 <code>49983</code> 端口：</p>
+                <pre><code>dial: 10.0.0.5:9090
+:authority: 49983-abc123</code></pre>
+                <div class="info">该模式适用于无法使用泛域名 DNS 或在 CubeProxy 侧终止 TLS 的 gRPC 客户端，路由元数据与 Host 模式共用，无需额外配置。若沙箱创建时设置了 <code>network.allow_public_traffic = false</code>，本监听端口同样会校验 <code>e2b-traffic-access-token</code> / <code>cube-traffic-access-token</code>；gRPC 客户端需在每次请求的 metadata（或等效 header）中携带 token。</div>
+
+                <h3>HTTPS 证书配置：方案选择</h3>
+                <p>CubeProxy 开箱提供 <strong>HTTPS（443 端口）和 HTTP（80 端口）</strong>两种访问方式。E2B SDK 默认使用 HTTPS。Cube 一键安装已预装 <code>cube.app</code> 测试证书，可直接体验 HTTPS。如需替换为自定义域名或生产证书，按场景从下列方案中选择。</p>
+                <div class="decision">
+                    <div class="decision-card"><span class="badge badge-primary">方式 A · 本地开发</span><h4>mkcert 快速验证</h4><p>几秒内为自定义域名生成本地可信证书。运行 <code>mkcert -install</code> 后 <code>mkcert &lt;your-host-ip-or-domain&gt;</code>，再 <code>export SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem</code> 让 SDK 信任生成的 CA。证书只在运行过 <code>mkcert -install</code> 的机器上受信任，不适合生产或多人共享部署。</p></div>
+                    <div class="decision-card"><span class="badge badge-success">方式 B · 生产环境</span><h4>自有证书 / 域名</h4><p>修改 CubeProxy 的 <code>nginx.conf</code>，在 <code>server { listen 443 ssl; }</code> 中使用正式 <code>ssl_certificate</code> 与 <code>ssl_certificate_key</code>；同时通过 <code>--sandbox-domain</code> 告知 Cube API Server 对外域名。</p></div>
+                    <div class="decision-card"><span class="badge badge-warning">方式 C · 仅 HTTPS</span><h4>关闭 HTTP 端口</h4><p>删除 <code>nginx.conf</code> 中的 HTTP server block，并在 <code>docker-compose.yaml</code> 中去掉对应的端口映射。E2B SDK 仅使用 HTTPS，关闭 HTTP 不影响基于 SDK 的客户端。</p></div>
+                    <div class="decision-card"><span class="badge badge-violet">体验 · 本地开发</span><h4>e2b-dev-sidecar</h4><p>本地启动轻量代理，拦截 E2B SDK 的数据面请求并自动改写 <code>Host</code> 头：绕过泛解析 DNS，默认不校验服务端证书（<code>CUBE_REMOTE_PROXY_VERIFY_SSL=false</code>）。这是面向开发体验的最小实现，<strong>不适合生产环境</strong>。</p></div>
+                </div>
+            </section>
+
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">14</span>易错点、记忆卡片与自测</h2>
+
+                <h3>高频易错点</h3>
+                <div class="danger"><strong>1. 更新策略时漏写 <code>allowInternetAccess</code>，隔离被悄悄解除。</strong>更新是整体替换而非打补丁，没传的字段会被清空；<code>allow_internet_access</code> 默认 <code>true</code>，省略它等于撤掉 <code>0.0.0.0/0</code> deny-all。每次更新都要发送完整期望策略。</div>
+                <div class="warning"><strong>2. L7 规则只写 <code>method</code>/<code>path</code>，没有 <code>host</code>/<code>sni</code>。</strong>CubeVS 只从 <code>match.sni</code> 和 <code>match.host</code> 抽取网络可达目标，只写 method/path 的规则可能永远到不了 CubeEgress。</div>
+                <div class="warning"><strong>3. 域名 <code>allow_out</code> 没配 deny-all 兜底。</strong>域名要经 DNS A 学习成临时 IP allow；没有 <code>allow_internet_access=false</code> 或 <code>deny_out=["0.0.0.0/0"]</code>，未学习到的目的 IP 会被默认放行，allow-list 形同虚设。</div>
+                <div class="warning"><strong>4. 以为 <code>*.</code> 通配能匹配 apex。</strong><code>*.example.com</code> 不匹配 <code>example.com</code>；需要 apex 时单独写。</div>
+                <div class="warning"><strong>5. 以为 <code>deny_out</code> 支持域名。</strong>它只支持 IPv4/CIDR；要按域名拒绝请改用带 <code>sni</code>/<code>host</code> 的 L7 规则。</div>
+                <div class="warning"><strong>6. 把 <code>127.0.0.1</code> 当作控制面地址。</strong>在沙箱内 loopback 指向沙箱自身，访问 CubeAPI/CubeProxy 必须换成节点可达地址。</div>
+                <div class="warning"><strong>7. 缓存 <code>hostIP:hostPort</code> 长期使用。</strong>暂停/恢复（含 resume 重建）后 hostPort 可能变化，跨节点调度时 hostIP 也会变；B 恢复后要重新查询 info 接口。</div>
+                <div class="warning"><strong>8. 以为方式二有 token 鉴权。</strong>母机端口映射不经过 CubeProxy，<code>allow_public_traffic</code> token 不生效，暴露面靠网络策略与 expose-port 控制。</div>
+
+                <h3>记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>优先级</b>allow &gt; deny &gt; default allow。先查 <code>allow_out_v2</code>，再查 <code>deny_out</code>，都不命中默认放行。</div>
+                    <div class="memory-card"><b>三张 map</b><code>allow_out_v2</code>（IP/CIDR）、<code>deny_out</code>（IP/CIDR）、<code>dns_allow</code>（域名，反转 key 的 LPM trie）。</div>
+                    <div class="memory-card"><b>L7 入口条件</b>网络目标带 <code>L7_REQUIRED</code> 且目的端口为 TCP 80/443，才进 CubeEgress。</div>
+                    <div class="memory-card"><b>DNS 学习</b>只学正向 IPv4 A 记录；静态 allow 永不因学习过期；reaper 清理过期条目与 10 秒 pending。</div>
+                    <div class="memory-card"><b>更新语义</b>整体替换、非事务、按代际 <code>policy_version</code> 重判存量连接（判决变则 RST）。</div>
+                    <div class="memory-card"><b>互访二选一</b>L7 走 CubeProxy Host 路由（可 token 鉴权）；任意 TCP 走母机端口映射（eBPF DNAT，无代理）。</div>
+                    <div class="memory-card"><b>cube-router</b>只改宿主机出网路径，策略/DNS/L7/端口映射语义不变；默认关闭。</div>
+                    <div class="memory-card"><b>域名格式</b><code>&lt;port&gt;-&lt;sandboxId&gt;.&lt;domain&gt;</code>，默认 <code>cube.app</code>，需泛解析到 CubeProxy IP。</div>
+                </div>
+
+                <h3>自测</h3>
+                <div class="quiz">
+                    <h4>自测 · 3 题</h4>
+                    <details>
+                        <summary>Q1：某沙箱以 <code>allow_internet_access=False</code> + <code>allow_out=["api.example.com"]</code> 创建。应用直接 <code>curl https://1.2.3.4</code>（该 IP 正是 <code>api.example.com</code> 当前解析结果，但沙箱从未发过 DNS 查询），会发生什么？</summary>
+                        <p>被拒绝。域名 <code>allow_out</code> 依赖沙箱自身发出的 DNS A 查询把响应中的 IP 学习成临时 <code>allow_out_v2</code> 条目；没有 DNS 查询就没有学习条目，<code>1.2.3.4</code> 会命中 <code>allow_internet_access=false</code> 安装的 <code>0.0.0.0/0</code> deny-all。严格 allow-list 下应先让应用按域名解析再访问。</p>
+                    </details>
+                    <details>
+                        <summary>Q2：一条 L7 规则的 <code>match.host="gateway.example.com:8443"</code>，CubeVS 抽取出的网络目标是什么？它的 TCP/8443 会进 CubeEgress 吗？</summary>
+                        <p>抽取出的目标是 <code>gateway.example.com</code>（<code>host:port</code> 去掉端口，只保留 host），带 <code>L7_REQUIRED</code> 标记。但 CubeEgress 只接管 TCP 80/443；TCP/8443 即使命中 L7 目标也<strong>不会</strong>进入 CubeEgress，而是走 CubeVS NAT/session（表里明确「TCP 非 80/443，即使命中 L7 目标 → 否」）。</p>
+                    </details>
+                    <details>
+                        <summary>Q3：沙箱 B 以 <code>allow_public_traffic=False</code> 创建。沙箱 A 想访问 B 的 8080 服务，并要求携带 token 鉴权。应该选哪种互访方式？需要带哪个 header？</summary>
+                        <p>选<strong>方式一 CubeProxy Host 路由</strong>（<code>--resolve 8080-&lt;sandboxID-B&gt;.cube.app:80:&lt;proxyIP&gt;</code>），因为只有它经过 CubeProxy 并复用 <code>allow_public_traffic</code> 的 token 鉴权；方式二母机端口映射不经过 CubeProxy，不适用 token。请求需携带 <code>e2b-traffic-access-token</code>（或原生别名 <code>cube-traffic-access-token</code>）头，缺失或错误会被 403 拒绝。</p>
+                    </details>
+                </div>
+            </section>
+
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

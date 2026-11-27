@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快照、回滚、克隆与跨机迁移 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>快照、回滚、克隆与跨机迁移</span>
+            </h1>
+            <p class="subtitle">掌握沙箱的时间旅行：从一次检查点派生出无数分支，再把正在运行的 Agent 搬到另一台机器上继续</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 06 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">快照与迁移</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 06 章</span>
+                <h1>快照、回滚、克隆与跨机迁移</h1>
+                <p>本章讲沙箱「时间旅行」与「搬家」两件事：一是用 Snapshot / Clone / Fork / Rollback 四个原语在时间轴上分叉、回退；二是用 JuiceFS 或 CubeS3lvol 做共享后端，把运行中的沙箱从一台机器迁到另一台。前者对应官方《快照、回滚与克隆》，后者对应《跨机迁移》《JuiceFS 服务配置》《CubeS3lvol 服务配置》四个页面。</p>
+                <div class="page-meta">
+                    <span>📖 预计 40 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 4 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#concepts">1. 概念模型：四个原语</a></li>
+                    <li><a href="#snapshot">2. 快照 Snapshot</a></li>
+                    <li><a href="#clone">3. 克隆与分叉</a></li>
+                    <li><a href="#rollback">4. 回滚 Rollback</a></li>
+                    <li><a href="#cross-node">5. 跨机迁移：条件与架构</a></li>
+                    <li><a href="#juicefs">6. JuiceFS 共享存储部署</a></li>
+                    <li><a href="#s3lvol">7. CubeS3lvol 部署与性能</a></li>
+                    <li><a href="#recovery">8. 恢复决策与生命周期</a></li>
+                    <li><a href="#pitfalls">9. 易错点、记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <!-- ===================== 1. 概念模型 ===================== -->
+            <section class="concept-section" id="concepts">
+                <h2><span class="section-num">1</span>概念模型：四个原语</h2>
+                <p class="lead">先记住一句话：<strong>Snapshot 是「存档」，Clone / Fork 是「存档后开新档玩」，Rollback 是「读档重来」</strong>。四者都建立在「把沙箱某一时刻的完整状态固定下来」这一能力之上，区别在于固定之后怎么用、落在哪个沙箱上。</p>
+
+                <h3>1.1 四个原语分别是什么</h3>
+                <ul>
+                    <li><strong>Snapshot（快照）</strong>：把运行中的沙箱完整状态（内存 + 文件系统）持久化成一份镜像，返回 <code>SnapshotInfo</code>，其 <code>snapshot_id</code> 可反复用于创建新沙箱或回滚。默认 <code>full</code> 模式，另有只保留文件系统的 <code>fs-only</code> 模式。</li>
+                    <li><strong>Clone（克隆）</strong>：对运行中的沙箱调用 <code>sb.clone(n=N)</code>，立即派生 N 个完全独立、从源沙箱当前状态出发的副本，互不干扰，源沙箱继续运行。</li>
+                    <li><strong>Fork（分叉）</strong>：<code>sb.fork(count=N)</code> 通过<strong>一次服务端调用</strong>派生 N 个运行中的副本——服务端对源沙箱只打一次快照，所有副本从该快照派生，临时快照由服务端管理。</li>
+                    <li><strong>Rollback（回滚）</strong>：<code>sb.rollback(snapshot_id)</code> 把正在运行的沙箱<strong>原地</strong>恢复到某次快照的状态，<strong>沙箱 ID 不变</strong>，<code>sb</code> 对象可以继续使用。</li>
+                </ul>
+
+                <div class="note">
+                    <strong>与 e2b 的差异：</strong>快照、克隆、回滚是 Cube Sandbox 特有能力，e2b SDK 没有对应接口。<code>cubesandbox</code> SDK 兼容 e2b SDK，可直接替换，同时获得这些进阶能力。本文接口需要 <code>cubesandbox&gt;=0.2.0</code>。
+                </div>
+
+                <h3>1.2 检查点如何分叉成两条分支</h3>
+                <p>在同一个检查点上，既可以「继续往下写」，也可以「回滚后再写别的」。从时间轴看，这就是两条互不影响的分支。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">时间轴</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box control">沙箱运行 v1<small>写完 /tmp/v.txt</small></div>
+                    </div>
+                    <div class="arch-connector">↓ create_snapshot() 打检查点</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box storage">检查点 checkpoint<small>full 快照 · snap-xxx</small></div>
+                    </div>
+                    <div class="arch-connector strong">↙ 分支 A　　↓ rollback 回检查点　分支 B ↘</div>
+                    <div class="arch-layer between">
+                        <div class="arch-box compute">分支 A<small>继续写 v2</small></div>
+                        <div class="arch-box accent">回到快照<small>文件系统还原为 v1</small></div>
+                        <div class="arch-box compute">分支 B<small>改写 v3</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 两条分支各自再打快照</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box dashed wide">分支 A / 分支 B 都成为独立时间线，互不可见</div>
+                    </div>
+                </div>
+
+                <p>对应到原语：<strong>Snapshot</strong> 产出检查点；<strong>Clone / Fork</strong> 从检查点横向开出多个新沙箱；<strong>Rollback</strong> 让同一个沙箱回到检查点后继续走另一条分支。</p>
+
+                <h3>1.3 四原语对比</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>原语</th>
+                                <th>接口</th>
+                                <th>是否保留内存</th>
+                                <th>是否独立</th>
+                                <th>并发</th>
+                                <th>有效期</th>
+                                <th>典型场景</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>快照 full</strong></td>
+                                <td><code>sb.create_snapshot()</code></td>
+                                <td>保存</td>
+                                <td>产物与源沙箱解耦，源 <code>kill()</code> 后仍可用</td>
+                                <td>每份独立</td>
+                                <td>可传 <code>ttl_seconds</code>；0 或不传＝长期</td>
+                                <td>checkpoint、持久化状态</td>
+                            </tr>
+                            <tr>
+                                <td><strong>快照 fs-only</strong></td>
+                                <td><code>create_snapshot(mode="fs-only")</code></td>
+                                <td>不保存</td>
+                                <td>独立；用它创建的是冷启动</td>
+                                <td>捕获期间源沙箱持续运行</td>
+                                <td>同上</td>
+                                <td>只要文件、可接受冷启动</td>
+                            </tr>
+                            <tr>
+                                <td><strong>克隆 Clone</strong></td>
+                                <td><code>sb.clone(n=N)</code></td>
+                                <td>保存（内部打 full 快照）</td>
+                                <td>副本互相隔离，源沙箱继续运行</td>
+                                <td><code>concurrency</code>，默认 1；任一失败即全回收</td>
+                                <td>内部临时快照，最后一个克隆被杀后清理</td>
+                                <td>Agent 并行 rollout、可重复实验</td>
+                            </tr>
+                            <tr>
+                                <td><strong>分叉 Fork</strong></td>
+                                <td><code>sb.fork(count=N)</code></td>
+                                <td>保存</td>
+                                <td>副本各自独立，部分成功可保留</td>
+                                <td>由服务端决定</td>
+                                <td>服务端管理临时快照</td>
+                                <td>大批量 fan-out</td>
+                            </tr>
+                            <tr>
+                                <td><strong>回滚 Rollback</strong></td>
+                                <td><code>sb.rollback(snap_id)</code></td>
+                                <td>恢复快照中的内存</td>
+                                <td>同一沙箱，<strong>ID 不变</strong></td>
+                                <td>单沙箱原地</td>
+                                <td>依赖所回滚的 full 快照</td>
+                                <td>撤回失败一步、回到分支点继续</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="memory-card" style="margin-top:1rem">
+                    <b>一句话区分</b>
+                    Snapshot 不产生新沙箱；Clone / Fork 产生新沙箱；Rollback 保持同一个沙箱。Clone 由客户端编排、全成或全败；Fork 一次服务端调用、各自独立成败。
+                </div>
+            </section>
+
+            <!-- ===================== 2. 快照 ===================== -->
+            <section class="concept-section" id="snapshot">
+                <h2><span class="section-num">2</span>快照 Snapshot</h2>
+                <p><code>sb.create_snapshot()</code> 将沙箱当前状态（文件系统 + 内存）持久化为一份快照，返回 <code>SnapshotInfo</code>，其中 <code>snapshot_id</code> 可直接作为 <code>Sandbox.create(template=...)</code> 的入参。</p>
+
+                <div class="code-label">Python · 创建快照</div>
+                <pre><code><span class="k">from</span> cubesandbox <span class="k">import</span> Sandbox
+
+<span class="k">with</span> Sandbox.create(template=TEMPLATE_ID) <span class="k">as</span> sb:
+    sb.run_code(<span class="s">"open('/tmp/data.txt','w').write('hello')"</span>)
+    snap = sb.create_snapshot()
+    print(<span class="s">f"snapshot: {snap.snapshot_id}"</span>)</code></pre>
+
+                <div class="warning">
+                    <strong>命名限制：</strong>可选的 <code>name</code> 不能以 <code>tpl-</code> 或 <code>snap-</code> 开头，否则返回 HTTP 400——这两个前缀表示 ID。环境变量约定：<code>CUBE_API_URL=http://127.0.0.1:3000</code>、<code>CUBE_TEMPLATE_ID=tpl-xxxxxxxxxxxxxxxxxxxxxxxx</code>。
+                </div>
+
+                <h3>2.1 生命周期与删除</h3>
+                <ul>
+                    <li>快照生命周期<strong>独立于沙箱</strong>：源沙箱被 <code>kill()</code> 之后，快照仍然可用。</li>
+                    <li>不再需要时调用 <code>Sandbox.delete_snapshot(snapshot_id_or_name)</code> 手动清理：成功返回 <code>True</code>，快照不存在返回 <code>False</code>。</li>
+                    <li>按名称删除时 <strong>只匹配快照、不匹配模板</strong>：名称没有对应快照时返回 <code>False</code>，即使存在同名模板别名也不会删除；名称匹配多个快照时返回 HTTP 409 且不删除任何对象，请改用 <code>snap-</code> ID。</li>
+                    <li>该行为要求 CubeAPI 支持 <code>snapshot_only</code>；旧版服务端会忽略该参数，名称没有对应快照时仍会路由到同名模板。</li>
+                </ul>
+
+                <h3>2.2 有效期（TTL）</h3>
+                <p>临时检查点、实验快照、短期恢复备份建议设置有效期，让系统在不再需要时自动清理。需要长期保留的<strong>不传有效期，或传 0</strong>，之后再手动删除。</p>
+
+                <div class="code-label">Python · 带有效期</div>
+                <pre><code>snap = sb.create_snapshot(name=<span class="s">"checkpoint"</span>, ttl_seconds=<span class="n">3600</span>)
+print(snap.expires_at)
+
+<span class="c"># 快照有效期内，每次恢复都会创建一个新的沙箱。</span>
+restored = Sandbox.create(template=snap.snapshot_id)</code></pre>
+
+                <ul>
+                    <li>有效期<strong>从快照就绪时</strong>开始计算；<code>expires_at</code> 是 UTC 过期时间，未设置时为 <code>None</code>。</li>
+                    <li>SDK、CubeAPI、CubeMaster 都需为支持快照有效期的版本。Node SDK：<code>sb.createSnapshot("checkpoint", { ttlSeconds: 3600 })</code>；Go SDK：<code>sb.CreateSnapshot(ctx, "checkpoint", cubesandbox.CreateSnapshotOptions{TTLSeconds: 3600})</code>。</li>
+                    <li>过期后<strong>不能</strong>再用该快照创建沙箱或回滚；<strong>已经从它启动的沙箱仍能正常运行</strong>。</li>
+                    <li>系统定期清理，需等待运行中的沙箱和其他依赖释放引用后才回收存储，所以过期不代表立即释放磁盘空间。</li>
+                </ul>
+
+                <div class="tip">
+                    <strong>节点永久丢失时：</strong>遗留的待完成恢复会阻止清理。管理员可先隔离节点（确保旧 VM 与排队请求不能恢复运行），删除快照，并等待待完成预约至少满 24 小时，再执行 <code>cubemastercli snapshot recover-create</code>。节点信息必须与该次待完成恢复记录一致。
+                </div>
+
+                <div class="code-label">Shell · 释放遗留预约</div>
+                <pre><code>cubemastercli snapshot recover-create \
+  --snapshot-id snap-example --sandbox-id reserved-example \
+  --node-id retired-node --node-ip 192.0.2.10 \
+  --confirm-node-fenced --reason <span class="s">"Host powered off and prevented from restarting"</span></code></pre>
+
+                <p>该命令只释放匹配的过期预约；节点仍健康、实例仍存在或快照操作尚在进行时会拒绝执行。后续对账会继续物理清理，<strong>正常过期不需要手动运行此命令</strong>。</p>
+
+                <h3>2.3 full 与 fs-only 的区别</h3>
+                <p>给 <code>create_snapshot()</code> 传 <code>mode="fs-only"</code>，只捕获文件系统、不捕获 guest 内存。调用期间 guest 不会暂停，返回时即可继续读写；代价是用它创建的沙箱会<strong>冷启动</strong>——文件都在，但所有进程都是新的。</p>
+
+                <div class="code-label">Python · fs-only</div>
+                <pre><code>snap = sb.create_snapshot(mode=<span class="s">"fs-only"</span>)
+assert snap.mode == <span class="s">"fs-only"</span>
+
+child = Sandbox.create(template=snap.snapshot_id)
+<span class="c"># 快照前的文件可见……</span>
+out = child.run_code(<span class="s">"print(open('/tmp/data.txt').read())"</span>).logs.stdout[<span class="n">0</span>]
+assert out.strip() == <span class="s">"hello"</span>
+<span class="c"># ……但进程不在。</span></code></pre>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>维度</th>
+                                <th><code>mode="full"</code>（默认）</th>
+                                <th><code>mode="fs-only"</code></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>guest 内存</td><td>保存</td><td>不保存</td></tr>
+                            <tr><td>调用期间源沙箱</td><td>短暂暂停</td><td>持续运行</td></tr>
+                            <tr><td>用它创建的沙箱</td><td>恢复内存，进程继续</td><td>冷启动，进程全新</td></tr>
+                            <tr><td>之后的 <code>pause()</code> / <code>resume()</code></td><td>保留内存</td><td>保留内存（首次 pause 是全量捕获）</td></tr>
+                            <tr><td><code>rollback(snapshot)</code> 回滚到它</td><td>支持</td><td><strong>拒绝</strong>（<code>snapshot_filesystem_only_rollback_unsupported</code>）</td></tr>
+                            <tr><td>外部挂载（plugin 卷、host mount）</td><td>快照记录挂载配置，恢复后重新挂载</td><td>不记录挂载；用这份快照创建时重新声明即可</td></tr>
+                            <tr><td>配置 restart 策略时 <code>restart</code></td><td>保留文件</td><td>保留文件（复用捕获时的可写层）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4>fs-only 的几个关键行为</h4>
+                <ul>
+                    <li><strong>不是增量链</strong>：每份快照都是独立的时间点镜像，打 N 次就存 N 份。不要假设「只存文件系统所以很小」——实际占用取决于存储后端的 CoW/reflink 能力。</li>
+                    <li>从 fs-only 快照创建的沙箱之后与普通沙箱无异：配置 restart 策略时，<code>restart</code> 复用捕获的可写层、保留文件、重建进程；也可以对它<strong>再打 fs-only 快照</strong>，新包记录它实际使用的可写层。</li>
+                    <li>fs-only 包<strong>只记录根文件系统</strong>，不携带任何外部挂载：创建时<strong>必须重新声明</strong>要用的 plugin 卷与 host mount（含容器路径），没声明的不会挂载；没有「必须与快照一致」的限制；沙箱可以落在任意节点，宿主路径在目标节点解析，挂不上就让创建失败，不会留下空目录。</li>
+                </ul>
+
+                <h4>fs-only 错误码</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>HTTP</th><th>错误码</th><th>触发条件</th><th>处理建议</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>409</td><td><code>snapshot_filesystem_only_unsupported_node</code></td><td>控制面或节点 agent 不支持 fs-only</td><td>升级版本较旧的一侧；不会静默退回 full。shim 能力声明上线后可能在 guest 暂停<strong>之前</strong>返回，沙箱保持运行</td></tr>
+                            <tr><td>409</td><td><code>snapshot_filesystem_only_freeze_unsupported</code> / <code>..._rootfs_unsupported</code></td><td>节点不支持冻结文件系统 / 该 rootfs 类型</td><td>集群侧能力缺口，重试前先确认节点状态</td></tr>
+                            <tr><td>5xx</td><td><code>snapshot_filesystem_only_freeze_failed</code> / <code>..._thaw_failed</code></td><td>冻结或解冻在捕获过程中失败</td><td>集群侧问题，重试前先确认节点状态</td></tr>
+                            <tr><td>409</td><td><code>snapshot_filesystem_only_shared_volume_unsupported</code></td><td>源沙箱挂了<strong>可写</strong> plugin volume</td><td>可写 plugin volume 不属于被捕获的根文件系统；先用不含该卷的沙箱再打快照</td></tr>
+                            <tr><td>409</td><td><code>snapshot_filesystem_only_multi_container_unsupported</code></td><td>沙箱带有额外的用户容器</td><td>一份包只记录一个可写层，请使用单容器沙箱</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>响应里的 <code>mode</code> 永远是<strong>实际记录</strong>的模式；与请求不一致时调用直接失败（409 <code>snapshot_mode_conflict</code>），不会把这份产物返回给你，因此不会静默拿到一份 full 快照。</p>
+
+                <h3>2.4 列举与过滤快照</h3>
+                <div class="code-label">Python · 分页与过滤</div>
+                <pre><code><span class="c"># 获取快照列表（第一页）</span>
+items, next_token = Sandbox.list_snapshots()
+
+<span class="c"># 按 sandbox_id 过滤</span>
+items, _ = Sandbox.list_snapshots(sandbox_id=sb.sandbox_id)</code></pre>
+                <p><code>list_snapshots()</code> 返回 <code>(list[SnapshotInfo], next_token)</code>，把 <code>next_token</code> 传回可获取后续页；为 <code>None</code> 表示没有更多页。</p>
+            </section>
+
+            <!-- ===================== 3. 克隆与分叉 ===================== -->
+            <section class="concept-section" id="clone">
+                <h2><span class="section-num">3</span>克隆与分叉</h2>
+                <p>对一个正在运行的沙箱调用 <code>sb.clone(n=N)</code>，可以立即派生 N 个独立副本。每个副本完整继承源沙箱在 clone 时刻的运行状态（内存 + 文件系统），但之后写入互不影响，源沙箱继续正常运行。</p>
+
+                <div class="code-label">Python · 克隆</div>
+                <pre><code>src = Sandbox.create(template=TEMPLATE_ID)
+src.run_code(<span class="s">"open('/tmp/shared.txt','w').write('hello')"</span>)
+
+clones = src.clone(n=<span class="n">3</span>)
+<span class="k">for</span> sb <span class="k">in</span> clones:
+    <span class="c"># 每个克隆都继承 src 里写入的文件</span>
+    out = sb.run_code(<span class="s">"print(open('/tmp/shared.txt').read())"</span>).logs.stdout[<span class="n">0</span>]
+    assert out.strip() == <span class="s">"hello"</span></code></pre>
+
+                <h3>3.1 并发克隆</h3>
+                <p>默认串行创建；fan-out 场景可以传 <code>concurrency=C</code> 并发执行。</p>
+                <div class="code-label">Python · 并发克隆</div>
+                <pre><code>clones = src.clone(n=<span class="n">10</span>, concurrency=<span class="n">5</span>)</code></pre>
+                <div class="warning">
+                    <strong>全成或全败：</strong>任一子任务失败时，已成功创建的克隆会被自动 <code>kill()</code>。调用方拿到的<strong>要么是 N 个沙箱，要么是异常</strong>，不会留下孤儿资源。
+                </div>
+
+                <h3>3.2 继承性与隔离性</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>性质</th><th>含义</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>继承性</strong></td><td>每个副本的初始状态与源沙箱在 clone 时刻完全一致</td></tr>
+                            <tr><td><strong>隔离性</strong></td><td>副本之间的写入互不可见，与源沙箱也互相隔离</td></tr>
+                            <tr><td><strong>连续性</strong></td><td>源沙箱在 <code>clone()</code> 返回后仍在运行，状态不受影响</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>3.3 分叉 Fork</h3>
+                <p><code>sb.fork(count=N)</code> 通过<strong>一次服务端调用</strong>派生 N 个运行中的副本：后端对源沙箱只打一次快照，所有副本都从该快照派生。源沙箱继续运行，临时快照由服务端管理，客户端无需清理。</p>
+
+                <div class="code-label">Python · 分叉，按槽位独立成败</div>
+                <pre><code>src = Sandbox.create(template=TEMPLATE_ID)
+forks = src.fork(count=<span class="n">3</span>)
+<span class="k">for</span> sb <span class="k">in</span> forks:
+    <span class="k">if</span> isinstance(sb, Sandbox):
+        sb.run_code(<span class="s">"print('alive')"</span>)   <span class="c"># 运行中的副本</span>
+    <span class="k">else</span>:
+        print(<span class="s">f"fork failed: {sb}"</span>)     <span class="c"># 该槽位的异常</span></code></pre>
+
+                <p>每个 fork 独立成败。返回值恰好有 <code>count</code> 个元素——<code>Sandbox</code>，或阻止该 fork 启动的 <code>Exception</code>。部分成功会保留副本且不抛异常；只有整体失败才抛异常（如源沙箱不存在）。</p>
+
+                <h3>3.4 clone 与 fork 的区别</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>维度</th><th><code>clone(n=N)</code></th><th><code>fork(count=N)</code></th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>失败语义</td><td>全成或全败：任一失败即回收兄弟并抛异常</td><td>各自独立：部分成功保留成功项</td></tr>
+                            <tr><td>编排方式</td><td>客户端：打快照 + N 次 create</td><td>一次服务端调用（单次快照，N 路派生）</td></tr>
+                            <tr><td>临时快照</td><td>最后一个克隆被杀后由 SDK 删除</td><td>由服务端管理</td></tr>
+                            <tr><td>并发</td><td><code>concurrency</code> 参数（默认 1）</td><td>由服务端决定</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>3.5 参数与错误</h3>
+                <ul>
+                    <li><code>count</code>：1..100，默认 1。越界在所有 SDK 中都会抛错。</li>
+                    <li><code>timeout</code>：新派生沙箱的<strong>空闲存活时长</strong>，不影响源沙箱。各 SDK 单位不同：Python 为<strong>秒</strong>，Node 为 <code>timeoutMs</code> <strong>毫秒</strong>，Go 为 <code>time.Duration</code>；线上传输单位是秒。</li>
+                    <li><code>404</code> 源沙箱不存在；<code>409</code> 源沙箱当前状态不可 fork——刚创建的沙箱可能需要片刻才能打快照，稍后重试即可。</li>
+                </ul>
+            </section>
+
+            <!-- ===================== 4. 回滚 ===================== -->
+            <section class="concept-section" id="rollback">
+                <h2><span class="section-num">4</span>回滚 Rollback</h2>
+                <p><code>sb.rollback(snapshot_id)</code> 把当前沙箱<strong>原地</strong>恢复到指定快照的状态：文件系统完全还原，<strong>沙箱 ID 不变</strong>，<code>sb</code> 对象可以继续使用。回滚<strong>只支持 full 快照</strong>——对 fs-only 快照回滚会被拒绝（<code>snapshot_filesystem_only_rollback_unsupported</code>）。</p>
+
+                <div class="code-label">Python · 原地回滚</div>
+                <pre><code>sb = Sandbox.create(template=TEMPLATE_ID)
+sb.run_code(<span class="s">"open('/tmp/v.txt','w').write('v1')"</span>)
+checkpoint = sb.create_snapshot()
+
+sb.run_code(<span class="s">"open('/tmp/v.txt','w').write('v2')"</span>)
+sb.rollback(checkpoint.snapshot_id)
+
+after = sb.run_code(<span class="s">"print(open('/tmp/v.txt').read())"</span>).logs.stdout[<span class="n">0</span>]
+assert after.strip() == <span class="s">"v1"</span></code></pre>
+
+                <h3>4.1 在回滚后的分支上继续操作</h3>
+                <p>回滚后沙箱仍然可写，可以继续执行并再次创建快照，非常适合 Agent 的<strong>回退—重试循环</strong>。</p>
+
+                <div class="code-label">Python · 继续走另一条分支</div>
+                <pre><code><span class="c"># 在回滚后的分支上继续</span>
+sb.run_code(<span class="s">"open('/tmp/v.txt','w').write('v3')"</span>)
+new_snap = sb.create_snapshot()
+
+<span class="k">with</span> Sandbox.create(template=new_snap.snapshot_id) <span class="k">as</span> forked:
+    out = forked.run_code(<span class="s">"print(open('/tmp/v.txt').read())"</span>).logs.stdout[<span class="n">0</span>]
+    assert out.strip() == <span class="s">"v3"</span></code></pre>
+
+                <div class="state-machine">
+                    <span class="state running">running v1</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state pending">create_snapshot</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">running v2</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state paused">rollback → v1</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">running v3（ID 不变）</span>
+                </div>
+
+                <h3>4.2 最佳实践</h3>
+                <ul>
+                    <li><strong>快照不是免费的</strong>：每个快照对应底层一份完整镜像，记得用完即删，或定期调用 <code>list_snapshots()</code> 清理。</li>
+                    <li><strong><code>with</code> 语句不会自动删快照</strong>：上下文管理器只负责 <code>kill</code> 沙箱，快照需要显式调用 <code>Sandbox.delete_snapshot()</code> 清理。</li>
+                    <li><strong><code>clone()</code> 会自动清理内部快照</strong>：临时派生几个副本时直接用 <code>clone()</code>，无需手动管理快照生命周期。</li>
+                    <li><strong>大批量派生优先用 <code>fork(count=N)</code></strong>：一次往返、各自独立成败、服务端统一清理。需要全成或全败语义时再用 <code>clone(n=N, concurrency=C)</code>。</li>
+                </ul>
+            </section>
+
+            <!-- ===================== 5. 跨机迁移 ===================== -->
+            <section class="concept-section" id="cross-node">
+                <h2><span class="section-num">5</span>跨机迁移：条件与架构</h2>
+                <p>沙箱的跨机迁移，指把正在机器 A 上运行的沙箱迁移到机器 B 上继续运行，并尽可能保留原来的运行状态。价值主要有三个：<strong>资源调度</strong>（宿主资源不足时迁走长时间运行的 Agent，而不必重跑任务）、<strong>宿主机维护</strong>（升级内核、重启或下线前提前迁走）、<strong>负载均衡</strong>（Agent 任务 CPU 使用率动态波动，迁移帮助重新分配资源）。</p>
+
+                <div class="info">
+                    Cube 默认使用的 <code>xfs</code> 后端只在源节点保存 rootfs、memory 和 metadata。<strong>跨机迁移需要使用共享后端</strong>：将源节点上的沙箱暂停或打快照后，把相关数据上传到共享存储，再在目标节点恢复。目前支持两种共享后端：<strong>JuiceFS</strong> 与 <strong>S3（CubeS3lvol）</strong>。
+                </div>
+
+                <h3>5.1 整体架构：源节点 → 共享存储 → 目标节点</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">源节点（A）</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box compute">沙箱 running<small>rootfs + memory + metadata</small></div>
+                    </div>
+                    <div class="arch-connector">↓ pause() 或 create_snapshot()，export 上传</div>
+                    <div class="arch-label">共享存储</div>
+                    <div class="arch-layer">
+                        <div class="arch-box storage">JuiceFS<small>元数据引擎 + 对象存储</small></div>
+                        <div class="arch-box data">S3 / MinIO<small>CubeS3lvol 发布包</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ remote_status=ready 后可被调度</div>
+                    <div class="arch-label">目标节点（B）</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box control">恢复沙箱<small>FromSnap / Resume → running</small></div>
+                    </div>
+                </div>
+
+                <h3>5.2 跨机迁移的三个条件</h3>
+                <p>并不是所有沙箱都支持跨机迁移，需要同时满足：</p>
+                <ol>
+                    <li>沙箱使用<strong>共享后端</strong>的模板/快照创建；</li>
+                    <li>源节点和目的节点 <strong>CPU、kernel、KVM 兼容</strong>；</li>
+                    <li>源节点<strong>不可调度</strong>（离线或被隔离）。</li>
+                </ol>
+
+                <h4>条件一：用共享后端创建模板</h4>
+                <p>用 <code>cubemastercli</code> 或 SDK API 默认创建的模板使用 <code>xfs</code> 后端，不支持跨机迁移。要支持跨机，需主动声明 <code>--backend jfs|s3</code>。</p>
+
+                <div class="code-label">Shell · 创建 JuiceFS 模板</div>
+                <pre><code><span class="c"># 创建 juicefs 模板</span>
+cubemastercli tpl create-from-image \
+  --image &lt;img&gt; \
+  --writable-layer-size 4Gi \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health \
+  --backend jfs</code></pre>
+
+                <div class="danger">
+                    <strong>不可转换：</strong>已创建的模板不支持在已有的 <code>xfs</code>、<code>jfs</code> 和 <code>s3</code> 产物之间转换。选错后端只能重建模板。
+                </div>
+
+                <h4>条件二：CPU / kernel 兼容</h4>
+                <p>为保证跨机后沙箱能正常恢复，源节点与目的节点 CPU、kernel 需兼容。查看整个集群的兼容类别：</p>
+
+                <div class="code-label">Shell · 按门禁给节点分组</div>
+                <pre><code>$ cubeopscli node groups
+GROUP    CPU_VENDOR     CPU_MODEL             COUNT  NODES
+type-1   GenuineIntel   Intel(R) Xeon(R) ...  3      node-1,node-2,node-3
+type-2   AMD            AMD EPYC 7B13 ...     2      node-4,node-5</code></pre>
+
+                <p>也可以用 <code>cubeopscli node list --json</code> 查看每个节点的 <code>HostFacts</code> 信息。门禁字段如下：</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>字段</th><th>含义</th><th>当前门禁</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cpuid_hash</code></td><td>CPU 身份与特性哈希</td><td>相等匹配</td></tr>
+                            <tr><td><code>host_kernel_release</code></td><td><code>uname -r</code></td><td>相等匹配</td></tr>
+                            <tr><td><code>kvm_module_taint</code></td><td>强制、树外或未签名 KVM 模块标记</td><td>目标侧非空则拒绝</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>默认两个相等门禁同时生效。CPU 相同、只是宿主内核小版本不同的机器，可以通过绑定「机型」豁免内核门禁。</p>
+
+                <h4>条件三：源节点不可调度</h4>
+                <p>由于跨机需要把共享数据上传到目标节点，第一次在非本机节点恢复的性能较差，因此在源节点可用时调度器<strong>始终优先调度源节点</strong>。优先级为：</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>① 源节点健康且可调度</b>：在源节点恢复（最快，无需跨机）</div>
+                    <div class="flow-arrow">↓ 源节点不可用</div>
+                    <div class="flow-step"><b>② 源节点离线或被隔离</b>：检查共享数据和主机兼容性</div>
+                    <div class="flow-arrow">↓ 条件满足</div>
+                    <div class="flow-step"><b>③ 选择兼容节点恢复</b>；否则返回错误</div>
+                </div>
+
+                <div class="warning">
+                    <strong>外部存储也会限制调度：</strong>
+                    <ul>
+                        <li><strong>host-mount</strong>：若沙箱挂载了宿主机目录，则<strong>无法跨机迁移</strong>，因为无法保证挂载的目录在目标节点也能访问。从 fs-only 快照创建的沙箱不记录挂载，需在创建时重新声明，按普通新建沙箱调度。</li>
+                        <li><strong>Plugin Volume</strong>：沙箱<strong>可以跨机</strong>，但需保证目标节点也安装了对应 driver 并能访问后端。Cube 不会自动检查目标节点的 Volume 状态与可用性，需运维侧自行保证。</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ===================== 6. JuiceFS ===================== -->
+            <section class="concept-section" id="juicefs">
+                <h2><span class="section-num">6</span>JuiceFS 共享存储部署</h2>
+                <p><a href="https://juicefs.com/docs/zh/community/introduction/" target="_blank" rel="noopener">JuiceFS</a> 是开源、POSIX 兼容的分布式文件系统，采用数据与元数据分离的设计：数据存储在对象存储，元数据存储在元数据存储，支持 Redis、MySQL、TiKV 等元数据存储和 MinIO、S3、COS 等对象存储。CubeSandbox 借助 JuiceFS 实现跨机存储方案。</p>
+
+                <div class="warning">
+                    <strong>预览版：</strong>JuiceFS 存储方案目前处于 Preview 阶段，适合快速上手与早期试用。配置项、部署脚本和运行行为在后续版本仍可能调整。默认搭配控制节点 Redis/MinIO 仅适用于试用；生产环境请先在测试环境验证，并参考「更换存储」切换到更可靠的元数据引擎与对象存储。
+                </div>
+
+                <h3>6.1 前置条件</h3>
+                <ul>
+                    <li>所有节点的内核需要 <strong>FUSE 支持</strong>；</li>
+                    <li>所有节点能够访问<strong>同一个 JuiceFS 元数据引擎和对象存储</strong>。</li>
+                </ul>
+
+                <h3>6.2 one-click 安装部署</h3>
+                <p>默认 one-click <strong>不会</strong>启用 JuiceFS 跨机存储方案，需要手动配置启用。可以在安装时编辑 <code>.env</code>，也可以在安装后编辑 cube 全局配置文件 <code>.one-click.env</code>。</p>
+
+                <div class="code-label">Shell · 编辑配置文件</div>
+                <pre><code><span class="c"># one-click 包的 .env 文件路径</span>
+cp env.example .env
+
+<span class="c"># 或者安装完成后编辑配置文件 /usr/local/services/cubetoolbox/.one-click.env</span>
+vim /usr/local/services/cubetoolbox/.one-click.env</code></pre>
+
+                <h4>控制节点初始化</h4>
+                <p>先在控制节点配置信息并初始化 JuiceFS 文件系统，再到各计算节点配置。Cube 默认使用控制节点上的 Redis 作为元数据引擎、MinIO 作为对象存储（<strong>仅适用于快速上手，生产请更换</strong>）。设置 <code>ONE_CLICK_ENABLE_JFS=1</code>，然后初始化并挂载：</p>
+
+                <div class="code-label">Shell · 控制节点</div>
+                <pre><code>ONE_CLICK_ENABLE_JFS=1
+
+<span class="c"># 初始化 JuiceFS 文件系统</span>
+sudo /usr/local/services/cubetoolbox/scripts/cube-jfs/init.sh
+
+<span class="c"># 挂载控制节点 JuiceFS 文件系统</span>
+sudo /usr/local/services/cubetoolbox/scripts/cube-jfs/mount.sh</code></pre>
+
+                <h4>计算节点初始化</h4>
+                <p>编辑计算节点配置文件，同样设置 <code>ONE_CLICK_ENABLE_JFS=1</code>，再挂载：</p>
+
+                <div class="code-label">Shell · 计算节点</div>
+                <pre><code>ONE_CLICK_ENABLE_JFS=1
+sudo /usr/local/services/cubetoolbox/scripts/cube-jfs/mount.sh</code></pre>
+                <div class="tip">执行 <code>mount.sh</code> 后，JuiceFS 挂载会<strong>开机自启</strong>。</div>
+
+                <h4>在控制节点检查</h4>
+                <div class="code-label">Shell · 检查挂载状态</div>
+                <pre><code>sudo /usr/local/services/cubetoolbox/scripts/cube-jfs/check.sh</code></pre>
+                <p>应输出类似：</p>
+                <pre><code>JuiceFS volume
+  Name:          cube
+  Storage:       s3
+  Bucket:        http://&lt;control-node-ip&gt;:9000/cube-jfs
+  Active clients: 3
+  Used space:    12288 bytes
+
+Active client sessions
+  SID  CLIENT HOST   REPORTED ADDRESSES  MOUNT PATH         MOUNT TIME
+  ---  ------------  ------------------  -----------------  ------------------------------
+  2    a26a3780ac6f  172.17.0.2          /data/cubelet/storage/jfs  2026-10-28T08:46:15Z
+  1    c9af1d5570f4  172.17.0.3          /data/cubelet/storage/jfs  2026-10-28T08:43:29Z
+  3    30e38b8072fe  172.17.0.2          /data/cubelet/storage/jfs  2026-10-28T08:49:31Z</code></pre>
+
+                <h3>6.3 更换存储</h3>
+                <h4>从 MinIO 迁移到其他对象存储</h4>
+                <div class="code-label">Shell · 例如改用腾讯云 COS</div>
+                <pre><code>ONE_CLICK_ENABLE_JFS=1
+
+<span class="c"># 可继续使用现有 Redis；新卷时必须是新的、空的元数据地址。</span>
+CUBE_JFS_META_URL=<span class="s">"redis://&lt;redis-host&gt;:6379/0"</span>
+CUBE_JFS_META_PASSWORD=<span class="s">"&lt;redis-password&gt;"</span>
+
+<span class="c"># 例如使用腾讯云 COS</span>
+CUBE_JFS_STORAGE=<span class="s">"cos"</span>
+CUBE_JFS_BUCKET=<span class="s">"https://&lt;bucket&gt;-&lt;appid&gt;.cos.&lt;region&gt;.myqcloud.com"</span>
+CUBE_JFS_ACCESS_KEY=<span class="s">"&lt;COS-SecretId&gt;"</span>
+CUBE_JFS_SECRET_KEY=<span class="s">"&lt;COS-SecretKey&gt;"</span></code></pre>
+                <p>然后参考 one-click 安装部署，重新进行控制节点和计算节点初始化。注意：目前 Cube <strong>暂不支持从对象存储 A 平滑切换到对象存储 B</strong>，请在安装时指定要用的对象存储，或参考 JuiceFS 官方的数据同步文档进行迁移。</p>
+
+                <h4>使用 Redis 之外的元数据引擎</h4>
+                <p><code>CUBE_JFS_META_URL</code> 可以使用 JuiceFS 支持的 MySQL、PostgreSQL、TiKV 等地址。例如：</p>
+                <pre><code>CUBE_JFS_META_URL=<span class="s">"mysql://user:@(10.0.0.20:3306)/juicefs"</span>
+CUBE_JFS_META_PASSWORD=<span class="s">"password"</span></code></pre>
+                <p>新集群直接填写该地址后执行控制节点初始化即可。已有卷迁移时，先停止写入并卸载所有客户端，再用 <code>juicefs dump</code> 从旧元数据引擎导出、用 <code>juicefs load</code> 导入一个空的新元数据引擎，随后更新所有节点的 <code>CUBE_JFS_META_URL</code> 并重新挂载。对象存储密钥默认不会包含在 dump 中，需要在新元数据引擎上重新配置。</p>
+
+                <h3>6.4 Kubernetes Helm 部署</h3>
+                <p>先参考 K8s 部署的 Helm 安装章节，安装 Helm 并完成集群初始化，然后准备 values 文件。</p>
+                <div class="code-label">Shell · 准备 values</div>
+                <pre><code>cp deploy/kubernetes/chart/runtime-values.example.yaml runtime-values.yaml</code></pre>
+
+                <p>默认配置不会启用 JuiceFS 跨机存储，需要手动修改 <code>runtime-values.yaml</code>：</p>
+                <pre><code>cubeJuiceFS:
+  enabled: <span class="k">true</span></code></pre>
+
+                <p>启用后 Chart 会额外部署：专供 JuiceFS 使用的独立 Redis、一个只在首次执行格式化的 Job，以及在每个计算节点挂载文件系统的 DaemonSet。</p>
+
+                <div class="code-label">Shell · 多节点集群安装</div>
+                <pre><code>helm upgrade --install cube ./deploy/kubernetes/chart \
+  -n cube-system \
+  --create-namespace \
+  -f runtime-values.yaml \
+  --wait \
+  --timeout 90m</code></pre>
+
+                <div class="warning">
+                    <strong>已安装 Cube、首次启用 JuiceFS 时：</strong>启用过程会<strong>重建 Cube Node Pod</strong>。应先停止或迁移所有计算节点上正在运行的沙箱，再临时配置 <code>lifecycleChangeAck: true</code>；第一次 <code>helm upgrade</code> 成功后，把 <code>lifecycleChangeAck</code> 改回 <code>false</code>，再执行一次相同的 <code>helm upgrade</code>。第二次升级只清除一次性确认，不会重启 Cube Node、JuiceFS 或 Redis，之后可从 values 删除该行。
+                </div>
+                <pre><code>cubeJuiceFS:
+  enabled: <span class="k">true</span>
+  lifecycleChangeAck: <span class="k">true</span></code></pre>
+
+                <h4>验证 Kubernetes 部署</h4>
+                <div class="code-label">Shell · 两次检查都必须显示 fuse.juicefs</div>
+                <pre><code>kubectl get job,daemonset,pod -n cube-system
+
+kubectl exec -n cube-system daemonset/cube-juicefs -c juicefs -- \
+  findmnt -T /data/cubelet/storage/jfs
+
+kubectl exec -n cube-system daemonset/cube-node -c cubelet -- \
+  findmnt -T /data/cubelet/storage/jfs</code></pre>
+                <p>两次检查都必须显示 <code>fuse.juicefs</code>。之后创建模板时指定 <code>--backend jfs</code>；<strong>已有 XFS 模板不会自动转换为 JFS</strong>。</p>
+
+                <h4>K8s 更换存储</h4>
+                <p>Chart 默认创建独立的 JuiceFS Redis，并使用 Chart MinIO 中的 <code>cube-jfs</code> bucket。外部 Redis 和外部对象存储可以单独替换。</p>
+                <div class="code-label">Shell · 创建对象存储 Secret（避免明文密钥）</div>
+                <pre><code>kubectl -n cube-system create secret generic cube-jfs-object \
+  --from-literal=access-key=<span class="s">'&lt;access-key&gt;'</span> \
+  --from-literal=secret-key=<span class="s">'&lt;secret-key&gt;'</span></code></pre>
+                <pre><code>cubeJuiceFS:
+  enabled: <span class="k">true</span>
+  storage:
+    type: s3
+    bucket: https://&lt;bucket&gt;-&lt;appid&gt;.cos.&lt;region&gt;.myqcloud.com/cube-jfs
+    existingSecret: cube-jfs-object</code></pre>
+                <p><code>storage.bucket</code> 是传给 JuiceFS 的完整 <code>--bucket</code> 值，不只是桶名；路径风格的 S3 兼容存储要把桶名写进 URL，例如 <code>http://minio.example.com:9000/cube-jfs</code>。</p>
+                <p>只替换 Redis 时，先创建密码 Secret，再在 values 中增加 <code>metadata</code>：</p>
+                <pre><code>kubectl -n cube-system create secret generic cube-jfs-meta \
+  --from-literal=meta-password=<span class="s">'&lt;redis-password&gt;'</span></code></pre>
+                <pre><code>cubeJuiceFS:
+  enabled: <span class="k">true</span>
+  metadata:
+    url: redis://redis.example.com:6379/0
+    existingSecret: cube-jfs-meta
+    secretRevision: initial</code></pre>
+
+                <h3>6.5 节点变更</h3>
+                <h4>新增节点</h4>
+                <ol>
+                    <li>按正常流程安装并注册新的 Cube 计算节点；</li>
+                    <li>在新节点的 <code>.one-click.env</code> 写入 <code>ONE_CLICK_ENABLE_JFS=1</code>；</li>
+                    <li>在新节点执行 <code>sudo /usr/local/services/cubetoolbox/scripts/cube-jfs/mount.sh</code>；</li>
+                    <li>回到控制节点执行 <code>check.sh</code>，确认新会话出现。</li>
+                </ol>
+                <div class="note">控制节点只需在初始化时执行一次 <code>init.sh</code>，<strong>后续新增节点不需要再次执行</strong>。</div>
+
+                <h4>删除节点</h4>
+                <p>先隔离节点并清空沙箱，然后在待删除节点卸载，再在控制节点删除记录：</p>
+                <div class="code-label">Shell · 卸载并删除节点</div>
+                <pre><code>sudo /usr/local/services/cubetoolbox/scripts/cube-jfs/mount.sh unmount
+cubeopscli node delete &lt;node-id&gt;</code></pre>
+                <div class="danger">
+                    <strong>不要删共享目录：</strong>卸载节点不会删除共享 JuiceFS 中的数据。<code>CUBE_JFS_ROOT</code> 下的共享命名空间（<code>objects/</code>、<code>snapshots/</code>、<code>pause-snapshots/</code>）是全集群共享的，可能仍被其他节点引用，不要直接删除。
+                </div>
+
+                <h3>6.6 关键配置变量</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>变量</th><th>默认值</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>CUBE_JFS_MOUNT_PATH</code></td><td><code>/data/cubelet/storage/jfs</code></td><td>挂载点</td></tr>
+                            <tr><td><code>CUBE_JFS_ROOT</code></td><td><code>.</code></td><td>直接在挂载点保存共享命名空间</td></tr>
+                            <tr><td><code>CUBE_JFS_CACHE_DIR</code></td><td><code>/data/cubelet/jfs-cache</code></td><td>本地缓存目录，读缓存与写 staging 都在其中，建议放 NVMe/SSD 数据盘</td></tr>
+                            <tr><td><code>CUBE_JFS_CACHE_SIZE_MB</code></td><td><code>102400</code>（100 GiB）</td><td>读缓存大小上限</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="danger">
+                    集群内<strong>所有节点必须使用相同的 <code>CUBE_JFS_MOUNT_PATH</code>（以及 <code>CUBE_JFS_ROOT</code>）</strong>。快照 catalog 记录的是挂载点下的绝对路径，挂载点不一致的节点无法解析其他节点创建的包。
+                </div>
+
+                <h4>缓存目录与容量</h4>
+                <p><code>CUBE_JFS_CACHE_DIR</code> 同时存放两类数据：<strong>读缓存</strong>（<code>raw/</code>，从对象存储拉回的数据块，受 <code>CUBE_JFS_CACHE_SIZE_MB</code> 上限约束，可随时按 LRU 淘汰）和<strong>写 staging</strong>（<code>rawstaging/</code>，<code>--writeback</code> 下尚未上传的脏数据块，上传完成后即删除，不占用 <code>CUBE_JFS_CACHE_SIZE_MB</code> 配额）。</p>
+                <ul>
+                    <li><code>CUBE_JFS_CACHE_SIZE_MB</code> 是<strong>上限而不是预留空间</strong>，缓存按需增长；磁盘不足 100 GiB 时挂载不会失败，读缓存只增长到实际可用大小。</li>
+                    <li>JuiceFS 默认 <code>--free-space-ratio 0.1</code>：缓存所在文件系统剩余空间低于 10% 时，按近似 LRU 的 2-random 算法主动淘汰读缓存块。注意该 10% 是相对<strong>该目录所在数据盘总容量</strong>计算的。</li>
+                    <li>若磁盘被缓存之外的数据持续占满，读缓存被持续压缩，越来越多读请求退化为直读对象存储；剩余空间低于阈值一半（默认 5%）时 staging 写入同样受限。</li>
+                    <li>staging 没有独立配额：数据盘被写满时，<code>--writeback</code> 下的新写入会直接失败，快照、暂停等操作可能报错，必须为 staging 和其他数据预留空间。</li>
+                    <li>建议将缓存目录放在独立的快速数据盘上，<code>CUBE_JFS_CACHE_SIZE_MB</code> 不超过该盘可用空间的 70%–80%。</li>
+                </ul>
+
+                <h3>6.7 镜像分发</h3>
+                <p>目标节点默认从 Cube 自己的镜像仓库拉取 JuiceFS 客户端镜像 <code>cube-sandbox-int.tencentcloudcr.com/cube-sandbox/juicefs:ce-v1.4.1</code>。在 <code>.env</code> 里设置 <code>MIRROR=cn</code> 可改用 <code>-cn</code> 镜像。离线环境可提前 <code>docker load</code>，并修改 <code>CUBE_JFS_IMAGE</code> 指向本地镜像名；Kubernetes 部署中改为设置 <code>images.juicefs.repository</code> / <code>tag</code>。非必要无需升级，应让所有节点使用同一个固定版本。</p>
+
+                <h3>6.8 排障</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>现象</th><th>排查 / 处理</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>服务无法启动</td>
+                                <td>先看 <code>journalctl -u cube-sandbox-jfs.service -n 200 --no-pager</code>、<code>docker logs cube-sandbox-jfs</code>、<code>docker logs cube-sandbox-jfs-redis</code>。常见：<code>CUBE_JFS_META_URL</code>/<code>CUBE_JFS_META_PASSWORD</code> 未写入或各节点不一致；无 <code>/dev/fuse</code>；拉不到 <code>CUBE_JFS_IMAGE</code>；Redis/MinIO/S3 不可达或凭证失效</td>
+                            </tr>
+                            <tr>
+                                <td>容器运行但宿主机看不到挂载</td>
+                                <td>用 <code>findmnt -T /data/cubelet/storage/jfs</code> 与 <code>docker inspect cube-sandbox-jfs --format '{{.State.Status}}'</code>。挂载脚本会建立 self bind 并设置 <code>rshared</code>，不要绕过 systemd 直接跑没有 <code>bind-propagation=rshared</code> 的容器</td>
+                            </tr>
+                            <tr>
+                                <td>Cubelet 报 <code>jfs storage is not configured</code></td>
+                                <td>确认 <code>[cow.jfs] enable = true</code>，核对 <code>mount_path</code>、<code>root</code>、<code>cache_dir</code> 与 <code>.one-click.env</code> 一致；改后 <code>sudo systemctl restart cube-sandbox-cubelet.service</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>remote_status</code> 长时间停在 <code>inprogress</code></td>
+                                <td>使用 <code>--writeback</code> 时文件关闭后仍可能有 block 留在本地 staging。检查 JuiceFS 容器日志、对象存储连通性、缓存盘空间和上传带宽；<strong>不要</strong>直接删 cache 中的 staging 数据</td>
+                            </tr>
+                            <tr>
+                                <td>只能在源节点恢复</td>
+                                <td>依次确认 resource 的 <code>backend</code> 是 <code>jfs</code>、<code>remote_status</code> 已为 <code>ready</code>、所有节点元数据地址与 <code>root</code> 相同、目标节点 CPU/kernel 满足条件；host-mount 仍会把沙箱固定在源节点</td>
+                            </tr>
+                            <tr>
+                                <td>K8s 首次安装格式化 Job 失败</td>
+                                <td>凭证错误时 Job 会重试耗尽失败，挂载 Pod 停在 <code>Init:CrashLoopBackOff</code>。修正凭证后删除失败 Job 再 <code>helm upgrade</code>：<code>kubectl -n cube-system delete job -l app.kubernetes.io/component=cube-juicefs-format</code></td>
+                            </tr>
+                            <tr>
+                                <td>误删 JuiceFS 元数据 Secret</td>
+                                <td>该 Secret 保存 Chart 管理的 Redis 密码，删除后 Chart 会生成新密码而 Redis 仍用旧密码。把 <code>cubeJuiceFS.metadata.password</code> 设为 Redis 实际密码（可从 Pod 内 <code>/etc/redis/redis-auth.conf</code> 读取），临时设 <code>lifecycleChangeAck: true</code> 重新升级，完成后移除</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ===================== 7. CubeS3lvol ===================== -->
+            <section class="concept-section" id="s3lvol">
+                <h2><span class="section-num">7</span>CubeS3lvol 部署与性能</h2>
+                <p><code>backend=s3</code> 通过 CubeS3lvol 将暂停包和快照发布到共享 S3。跨机调度与 CPU/kernel 条件同第 5 节。</p>
+
+                <div class="warning"><strong>部署范围：</strong>CubeS3lvol 在 one-click 和 Kubernetes 上都<strong>默认关闭</strong>，需要显式启用。</div>
+
+                <h3>7.1 配置后端 S3 服务</h3>
+                <p>Cube 安装时默认安装 MinIO 作为 S3 服务，方便开箱体验；若要接入自己的 S3，按 CubeS3lvol 文档配置即可。</p>
+
+                <h4>one-click</h4>
+                <div class="code-label">Shell · 启用（使用内置 MinIO 可直接复用凭证）</div>
+                <pre><code>ONE_CLICK_ENABLE_S3LVOL=1
+CUBE_S3LVOL_BUCKET=cube-s3lvol</code></pre>
+                <p>外部对象存储还需设置 <code>CUBE_S3_ENDPOINT</code>、<code>CUBE_S3_ACCESS_KEY_ID</code>、<code>CUBE_S3_SECRET_ACCESS_KEY</code> 和 <code>CUBE_S3_REGION</code>。MinIO 等 path-style 服务设置 <code>CUBE_S3LVOL_PATH_STYLE=true</code>。安装程序会生成 <code>/data/cubelet/s3.cfg</code>、创建 WAL，并启用 <code>cube-sandbox-s3lvol.service</code>。</p>
+
+                <h4>Kubernetes（Helm）</h4>
+                <div class="code-label">YAML · 最小启用</div>
+                <pre><code>cubeS3lvol:
+  enabled: <span class="k">true</span>
+  <span class="c"># 可选：覆盖 endpoint / 密钥。桶必须与 cube-volumes 分开。</span>
+  <span class="c"># s3:</span>
+  <span class="c">#   endpoint: https://s3.example.com</span>
+  <span class="c">#   accessKeyId: ...</span>
+  <span class="c">#   secretAccessKey: ...</span>
+  <span class="c">#   bucket: cube-s3lvol</span></code></pre>
+                <p>sidecar 复用 chart 内置 MinIO（或已配置的 <code>volumeS3</code>）的 endpoint 与凭证，写入独立的 <code>cube-s3lvol</code> 桶——<strong>始终与 S3 volume 插件的 <code>cube-volumes</code> 桶分开</strong>。通常只需额外设置两种情况：外部 S3 端点为 path-style 时设 <code>cubeS3lvol.s3.pathStyle: true</code>；CPU 核做了隔离时设 <code>cubeS3lvol.cpuMask</code>（默认绑本进程 <code>Cpus_allowed_list</code> 里的最后两核）。</p>
+                <div class="danger">
+                    <strong>会重建 Big Pod：</strong>开启该开关会重建计算节点的 Big Pod，请在维护窗口操作，最好在创建任何沙箱之前开启。身份来自完整 Kubernetes 节点名，哈希成 <code>rcow-&lt;8hex&gt;</code>；Pod 重建仍是同一台机器。<code>cubeS3lvol.lvsName</code> 会给集群里每个节点钉同一个名字——<strong>多节点不要设</strong>。
+                </div>
+                <p>首次启动时若 WAL 文件不存在会创建稀疏文件；<code>journalMB</code> / <code>walMB</code> / <code>cacheMB</code> 只在文件出现之前生效。开启 sidecar 后，Big Pod 的 <code>terminationGracePeriodSeconds</code> 会提高到至少 180s，以便 <code>rcow_stop</code> 完成 disconnect 与 unload。</p>
+
+                <h3>7.2 每台节点的存储需求（重点是 WAL）</h3>
+                <div class="stat-grid">
+                    <div class="stat"><div class="stat-value">2 核</div><div class="stat-label">每节点 CPU</div></div>
+                    <div class="stat"><div class="stat-value">23 GiB</div><div class="stat-label">每节点内存</div></div>
+                    <div class="stat"><div class="stat-value">512 GiB</div><div class="stat-label">WAL 镜像逻辑大小（稀疏）</div></div>
+                    <div class="stat"><div class="stat-value">AVX2</div><div class="stat-label">x86_64 节点要求（Haswell）</div></div>
+                </div>
+                <p>其中包含默认 1 GiB 整对象 RAM cache（<code>RCOW_CACHE_HOT_BUFS=1024</code>）和默认 4 GiB 的 <code>/dev/shm</code> 写回环；cache 设为 <code>0</code> 可只使用磁盘 cache。</p>
+
+                <div class="info">
+                    快照对象存放在共享 S3 上，但<strong>每台运行 s3lvol 的节点还需要一块本地 WAL 镜像盘</strong>。没有这块盘的节点既无法制作快照，也无法恢复快照。已确认、尚未进入 S3 的写在 <code>/dev/shm</code> 写回环里，不在磁盘 WAL 中；节点重启会丢掉还没进入 S3 的记录。
+                </div>
+
+                <h4>WAL 镜像盘</h4>
+                <ul>
+                    <li>路径：<code>/data/cubelet/rcow/wal_bdev.img</code></li>
+                    <li>逻辑大小：默认 <strong>512 GiB</strong>，由 one-click <code>install.sh</code> 或 Helm sidecar 入口在首次启动时以<strong>稀疏文件</strong>方式创建</li>
+                    <li>只创建一次：journal / WAL / cache 三段的划分在创建时就固定，之后无法调整（只能重新创建镜像）</li>
+                </ul>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>区域</th><th>默认大小</th><th>作用</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Journal</td><td>1024 MiB</td><td>在途写操作记录，挂载 lvstore 时回放</td></tr>
+                            <tr><td>WAL</td><td>32768 MiB（32 GiB）</td><td>磁盘上的区域，用于回放 0.7.2/0.7.3 写下的记录；新的、尚未进入 S3 的已确认写在 <code>/dev/shm</code> 写回环里</td></tr>
+                            <tr><td>Chunk cache</td><td>490496 MiB（≈479 GiB）</td><td>最近写入 chunk 的本地缓存</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip">镜像是<strong>稀疏文件</strong>：预留 512 GiB 逻辑空间并不会立即占用 512 GiB 物理磁盘。物理占用按实际写入增长，容量规划应围绕写入工作集，而非逻辑大小。</div>
+
+                <h4>集群规划</h4>
+                <ul>
+                    <li><strong>每台可能参与跨机恢复的节点都要在本地磁盘准备自己的 WAL 镜像</strong>——包括运行沙箱的计算节点，以及运行 s3lvol 的控制节点。</li>
+                    <li>三段大小在安装时通过 <code>RCOW_JOURNAL_MB</code> / <code>RCOW_WAL_MB</code> / <code>RCOW_CACHE_MB</code>（一键安装）、chart 的 <code>cubeS3lvol.journalMB</code> / <code>walMB</code> / <code>cacheMB</code>（Helm）或 CubeS3lvol 运行时环境配置设置。调整只在<strong>首次启动前</strong>有意义——镜像一旦创建，布局即固定。</li>
+                    <li>镜像不长期保存快照数据：它只是写缓冲加缓存，持久副本在 S3。</li>
+                </ul>
+
+                <h3>7.3 基准性能</h3>
+                <p>单位 <strong>ms</strong>。表中 <strong>avg</strong> / <strong>p95</strong> 是<strong>单实例</strong>从发起到进入 <code>running</code> 的耗时，不是整批 wall 再除以并发。测于 2026-09-21，S3 对象存储为安装默认的集群内 <strong>MinIO</strong>（path-style）。结果随硬件、镜像和脏页负载变化，只适合同集群上 xfs 与 s3 的对照，不是 SLA。</p>
+
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>测试环境项</th><th>值</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>OS / 内核</td><td>TencentOS Server 4.4 / <code>6.6.69-opencloudos9.cubesandbox.pvm.host</code></td></tr>
+                            <tr><td>CPU / 内存</td><td>AMD EPYC 9K65，16 vCPU，1 thread/core / 30 GiB</td></tr>
+                            <tr><td>磁盘</td><td>系统盘、数据盘各约 1 TB，腾讯云 <code>CLOUD_SSD</code>；<code>/</code> 为 XFS，<code>/data</code> 为 ext4</td></tr>
+                            <tr><td>沙箱规格</td><td>2 vCPU（2000 millicores）/ 2048 MiB 内存 / 可写层 4Gi / Probe 49983 <code>/health</code></td></tr>
+                            <tr><td>后端</td><td><code>xfs</code> 与 <code>s3</code>（S3 对象存储为 MinIO）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4>冷启动（从模板创建）</h4>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>并发</th><th>xfs avg</th><th>xfs p95</th><th>s3 avg</th><th>s3 p95</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1</td><td>56.1</td><td>64.2</td><td>242.9</td><td>270.9</td></tr>
+                            <tr><td>5</td><td>68.0</td><td>79.6</td><td>663.8</td><td>839.6</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4>快照 / 暂停 / 恢复</h4>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>操作</th><th>xfs avg</th><th>xfs p95</th><th>s3 本地 avg</th><th>s3 本地 p95</th><th>s3 跨机 avg</th><th>s3 跨机 p95</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>制作快照</td><td>97.0</td><td>118.9</td><td>2242.2</td><td>2365.7</td><td>N/A</td><td>N/A</td></tr>
+                            <tr><td>快照共享（推送至共享 S3）</td><td>N/A</td><td>N/A</td><td>4336.4</td><td>6267.5</td><td>N/A</td><td>N/A</td></tr>
+                            <tr><td>暂停（1 并发）</td><td>106.2</td><td>122.7</td><td>2509.9</td><td>2709.3</td><td>N/A</td><td>N/A</td></tr>
+                            <tr><td>暂停（5 并发）</td><td>152.7</td><td>170.4</td><td>3415.8</td><td>4154.5</td><td>N/A</td><td>N/A</td></tr>
+                            <tr><td>暂停共享（推送至共享 S3）</td><td>N/A</td><td>N/A</td><td>5318.8</td><td>5763.4</td><td>N/A</td><td>N/A</td></tr>
+                            <tr><td>恢复（1 并发）</td><td>153.6</td><td>171.3</td><td>410.8</td><td>448.4</td><td>836.2</td><td>920.8</td></tr>
+                            <tr><td>恢复（5 并发）</td><td>403.3</td><td>474.6</td><td>1755.4</td><td>2033.7</td><td>3191.3</td><td>3837.2</td></tr>
+                            <tr><td>快照创建（1 并发）</td><td>63.2</td><td>75.4</td><td>253.7</td><td>301.0</td><td>729.6</td><td>788.5</td></tr>
+                            <tr><td>快照创建（5 并发）</td><td>93.4</td><td>118.5</td><td>706.9</td><td>887.3</td><td>3194.4</td><td>3912.3</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>跨机的<strong>恢复 / 从快照创建</strong>是 <strong>warm dest</strong>：计时前目标节点已有该模板 guest 基础镜像（约 1 GiB）和内核旁路文件（约 50 MiB）。共享行是源端 export 到 <code>remote=ready</code>（声明约 210 MiB）；dest GET 只是发起到 <code>running</code> 之间打 MinIO 的字节，不是把整包下完（约 10–20 MiB）。guest 在 <code>running</code> 之后还可能继续按页拉取（不计时），总传输更大。</p>
+
+                <h3>7.4 已知问题</h3>
+                <ol>
+                    <li><strong>S3 快照对象由 S3lvol 异步删除，被引用的快照会拒绝删除。</strong>删除接口返回时，对象不一定已从 S3 消失。被引用时 CubeS3lvol 以 <code>EBUSY</code> 拒绝（export 仍在发布、有 live lease、lease miss 还不到 source grace 约 60 秒、本地 esnap clone 仍在读、存在多个 clone、正在 decouple）。此时会记录 <strong>pending-delete 标记</strong>（按 lvstore uuid + lvol uuid 记录，不按名字，避免同名快照被误删），可通过 <code>rcow_get_lvstores</code> 的 <code>delete_pending</code> 字段查看，<code>deletable</code> 表示当前是否可删。之后约 60 秒一次的 poller 会在阻塞消失后自动完成删除；poller 能自行完成的阻塞会返回成功并带 <code>deferred: true</code>。</li>
+                    <li><strong>DB / FS 结构相较 0.7.0 之前版本变化较大，老数据适配仅覆盖 0.6.0。</strong>新版本会对老版本数据结构做适配，但适配测试只覆盖到 0.6.0；遇到未覆盖、适配失败的环境，需要手动清理老的 snapshot 文件与对应 DB 数据。</li>
+                    <li><strong>跨机 Resume 或从快照创建的沙箱，短时间内无法再次 Pause 或制作快照。</strong>需要等待的时间取决于 snapshot 文件大小，下个版本会修复。</li>
+                </ol>
+
+                <div class="code-label">Shell · 查看与重试被拒的删除（在 CubeS3lvol 目录下）</div>
+                <pre><code><span class="c"># 查看 DEL / PEND 两列</span>
+test/tools/s3lvol_rpc.py --ls
+
+<span class="c"># 重试所有已标记且当前可删的快照</span>
+test/tools/s3lvol_rpc.py --retry-pending</code></pre>
+
+                <h3>7.5 JuiceFS 与 S3 后端对比</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>维度</th><th>JuiceFS（<code>--backend jfs</code>）</th><th>S3 / CubeS3lvol（<code>--backend s3</code>）</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>共享存储</td><td>JuiceFS（元数据引擎 + 对象存储，POSIX 兼容）</td><td>共享 S3 / MinIO 对象桶</td></tr>
+                            <tr><td>默认启用</td><td>one-click 默认不启用</td><td>one-click 与 K8s 默认关闭</td></tr>
+                            <tr><td>前置条件</td><td>所有节点 FUSE；访问同一元数据引擎与对象存储</td><td>每节点本地 WAL 镜像盘；x86_64 需 AVX2</td></tr>
+                            <tr><td>每节点额外资源</td><td>缓存盘（建议 NVMe/SSD，100 GiB 上限）</td><td>约 2 核 + 23 GiB + 512 GiB 稀疏 WAL</td></tr>
+                            <tr><td>冷启动（c=1 avg）</td><td>源文档未给出（见官方性能博客）</td><td>242.9 ms（xfs 对照 56.1 ms）</td></tr>
+                            <tr><td>制作快照（avg）</td><td>源文档未给出</td><td>2242.2 ms（另加共享 4336.4 ms）</td></tr>
+                            <tr><td>成熟度</td><td>Preview 预览阶段</td><td>保留原有部署/性能/排障说明</td></tr>
+                            <tr><td>适用</td><td>快速试用、需要 POSIX 语义</td><td>生产、对象存储原生</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ===================== 8. 恢复决策与生命周期 ===================== -->
+            <section class="concept-section" id="recovery">
+                <h2><span class="section-num">8</span>恢复决策与生命周期</h2>
+                <p>恢复一个沙箱时，第一判断永远是「源节点还能不能用」——能用就在源节点本地恢复，不能用才走跨机。</p>
+
+                <h3>8.1 本地恢复 vs 跨机恢复</h3>
+                <div class="decision">
+                    <div class="decision-card">
+                        <span class="badge badge-success">本地恢复</span>
+                        <h4>源节点健康且可调度</h4>
+                        <p>直接在源节点恢复（xfs 或共享后端均可）。速度最快、无线程上传说，调度器<strong>始终优先</strong>此选项。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-primary">跨机恢复</span>
+                        <h4>源节点离线 / 被隔离</h4>
+                        <p>检查三件事：① 模板是 <code>backend=jfs|s3</code>；② <code>remote_status=ready</code>；③ 目标节点 <code>cpuid_hash</code> / <code>host_kernel_release</code> 匹配。全部满足才选兼容节点，否则报错。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-danger">禁止跨机</span>
+                        <h4>使用了 host-mount</h4>
+                        <p>挂载了宿主机目录的沙箱<strong>无法跨机</strong>。若必须迁移，改用 fs-only 快照并在目标节点重新声明挂载。</p>
+                    </div>
+                </div>
+
+                <h3>8.2 生命周期时间线：快照 → 暂停 → 迁移 → 恢复</h3>
+                <p>以 S3 共享后端为例，一次典型的跨机迁移经历以下阶段（各阶段耗时见第 7.3 节基准表）：</p>
+
+                <div class="timeline">
+                    <div class="timeline-item done">
+                        <h4><span class="timeline-time">T0</span>快照 / 暂停</h4>
+                        <p>对源沙箱 <code>create_snapshot()</code> 或 <code>pause(wait=True)</code>。S3 同一时刻只能有一个 export；Pause 总在源节点完成。</p>
+                    </div>
+                    <div class="timeline-item done">
+                        <h4><span class="timeline-time">T1</span>共享 export</h4>
+                        <p>把包推送到共享 S3 / JuiceFS，轮询 <code>remote_status</code> 直到 <code>ready</code>。这段等待在基准里单列为「快照共享 / 暂停共享」。</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4><span class="timeline-time">T2</span>隔离源节点</h4>
+                        <p>用 <code>cubeopscli</code> 隔离源节点使其不可调度，调度器才会考虑兼容的目标节点。</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4><span class="timeline-time">T3</span>目标节点 import</h4>
+                        <p>目标节点登记 + lease + activate（FromSnap / Resume），开始按需拉取页面，进入 <code>running</code>。</p>
+                    </div>
+                    <div class="timeline-item done">
+                        <h4><span class="timeline-time">T4</span>恢复完成</h4>
+                        <p>沙箱在目标节点 <code>running</code>，guest 继续后台按页拉取。注意：短时间内无法再次 Pause 或制作快照（已知问题 3）。</p>
+                    </div>
+                </div>
+
+                <div class="state-machine">
+                    <span class="state running">running（源）</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state paused">export / pause</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state pending">inprogress</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">ready → running（目标）</span>
+                </div>
+                <p><code>remote_status</code> 常见取值为 <code>pending</code> → <code>inprogress</code> → <code>ready</code>；长时间停在 <code>inprogress</code> 时按第 6.8 节排查 staging 上传与网络。</p>
+            </section>
+
+            <!-- ===================== 9. 易错点 / 记忆 / 自测 ===================== -->
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">9</span>易错点、记忆卡片与自测</h2>
+
+                <h3>9.1 易错点</h3>
+                <div class="danger">
+                    <strong>1. 用 fs-only 快照回滚被拒。</strong>fs-only 只记录文件系统、不含内存，<code>rollback()</code> 会返回 <code>snapshot_filesystem_only_rollback_unsupported</code>。回滚只支持 full 快照。
+                </div>
+                <div class="danger">
+                    <strong>2. 快照名称用了保留前缀。</strong><code>name</code> 不能以 <code>tpl-</code> 或 <code>snap-</code> 开头，否则 HTTP 400。
+                </div>
+                <div class="warning">
+                    <strong>3. 以为 <code>with</code> 会删快照。</strong>上下文管理器只 <code>kill</code> 沙箱，不删快照；需显式 <code>Sandbox.delete_snapshot()</code>。只有 <code>clone()</code> 的内部快照会自动清理。
+                </div>
+                <div class="warning">
+                    <strong>4. 用 xfs 模板做跨机。</strong>默认 <code>xfs</code> 后端只在源节点保存数据，跨机必须用 <code>--backend jfs|s3</code> 创建模板，且<strong>已创建的模板不能转换后端</strong>。
+                </div>
+                <div class="warning">
+                    <strong>5. host-mount 沙箱期望跨机。</strong>host-mount 会把沙箱固定在源节点；fs-only 快照不记录挂载，需创建时重新声明。
+                </div>
+                <div class="warning">
+                    <strong>6. 各节点 JFS 挂载点不一致。</strong>快照 catalog 记录绝对路径，<code>CUBE_JFS_MOUNT_PATH</code> 与 <code>CUBE_JFS_ROOT</code> 必须全集群一致，否则无法解析其他节点创建的包。
+                </div>
+                <div class="warning">
+                    <strong>7. 以为删除 S3 快照立即释放。</strong>S3 快照对象异步删除，被引用时 <code>EBUSY</code> 拒绝，需等约 60 秒 poller 或 <code>--retry-pending</code>。
+                </div>
+
+                <h3>9.2 记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>四原语</b>Snapshot 存档、Clone/Fork 开新档、Rollback 读档重来；Rollback 保 ID 不变。</div>
+                    <div class="memory-card"><b>full vs fs-only</b>full 存内存可续进程；fs-only 只存文件、冷启动、不能回滚。</div>
+                    <div class="memory-card"><b>clone vs fork</b>clone 客户端编排全成全败；fork 一次服务端调用、各自成败。</div>
+                    <div class="memory-card"><b>跨机三条件</b>共享后端模板 + CPU/kernel 兼容 + 源节点不可调度。</div>
+                    <div class="memory-card"><b>JFS 必配</b>全节点 FUSE、同一元数据/对象存储、挂载点全集群一致。</div>
+                    <div class="memory-card"><b>S3 必配</b>每节点本地 512 GiB 稀疏 WAL 镜像 + 约 2 核 23 GiB；x86_64 需 AVX2。</div>
+                </div>
+
+                <h3>9.3 自测</h3>
+                <div class="quiz">
+                    <h4>自测</h4>
+                    <details>
+                        <summary>Q1：想对运行中的沙箱开 100 个并行副本，且允许部分成功，应该用 <code>clone</code> 还是 <code>fork</code>？为什么？</summary>
+                        <p>用 <code>fork(count=100)</code>。它是一次服务端调用、单次快照、N 路派生，且<strong>各自独立成败</strong>——部分成功保留副本且不抛异常，临时快照由服务端管理。若需要「全成或全败」语义，才用 <code>clone(n=100, concurrency=C)</code>。<code>count</code> 上限为 100。</p>
+                    </details>
+                    <details>
+                        <summary>Q2：一个用 <code>--backend jfs</code> 创建、且挂载了宿主机目录的沙箱，源节点下线后能否跨机恢复？</summary>
+                        <p>不能。host-mount 会把沙箱固定在源节点，无法保证挂载目录在目标节点可访问。若必须迁移，应改用 fs-only 快照（不记录挂载），在目标节点创建时重新声明挂载，按普通新建沙箱调度。</p>
+                    </details>
+                    <details>
+                        <summary>Q3：为什么 <code>create_snapshot(mode="fs-only")</code> 之后调用 <code>rollback()</code> 会失败？想回滚该怎么办？</summary>
+                        <p>fs-only 不捕获 guest 内存，只保存文件系统，回滚需要还原内存，因此被拒绝（<code>snapshot_filesystem_only_rollback_unsupported</code>）。想回滚必须使用 <code>mode="full"</code>（默认）创建的快照。注意 fs-only 也不是增量链，每份都是独立镜像。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/snapshot-rollback-clone" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

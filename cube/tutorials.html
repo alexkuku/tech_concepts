@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教程与多语言 SDK | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>教程与多语言 SDK</span>
+            </h1>
+            <p class="subtitle">从示例项目到 Python / Go / Node.js 三语言 SDK，一次打通应用接入 CubeSandbox 的完整路径</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 08 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">教程与 SDK</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 08 章</span>
+                <h1>教程与多语言 SDK</h1>
+                <p>这一页把官方示例项目和三套语言 SDK 串成一条可落地的接入路径：先用示例理解能力边界，再用 Python / Go / Node.js SDK 写出第一段可运行代码，最后弄清 SDK → CubeAPI → CubeProxy → 沙箱的调用链与鉴权方式。读完你应能判断「用哪个 SDK、怎么配、遇到网络/证书问题查哪里」。</p>
+                <div class="page-meta">
+                    <span>📖 预计 30 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 4 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#examples">1. 示例项目全景</a></li>
+                    <li><a href="#compare">2. 三语言 SDK 横向对比</a></li>
+                    <li><a href="#python">3. Python SDK</a></li>
+                    <li><a href="#go">4. Go SDK</a></li>
+                    <li><a href="#nodejs">5. Node.js SDK</a></li>
+                    <li><a href="#call-chain">6. SDK 调用链与鉴权</a></li>
+                    <li><a href="#choose">7. 如何选择 SDK</a></li>
+                    <li><a href="#pitfalls">8. 易错点、记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <section class="concept-section" id="examples">
+                <h2><span class="section-num">1</span>示例项目全景</h2>
+                <p>官方示例都放在仓库的 <code>examples/</code> 目录下，覆盖从「跑通第一个沙箱」到「Agent 框架集成」「Volume 插件」「性能压测」的完整光谱。运行前请先看各项目 README 里的前置条件和配置步骤，不要直接复制命令就执行。</p>
+                <div class="note">
+                    <strong>共用环境变量：</strong>多数 SDK 示例使用相同的环境变量 <code>E2B_API_URL</code>、<code>E2B_API_KEY</code> 和 <code>CUBE_TEMPLATE_ID</code>。运行前先参考「快速开始」完成 CubeAPI 与模板准备。
+                </div>
+
+                <h3>快速入门与镜像</h3>
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="icon">🚀</span>
+                        <h3>代码沙箱快速入门</h3>
+                        <p>创建沙箱，执行 Python 和 Shell 命令，操作文件，体验核心 E2B 兼容 API。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/code-sandbox-quickstart" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🌐</span>
+                        <h3>浏览器沙箱（Playwright）</h3>
+                        <p>在 MicroVM 中运行无头 Chromium，通过 CDP 使用 Playwright 远程控制浏览器。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/browser-sandbox" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">📦</span>
+                        <h3>自定义 nginx 镜像</h3>
+                        <p>基于 <code>cubesandbox-base</code> 构建最小 nginx 镜像，完整验证自定义模板镜像流程。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/cubesandbox-base-nginx" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🖥️</span>
+                        <h3>Ubuntu 桌面沙箱</h3>
+                        <p>在浏览器里打开 Ubuntu 22.04 GNOME 桌面，支持截图与 SDK 脚本化 GUI 自动化。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/ubuntu-desktop" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                </div>
+
+                <h3>Agent 与框架集成</h3>
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="icon">🤖</span>
+                        <h3>Claude Code</h3>
+                        <p>把 Claude Code 的 Bash 工具调用转发到隔离的 CubeSandbox MicroVM 中执行。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/claude-code-integration" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🦜</span>
+                        <h3>LangChain</h3>
+                        <p>在 LangChain 0.x 和 1.x Agent 中把 CubeSandbox 用作命令执行工具。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/langchain-integration" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🕸️</span>
+                        <h3>LangGraph</h3>
+                        <p>构建显式 <code>StateGraph</code> Agent（生成 → 执行 → 审查 → 重试），在 MicroVM 中执行 Python，并支持跨 <code>pause()</code> / <code>connect()</code> 的 checkpoint 恢复。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/langgraph-integration" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🥧</span>
+                        <h3>Pi Agent</h3>
+                        <p>把 Pi Agent 的工具执行接入 CubeSandbox 环境。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/pi-agent-integration" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🦀</span>
+                        <h3>OpenClaw</h3>
+                        <p>配置 OpenClaw Skill，让 Agent 在隔离的 MicroVM 中执行代码。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/openclaw-integration" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🧠</span>
+                        <h3>OpenAI Agents SDK</h3>
+                        <p>把 <code>E2BSandboxClient</code> 接入 CubeSandbox，包含 Shell Agent、暂停/恢复和 SWE-bench 流程。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/openai-agents-example" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">📊</span>
+                        <h3>OpenAI Agents + Code Interpreter</h3>
+                        <p>使用通用 E2B 执行或有状态 Jupyter kernel 运行数据分析 Agent。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/openai-agents-code-interpreter" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🧪</span>
+                        <h3>SWE-bench + mini-swe-agent</h3>
+                        <p>在隔离沙箱中自动处理 SWE-bench 编码任务，支持多模型与 RL 训练流程。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/mini-rl-training" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                </div>
+
+                <h3>网络与入口</h3>
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="icon">🔒</span>
+                        <h3>网络策略</h3>
+                        <p>演示完全断网、CIDR 白名单、CIDR 黑名单以及运行时更新策略。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/network-policy" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🛣️</span>
+                        <h3>路由感知出网</h3>
+                        <p>启用 <code>cube-router</code> 后，验证沙箱流量按照宿主机路由出网。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/route-aware-egress" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">📡</span>
+                        <h3>gRPC Ingress</h3>
+                        <p>通过 CubeProxy 的 9090 明文入口连接原生 gRPC 客户端。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/grpc-ingress" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🧩</span>
+                        <h3>E2B 开发 Sidecar</h3>
+                        <p>在没有泛域名 DNS 的开发环境中，通过 E2B SDK 访问远程 Cube 集群。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/e2b-dev-sidecar" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                </div>
+
+                <h3>存储、内存与状态</h3>
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="icon">📂</span>
+                        <h3>Host Mount</h3>
+                        <p>创建沙箱时，以只读或读写方式挂载宿主机目录。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/host-mount" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">📸</span>
+                        <h3>快照、回滚与克隆</h3>
+                        <p>提供快照、回滚、克隆、状态保留和并发操作的独立 SDK 示例。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/snapshot-rollback-clone" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🧠</span>
+                        <h3>ivshmem</h3>
+                        <p>启用主机与虚机共享内存，并体验环形缓冲区协议和 mmap 吞吐测试。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/ivshmem" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">☁️</span>
+                        <h3>腾讯云 COS Volume 插件</h3>
+                        <p>部署 binary 或 RPC 类型的 COS Volume 插件，并验证完整生命周期。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/blob/master/examples/volume/cos/README.zh.md" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🪣</span>
+                        <h3>S3 兼容 Volume 插件</h3>
+                        <p>接入 AWS S3、腾讯云 COS、Cloudflare R2、MinIO 等 S3 兼容后端。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/blob/master/examples/volume/s3/README.zh.md" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🗄️</span>
+                        <h3>NFS Volume 插件</h3>
+                        <p>共享预建 NFSv3 目录，为每个沙箱选择只读或读写挂载。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/blob/master/examples/volume/nfs/README.zh.md" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🐟</span>
+                        <h3>JuiceFS Volume 插件</h3>
+                        <p>对象存储之上的 POSIX 文件系统：一个文件系统、每个卷 <code>--subdir</code>，多个沙箱可共享一个卷并立即看到彼此的写入。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/blob/master/examples/volume/juicefs/README.zh.md" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                </div>
+
+                <h3>性能测试</h3>
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="icon">📈</span>
+                        <h3>cube-bench</h3>
+                        <p>按可配置并发测量沙箱创建与删除延迟，提供 TUI、分位数报告和 JSON 导出。</p>
+                        <a class="card-link" href="https://github.com/TencentCloud/CubeSandbox/tree/master/examples/cube-bench" target="_blank" rel="noopener">查看示例 →</a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="concept-section" id="compare">
+                <h2><span class="section-num">2</span>三语言 SDK 横向对比</h2>
+                <p>三套 SDK 的能力范围基本对齐，差异主要在语言习惯（Promise / context / 上下文管理器）、包管理器和少数高级特性（如 Go 的流式上传语义）。先看这张总表，再进各语言小节看完整代码。</p>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>维度</th>
+                                <th>Python</th>
+                                <th>Go</th>
+                                <th>Node.js / TypeScript</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>包名 / 导入</td>
+                                <td><code>cubesandbox</code></td>
+                                <td><code>github.com/tencentcloud/CubeSandbox/sdk/go</code></td>
+                                <td><code>@cubesandbox/sdk</code></td>
+                            </tr>
+                            <tr>
+                                <td>安装命令</td>
+                                <td><code>pip install cubesandbox</code></td>
+                                <td><code>go get github.com/tencentcloud/CubeSandbox/sdk/go</code></td>
+                                <td><code>npm install @cubesandbox/sdk</code></td>
+                            </tr>
+                            <tr>
+                                <td>运行时要求</td>
+                                <td>Python 3.9+</td>
+                                <td>Go（源文档未注明最低版本）</td>
+                                <td>Node.js 18+；<code>await using</code> 需 TS 5.2 + Node 20+</td>
+                            </tr>
+                            <tr>
+                                <td>快速开始</td>
+                                <td><code>Sandbox.create()</code> + <code>run_code()</code></td>
+                                <td><code>NewConfigFromEnv()</code> + <code>client.Create()</code> + <code>RunCode()</code></td>
+                                <td><code>await Sandbox.create()</code> + <code>runCode()</code></td>
+                            </tr>
+                            <tr>
+                                <td>沙箱创建</td>
+                                <td><code>Sandbox.create(config=...)</code></td>
+                                <td><code>client.Create(ctx, CreateOptions{})</code></td>
+                                <td><code>Sandbox.create()</code></td>
+                            </tr>
+                            <tr>
+                                <td>代码执行</td>
+                                <td><code>run_code()</code>，变量持久化、流式输出</td>
+                                <td><code>RunCode()</code></td>
+                                <td><code>runCode()</code>，变量持久化、流式输出、空闲超时</td>
+                            </tr>
+                            <tr>
+                                <td>命令执行</td>
+                                <td><code>commands.run()</code>、交互式 PTY</td>
+                                <td>Shell 命令、PTY 创建/重连/调整</td>
+                                <td><code>commands.run()</code>、交互式 PTY</td>
+                            </tr>
+                            <tr>
+                                <td>文件读写</td>
+                                <td><code>files.write()</code> / <code>files.read()</code>，含监听、重命名、删除</td>
+                                <td>完整文件系统操作 + 目录监听</td>
+                                <td>完整文件系统操作 + 目录监听</td>
+                            </tr>
+                            <tr>
+                                <td>流式上传</td>
+                                <td>文档未单独列出</td>
+                                <td><code>Files.WriteFrom(ctx, path, src io.Reader)</code>，无需整文件入内存</td>
+                                <td>文档未单独列出</td>
+                            </tr>
+                            <tr>
+                                <td>Volume / 挂载</td>
+                                <td>持久卷、宿主机目录</td>
+                                <td>持久卷、宿主机目录挂载</td>
+                                <td>持久卷、宿主机目录挂载</td>
+                            </tr>
+                            <tr>
+                                <td>生命周期</td>
+                                <td>暂停/重连、快照、回滚、克隆</td>
+                                <td><code>Kill</code> / <code>Pause</code>、快照、回滚、并发克隆</td>
+                                <td>暂停、重连、快照、回滚、克隆</td>
+                            </tr>
+                            <tr>
+                                <td>适用场景</td>
+                                <td>数据科学、Agent 脚本、快速验证</td>
+                                <td>高并发后端、需要精细控制 HTTP / 流式上传的服务</td>
+                                <td>Node 服务端、全栈 TypeScript 应用</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip">
+                    <strong>结论先行：</strong>三套 SDK 都能完成「创建沙箱 → 执行代码/命令 → 读写文件 → 管理生命周期 → 挂载 Volume」。选型更多取决于你的运行语言栈；只有在需要「未知长度的大文件流式上传」时，Go SDK 的 <code>WriteFrom</code> 才有明显优势。
+                </div>
+            </section>
+
+            <section class="concept-section" id="python">
+                <h2><span class="section-num">3</span>Python SDK</h2>
+                <p><code>cubesandbox</code> 是官方 Python SDK，提供符合 Python 使用习惯的接口，用于创建沙箱、执行代码与命令、管理文件以及控制沙箱完整生命周期。它是上手最快、与 Agent / 数据科学生态结合最自然的一套。</p>
+
+                <h3>安装与环境要求</h3>
+                <p>要求 <strong>Python 3.9 或更高版本</strong>，直接用 pip 安装：</p>
+                <pre><code>pip install cubesandbox</code></pre>
+
+                <h3>配置</h3>
+                <p>通过环境变量配置 CubeAPI 地址与模板 ID；如果部署环境无法解析 <code>*.cube.app</code> 泛域名，远程访问时还需要指定 CubeProxy 节点 IP。</p>
+                <pre><code><span class="c"># 必填：CubeAPI 地址与模板</span>
+export CUBE_API_URL=http://&lt;your-cubeapi-host&gt;:3000
+export CUBE_TEMPLATE_ID=&lt;your-template-id&gt;
+
+<span class="c"># 无法解析 *.cube.app 时，远程访问需要配置</span>
+export CUBE_PROXY_NODE_IP=&lt;your-cubeproxy-node-ip&gt;</code></pre>
+                <p>也可以在代码中显式配置，避免依赖环境变量：</p>
+                <pre><code>from cubesandbox import Config, Sandbox
+
+config = Config(
+    api_url="http://127.0.0.1:3000",
+    template_id="&lt;your-template-id&gt;",
+    proxy_node_ip="&lt;your-cubeproxy-node-ip&gt;",
+)
+
+with Sandbox.create(config=config) as sandbox:
+    result = sandbox.run_code("1 + 1")
+    print(result.text)</code></pre>
+
+                <h3>快速开始</h3>
+                <p>下面这段完整代码演示「执行代码 → 执行命令 → 写文件 → 读文件」四件事。<code>with</code> 代码块退出时会自动销毁沙箱。</p>
+                <pre><code>from cubesandbox import Sandbox
+
+with Sandbox.create() as sandbox:
+    code = sandbox.run_code('print("hello from CubeSandbox")')
+    print(code.logs.stdout)
+
+    command = sandbox.commands.run("uname -a")
+    print(command.stdout)
+
+    sandbox.files.write("/tmp/hello.txt", "Hello, world!")
+    print(sandbox.files.read("/tmp/hello.txt"))</code></pre>
+
+                <h3>主要能力清单</h3>
+                <ul>
+                    <li>执行代码，支持变量持久化与流式输出。</li>
+                    <li>执行 Shell 命令和交互式 PTY 会话。</li>
+                    <li>读写、列出、监听、重命名和删除文件。</li>
+                    <li>暂停并重新连接沙箱，同时保留内存状态。</li>
+                    <li>创建快照、回滚和克隆沙箱。</li>
+                    <li>创建并挂载持久卷或宿主机目录。</li>
+                    <li>配置计算节点调度以及 L3/L4、L7 网络策略。</li>
+                </ul>
+                <div class="info">
+                    完整 API 参考与高级示例见 <a href="https://github.com/TencentCloud/CubeSandbox/blob/master/sdk/python/README.zh.md" target="_blank" rel="noopener">Python SDK 中文 README</a>。
+                </div>
+            </section>
+
+            <section class="concept-section" id="go">
+                <h2><span class="section-num">4</span>Go SDK</h2>
+                <p>CubeSandbox Go SDK 支持沙箱生命周期管理、代码执行、命令、PTY、文件操作、快照、克隆、回滚、持久卷和网络策略。它的配置项最完整，尤其适合需要精细控制 HTTP 传输和流式上传的后端服务。</p>
+
+                <h3>安装</h3>
+                <pre><code>go get github.com/tencentcloud/CubeSandbox/sdk/go</code></pre>
+
+                <h3>配置</h3>
+                <p>Go SDK 除了标准的 <code>CUBE_API_URL</code>、<code>CUBE_TEMPLATE_ID</code>，还提供完整的远程数据面访问配置：</p>
+                <pre><code>export CUBE_API_URL=http://127.0.0.1:3000
+export CUBE_TEMPLATE_ID=&lt;your-template-id&gt;
+
+<span class="c"># 可选的远程数据面访问配置</span>
+export CUBE_PROXY_NODE_IP=&lt;cubeproxy-node-ip&gt;
+export CUBE_PROXY_PORT_HTTP=80
+export CUBE_PROXY_SCHEME=http
+export CUBE_SANDBOX_DOMAIN=cube.app</code></pre>
+                <div class="note">
+                    <code>NewConfigFromEnv</code> 同时支持 <code>E2B_API_URL</code> 和 <code>E2B_API_KEY</code>；<strong>Cube 专用环境变量的优先级更高</strong>。这意味着从 E2B 迁移过来的配置可以平滑复用。
+                </div>
+
+                <h3>快速开始</h3>
+                <pre><code>package main
+
+import (
+    "context"
+    "fmt"
+
+    cubesandbox "github.com/tencentcloud/CubeSandbox/sdk/go"
+)
+
+func main() {
+    ctx := context.Background()
+    client := cubesandbox.NewClient(cubesandbox.NewConfigFromEnv())
+    defer client.Close()
+
+    sandbox, err := client.Create(ctx, cubesandbox.CreateOptions{})
+    if err != nil {
+        panic(err)
+    }
+    defer sandbox.Kill(ctx)
+
+    result, err := sandbox.RunCode(ctx, "x = 41\nx + 1", cubesandbox.RunCodeOptions{})
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(result.Text)
+}</code></pre>
+                <div class="warning">
+                    <strong>易错：</strong><code>Client.Close</code> 只释放本地空闲 HTTP 连接，<strong>不会销毁远程沙箱</strong>。清理沙箱用 <code>Sandbox.Kill</code>，想保留现场后续重连则用 <code>Sandbox.Pause</code>。
+                </div>
+
+                <h3>主要能力清单</h3>
+                <ul>
+                    <li>执行代码和 Shell 命令。</li>
+                    <li>创建、重连、调整和控制交互式 PTY。</li>
+                    <li>完整的文件系统操作、流式文件上传与下载，以及目录监听。</li>
+                    <li>创建快照、回滚以及并发克隆。</li>
+                    <li>管理持久卷和宿主机目录挂载。</li>
+                    <li>暂停并重新连接沙箱。</li>
+                    <li>配置节点调度、远程代理以及 L3/L4、L7 出网策略。</li>
+                </ul>
+
+                <h3>流式文件上传（重点）</h3>
+                <p><code>Files.WriteFrom(ctx, path, src io.Reader)</code> 从 reader 上传文件，<strong>无需先把整个文件读入内存</strong>。例如用 <code>os.Open</code> 打开本地产物后上传（需要导入 <code>os</code>）：</p>
+                <pre><code>file, err := os.Open("artifact.tar.gz")
+if err != nil {
+    panic(err)
+}
+defer file.Close()
+
+if err := sandbox.Files().WriteFrom(ctx, "/tmp/artifact.tar.gz", file); err != nil {
+    panic(err)
+}</code></pre>
+                <p>这个方法同样支持 <code>ForUser</code>。它的行为契约比较特殊，接入前务必理解下面几点：</p>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>行为</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>reader 消费</td><td>SDK 只消费一次 reader，<strong>不关闭</strong>它，不重试被拒绝的上传，也不跟随重定向。</td></tr>
+                            <tr><td>实现方式</td><td>使用一个按需读取的 goroutine、32 KiB 缓冲区和 multipart 边界。</td></tr>
+                            <tr><td>服务端要求</td><td>服务端及代理需支持未知长度请求体（HTTP/1.1 使用 chunked）。</td></tr>
+                            <tr><td>兼容回退</td><td>旧端点不支持 multipart 且可接受完整缓冲时，可改用 octet-stream 的 <code>Write([]byte)</code>；<code>WriteFrom</code> 不会重放 reader 做兼容。</td></tr>
+                            <tr><td>自定义 transport</td><td>报告 <code>GotConn</code> 和 <code>WroteHeaders</code> 的自定义 transport <strong>必须报告 <code>WroteRequest</code></strong>，缺少完成回调会返回错误。</td></tr>
+                            <tr><td>超时</td><td>用 context deadline 或注入 HTTP 客户端的 <code>Timeout</code> 限制整个操作，两者取较早值；都未设置时，成功响应后的完成阶段使用 <code>Config.RequestTimeout</code>（默认 30 秒）。</td></tr>
+                            <tr><td>取消与资源</td><td>调用返回后，阻塞的源仍可能占用一个读取 goroutine 及其缓冲区；取消无法中断任意源内部的 <code>Read</code>。</td></tr>
+                            <tr><td>原子性</td><td>上传不是原子操作，失败时目标文件可能已被截断或部分写入。</td></tr>
+                            <tr><td>代理限制</td><td>CubeProxy 默认缓冲请求，<strong>256 MiB 限制包含 multipart 边界</strong>，超限返回 HTTP 413。</td></tr>
+                            <tr><td>错误响应</td><td>最多读取 64 KiB 加一个检测字节，超长信息会标记截断，并丢弃末尾不完整的 UTF-8 字符。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip">
+                    完整传输契约与限制请参阅 <a href="https://github.com/TencentCloud/CubeSandbox/blob/master/sdk/go/README.md" target="_blank" rel="noopener">Go SDK README</a>；集成测试步骤也写在那里。
+                </div>
+            </section>
+
+            <section class="concept-section" id="nodejs">
+                <h2><span class="section-num">5</span>Node.js SDK</h2>
+                <p><code>@cubesandbox/sdk</code> 是官方 Node.js 和 TypeScript SDK。它使用 Promise、camelCase 和 <code>async</code>/<code>await</code>，功能范围与 Python SDK 保持一致，适合 Node 服务端与全栈 TypeScript 项目。</p>
+
+                <h3>安装与环境要求</h3>
+                <p>要求 <strong>Node.js 18 或更高版本</strong>。该包同时提供 ESM、CommonJS 构建和 TypeScript 类型声明。</p>
+                <pre><code>npm install @cubesandbox/sdk</code></pre>
+
+                <h3>配置</h3>
+                <pre><code>export CUBE_API_URL=http://&lt;your-cubeapi-host&gt;:3000
+export CUBE_TEMPLATE_ID=&lt;your-template-id&gt;
+
+<span class="c"># 无法解析 *.cube.app 时，远程访问需要配置</span>
+export CUBE_PROXY_NODE_IP=&lt;your-cubeproxy-node-ip&gt;</code></pre>
+
+                <h3>快速开始</h3>
+                <p>用 <code>try / finally</code> 确保沙箱被清理，是 Node 里最直观的写法：</p>
+                <pre><code>import { Sandbox } from "@cubesandbox/sdk";
+
+const sandbox = await Sandbox.create();
+
+try {
+  const code = await sandbox.runCode('print("hello from CubeSandbox")');
+  console.log(code.logs.stdout);
+
+  const command = await sandbox.commands.run("uname -a");
+  console.log(command.stdout);
+
+  await sandbox.files.write("/tmp/hello.txt", "Hello, world!");
+  console.log(await sandbox.files.read("/tmp/hello.txt"));
+} finally {
+  await sandbox.kill();
+}</code></pre>
+
+                <h3>自动清理（TypeScript 5.2+）</h3>
+                <p>使用 TypeScript 5.2 和 Node.js 20 或更高版本时，可以通过显式资源管理（<code>await using</code>）自动清理沙箱：</p>
+                <pre><code>await using sandbox = await Sandbox.create();
+const result = await sandbox.runCode("1 + 1");
+console.log(result.text);</code></pre>
+
+                <h3>主要能力清单</h3>
+                <ul>
+                    <li>执行代码，支持变量持久化、流式输出和空闲超时。</li>
+                    <li>执行 Shell 命令和交互式 PTY 会话。</li>
+                    <li>完整的文件系统操作和目录监听。</li>
+                    <li>暂停、重连、创建快照、回滚和克隆沙箱。</li>
+                    <li>管理持久卷和宿主机目录挂载。</li>
+                    <li>配置节点调度以及 L3/L4、L7 网络策略。</li>
+                    <li>在 ESM 或 CommonJS 应用中使用完整类型 API。</li>
+                </ul>
+                <div class="info">
+                    完整 API 参考、超时语义和开发说明见 <a href="https://github.com/TencentCloud/CubeSandbox/blob/master/sdk/node/README.md" target="_blank" rel="noopener">Node.js SDK README</a>。
+                </div>
+            </section>
+
+            <section class="concept-section" id="call-chain">
+                <h2><span class="section-num">6</span>SDK 调用链与鉴权</h2>
+                <p>无论用哪套 SDK，请求都沿同一条链路走：<strong>应用 → SDK → CubeAPI（E2B 兼容层）→ CubeProxy → 沙箱</strong>。理解这条链路，就能定位「鉴权失败」「解析不到泛域名」「大文件 413」等问题出在哪一跳。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">SDK 调用分层</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary wide">你的应用<small>业务代码 / Agent / 脚本</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 调用 SDK 方法</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">Python SDK</div>
+                        <div class="arch-box control">Go SDK</div>
+                        <div class="arch-box control">Node.js SDK</div>
+                    </div>
+                    <div class="arch-connector strong">↓ HTTPS · 携带 API Key 鉴权</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control wide">CubeAPI<small>E2B 兼容层 · 控制面入口</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 创建 / 路由沙箱</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">CubeProxy<small>数据面入口</small></div>
+                        <div class="arch-box control">CubeMaster<small>调度</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 数据面直连（CUBE_PROXY_NODE_IP）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">沙箱 MicroVM<small>代码 / 命令 / 文件 / PTY</small></div>
+                    </div>
+                    <div class="arch-connector">↕ 持久化</div>
+                    <div class="arch-layer">
+                        <div class="arch-box storage">Volume 插件</div>
+                        <div class="arch-box data">Snapshot / Clone</div>
+                    </div>
+                </div>
+
+                <h3>线性调用链</h3>
+                <div class="h-diagram">
+                    <div class="arch-box">应用</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box accent">SDK</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box control">CubeAPI<small>鉴权</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box network">CubeProxy</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box compute">沙箱</div>
+                </div>
+                <ul>
+                    <li><strong>鉴权发生在 CubeAPI：</strong>SDK 在请求头里带上 API Key（<code>CUBE_API_KEY</code>；Go 的 <code>NewConfigFromEnv</code> 同时兼容 <code>E2B_API_KEY</code>）。地址由 <code>CUBE_API_URL</code> 指定。</li>
+                    <li><strong>控制面与数据面分离：</strong>CubeAPI 负责创建/路由沙箱，真正读写代码、命令、文件的数据面流量走 CubeProxy 直连沙箱。</li>
+                    <li><strong>数据面直连：</strong>远程环境无法解析 <code>*.cube.app</code> 泛域名时，设置 <code>CUBE_PROXY_NODE_IP</code> 让 SDK 直接连数据面节点。</li>
+                </ul>
+
+                <h3>远程访问：绕过 *.cube.app DNS</h3>
+                <p>沙箱默认通过 <code>*.cube.app</code> 泛域名访问数据面。当开发机或 CI 环境的 DNS 无法解析该泛域名时，需要显式指定 CubeProxy 节点 IP：</p>
+                <div class="h-diagram">
+                    <div class="arch-box security">*.cube.app 解析失败</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box network">设置 CUBE_PROXY_NODE_IP</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box accent">数据面直连 CubeProxy</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box compute">沙箱</div>
+                </div>
+
+                <h3>环境变量速查</h3>
+                <div class="table-wrap">
+                    <table class="glossary-table">
+                        <thead>
+                            <tr><th>变量</th><th>作用</th><th>出现在哪些 SDK 文档</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>CUBE_API_URL</code></td><td>CubeAPI 地址（控制面入口）</td><td>Python / Go / Node.js</td></tr>
+                            <tr><td><code>CUBE_API_KEY</code></td><td>API Key 鉴权；Go 文档明确同时兼容 <code>E2B_API_KEY</code>，Cube 专用变量优先</td><td>以官方文档为准</td></tr>
+                            <tr><td><code>CUBE_TEMPLATE_ID</code></td><td>默认模板 ID</td><td>Python / Go / Node.js</td></tr>
+                            <tr><td><code>CUBE_PROXY_NODE_IP</code></td><td>远程数据面节点 IP，绕过 <code>*.cube.app</code> DNS</td><td>Python / Go / Node.js</td></tr>
+                            <tr><td><code>CUBE_PROXY_PORT_HTTP</code></td><td>代理 HTTP 端口（示例默认 80）</td><td>Go</td></tr>
+                            <tr><td><code>CUBE_PROXY_SCHEME</code></td><td>代理 scheme（示例默认 http）</td><td>Go</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_DOMAIN</code></td><td>沙箱泛域名（示例默认 <code>cube.app</code>）</td><td>Go</td></tr>
+                            <tr><td><code>E2B_API_URL</code> / <code>E2B_API_KEY</code></td><td>E2B 兼容变量，<code>NewConfigFromEnv</code> 同时支持</td><td>Go</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="note">
+                    <strong>端口说明：</strong>示例中 CubeAPI 监听 <code>3000</code>；原生 gRPC 客户端可通过 CubeProxy 的 <code>9090</code> 明文入口接入（见「gRPC Ingress」示例）。具体端口以你的部署为准。
+                </div>
+            </section>
+
+            <section class="concept-section" id="choose">
+                <h2><span class="section-num">7</span>如何选择 SDK</h2>
+                <p>三套 SDK 的能力几乎等价，选型主要看「你的服务用什么语言写」「部署在什么网络环境」「是否需要流式上传或 Volume」。先看语言生态，再看部署约束。</p>
+                <div class="decision">
+                    <div class="decision-card">
+                        <span class="badge badge-primary">按语言生态</span>
+                        <h4>Python 生态</h4>
+                        <p>数据科学、Agent 脚本、Notebook、需要快速验证时选 <code>cubesandbox</code>。上下文管理器自动销毁沙箱，代码最短。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-primary">按语言生态</span>
+                        <h4>Go 后端</h4>
+                        <p>高并发服务、需要精细控制 HTTP transport、或要上传未知长度大文件时选 Go SDK，<code>WriteFrom</code> 无需整文件入内存。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-primary">按语言生态</span>
+                        <h4>Node.js / TypeScript</h4>
+                        <p>Node 服务端或全栈 TS 应用选 <code>@cubesandbox/sdk</code>，功能与 Python 对齐，支持 ESM / CommonJS 与完整类型。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-teal">按部署环境</span>
+                        <h4>远程 / 跨网络</h4>
+                        <p>无法解析 <code>*.cube.app</code> 时，三套 SDK 都需设置 <code>CUBE_PROXY_NODE_IP</code> 走数据面直连；Go 还可细调 scheme 与端口。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-teal">按部署环境</span>
+                        <h4>从 E2B 迁移</h4>
+                        <p>已有 <code>E2B_API_URL</code> / <code>E2B_API_KEY</code> 的应用，Go 的 <code>NewConfigFromEnv</code> 可直接复用，Cube 专用变量优先覆盖。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-secondary">按能力需求</span>
+                        <h4>流式上传 / Volume</h4>
+                        <p>需要流式上传的优先 Go；需要 Volume、快照、克隆、暂停重连的，三套 SDK 均支持，按语言习惯选即可。</p>
+                    </div>
+                </div>
+                <div class="tip">
+                    <strong>一句话选型：</strong>脚本与 Agent 选 Python，高并发后端与流式上传选 Go，全栈 TypeScript 选 Node.js；无论哪套，远程环境都先确认 <code>CUBE_API_URL</code> 与 <code>CUBE_PROXY_NODE_IP</code>。
+                </div>
+            </section>
+
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">8</span>易错点、记忆卡片与自测</h2>
+                <p>接入中最常踩的坑集中在四类：<strong>版本、网络、鉴权、HTTPS 证书</strong>。下面先给速查表，再用记忆卡片固化，最后用 3 道自测题检验理解。</p>
+
+                <h3>易错点速查</h3>
+                <div class="table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr><th>类别</th><th>典型现象</th><th>处理方式</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>版本</td><td>Python &lt; 3.9 或 Node &lt; 18 安装/运行失败</td><td>升级运行时；<code>await using</code> 需 TS 5.2 + Node 20+</td></tr>
+                            <tr><td>网络</td><td>无法解析 <code>*.cube.app</code>，数据面连不上</td><td>设置 <code>CUBE_PROXY_NODE_IP</code> 走数据面直连</td></tr>
+                            <tr><td>网络</td><td>Go 流式上传返回 HTTP 413</td><td>CubeProxy 有 256 MiB 上限（含 multipart 边界），拆分或改用对象存储</td></tr>
+                            <tr><td>鉴权</td><td>请求被拒 / 无权限</td><td>配置 <code>CUBE_API_KEY</code>（Go 兼容 <code>E2B_API_KEY</code>），确认 CubeAPI 地址正确</td></tr>
+                            <tr><td>HTTPS 证书</td><td>自签证书校验失败 / TLS 握手错误</td><td>使用受信证书，或为客户端配置 CA；具体以官方部署文档为准</td></tr>
+                            <tr><td>Go 传输</td><td>自定义 transport 缺少完成回调报错</td><td>实现 <code>WroteRequest</code>，并响应取消</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="danger">
+                    <strong>最隐蔽的坑：</strong>Go 的 <code>Client.Close</code> 不会销毁远程沙箱，只释放本地空闲连接。忘记 <code>Sandbox.Kill</code> 会持续占用沙箱配额；上传失败时目标文件可能已被截断，重试前需自行处理半写状态。
+                </div>
+
+                <h3>记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>调用链</b>应用 → SDK → CubeAPI（鉴权）→ CubeProxy → 沙箱。</div>
+                    <div class="memory-card"><b>三件套环境变量</b><code>CUBE_API_URL</code> + <code>CUBE_API_KEY</code> + <code>CUBE_TEMPLATE_ID</code>。</div>
+                    <div class="memory-card"><b>DNS 兜底</b>解析不到 <code>*.cube.app</code> 就设 <code>CUBE_PROXY_NODE_IP</code>。</div>
+                    <div class="memory-card"><b>版本门槛</b>Python 3.9+、Node 18+、<code>await using</code> 需 TS 5.2 / Node 20+。</div>
+                    <div class="memory-card"><b>Go 流式上传</b><code>WriteFrom</code> 只读一次、不关闭、不重试、不跟随重定向；代理上限 256 MiB。</div>
+                    <div class="memory-card"><b>清理沙箱</b><code>Client.Close</code> 不断沙箱；用 <code>Sandbox.Kill</code> 或 <code>Pause</code>。</div>
+                </div>
+
+                <h3>自测</h3>
+                <div class="quiz">
+                    <h4>自测：检验你掌握了多少</h4>
+                    <details>
+                        <summary>1. 远程环境无法解析 <code>*.cube.app</code>，SDK 调用沙箱一直失败，应该改哪个配置？为什么？</summary>
+                        <p>设置 <code>CUBE_PROXY_NODE_IP</code> 指向 CubeProxy 节点 IP。沙箱数据面默认走 <code>*.cube.app</code> 泛域名，DNS 解析不到时就要让 SDK 直接连数据面节点，绕过泛域名解析。</p>
+                    </details>
+                    <details>
+                        <summary>2. Go SDK 里调用 <code>Client.Close()</code> 之后，远程沙箱会被销毁吗？想保留现场后续重连该用什么？</summary>
+                        <p>不会。<code>Client.Close</code> 只释放本地空闲 HTTP 连接，不影响远程沙箱。销毁沙箱用 <code>Sandbox.Kill</code>；要保留内存状态、之后重连则用 <code>Sandbox.Pause</code>。</p>
+                    </details>
+                    <details>
+                        <summary>3. 用 <code>Files.WriteFrom</code> 上传大文件时，为什么可能收到 HTTP 413？SDK 会帮你重试吗？</summary>
+                        <p>CubeProxy 默认缓冲请求，限制为 256 MiB 且<strong>包含 multipart 边界</strong>，超限即返回 413。SDK 明确不重试被拒绝的上传、不重放 reader，需要调用方自行拆分或改用其他上传方式。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

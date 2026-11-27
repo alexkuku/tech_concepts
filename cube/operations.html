@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理工具与集群运维 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>管理工具与集群运维</span>
+            </h1>
+            <p class="subtitle">从 WebUI 到 CLI、从节点生命周期到调度器：一套可复制的集群运维动作</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 12 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">管理与运维</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 12 章</span>
+                <h1>管理工具与集群运维</h1>
+                <p>本章覆盖日常运维最常用的五类工具，以及节点、服务、调度、存储与 Redis 的运维动作。学完后，你可以独立完成集群健康检查、节点扩缩容、日志定位和调度排障。</p>
+                <div class="page-meta">
+                    <span>📖 预计 55 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 9 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#tools-overview">1. 运维工具全景</a></li>
+                    <li><a href="#webui">2. WebUI 控制台</a></li>
+                    <li><a href="#cli">3. CLI 工具速查</a></li>
+                    <li><a href="#node-identity">4. 节点身份与动态 IP 跟随</a></li>
+                    <li><a href="#node-groups">5. 节点分组、机型与标签</a></li>
+                    <li><a href="#node-lifecycle">6. 节点扩容、隔离与删除</a></li>
+                    <li><a href="#services">7. 服务管理与重启</a></li>
+                    <li><a href="#logs">8. 日志、轮转与诊断</a></li>
+                    <li><a href="#scheduler">9. 调度器配置与调度流程</a></li>
+                    <li><a href="#scheduler-plugin">10. 可扩展调度插件</a></li>
+                    <li><a href="#soft-delete">11. 软删除墓碑清理</a></li>
+                    <li><a href="#multiversion">12. 组件多版本</a></li>
+                    <li><a href="#redis-cluster">13. Redis Cluster 部署与迁移</a></li>
+                    <li><a href="#pitfalls">14. 易错点与最佳实践</a></li>
+                    <li><a href="#memory">15. 记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <section class="concept-section" id="tools-overview">
+                <h2><span class="section-num">1</span>运维工具全景</h2>
+                <p>CubeSandbox 的运维工具按“离用户多远”分成四层：给人看的 WebUI、集群级的 <code>cubemastercli</code>、节点管理专用的 <code>cubeopscli</code>、单节点排障的 <code>cubecli</code>，以及进入 guest MVM 的 <code>cube-runtime</code>。选错工具最常见的后果是：在错误的机器上执行命令、看到的是本节点视图而不是集群视图。</p>
+                <div class="decision">
+                    <div class="decision-card"><span class="badge badge-primary">看集群</span><h4>WebUI（:12088）</h4><p>用浏览器看指标、创建沙箱、管理模板与 API Key。适合人眼观察和点选操作。</p></div>
+                    <div class="decision-card"><span class="badge badge-teal">集群级</span><h4>cubemastercli（:8089）</h4><p>查所有 sandbox、模板元数据、模板 redo / merge、销毁 sandbox。跨节点操作优先用它。</p></div>
+                    <div class="decision-card"><span class="badge badge-violet">节点管理</span><h4>cubeopscli（:3010）</h4><p>节点列表、隔离 / 取消隔离、删除节点、机型与标签。节点注册由 Cubelet 自动完成。</p></div>
+                    <div class="decision-card"><span class="badge badge-warning">单节点</span><h4>cubecli</h4><p>在计算节点本地查 sandbox、进容器、看日志、清孤儿存储、看 tap 状态。</p></div>
+                    <div class="decision-card"><span class="badge badge-danger">Guest 内</span><h4>cube-runtime login</h4><p>通过 hybrid-vsock 进 guest debug console，排查 guest 内核、网络、agent 与挂载。</p></div>
+                </div>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">使用入口</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control wide">WebUI<small>:12088 · 浏览器点选</small></div>
+                        <div class="arch-box obs wide">跳板机 / 运维机<small>cubemastercli / cubeopscli</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 同源 /cubeapi/v1 与 HTTP API</div>
+                    <div class="arch-label">控制节点</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">CubeAPI<small>:3000</small></div>
+                        <div class="arch-box control">CubeMaster<small>:8089</small></div>
+                        <div class="arch-box control">CubeOps<small>:3010</small></div>
+                    </div>
+                    <div class="arch-connector">↓ gRPC / 心跳上报</div>
+                    <div class="arch-label">计算节点</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">Cubelet<small>:9999 gRPC</small></div>
+                        <div class="arch-box compute">containerd / CubeShim</div>
+                        <div class="arch-box accent">cubecli<small>节点本地</small></div>
+                    </div>
+                    <div class="arch-connector">↓ hybrid-vsock</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">Guest MVM<small>debug console :1026</small></div>
+                        <div class="arch-box teal">cube-runtime login<small>进入 guest</small></div>
+                    </div>
+                </div>
+
+                <h3>能力矩阵</h3>
+                <div class="table-wrap">
+                    <table class="matrix-table">
+                        <thead>
+                            <tr><th>工具</th><th>运行位置</th><th>访问对象 / 默认端口</th><th>主要能力</th><th>不适用场景</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>WebUI</td><td>控制节点 nginx 容器（浏览器访问）</td><td>CubeAPI 同源 <code>/cubeapi/v1</code>，<code>:12088</code></td><td>概览、沙箱、模板、节点、版本矩阵、API Key</td><td>批量脚本、底层排障</td></tr>
+                            <tr><td><code>cubemastercli</code></td><td>控制节点、跳板机、任意可达 CubeMaster 的机器</td><td>CubeMaster HTTP API <code>:8089</code></td><td>集群级 sandbox、模板、快照、volume 运维</td><td>节点注册与隔离（用 <code>cubeopscli</code>）</td></tr>
+                            <tr><td><code>cubeopscli</code></td><td>控制节点、跳板机、任意可达 CubeOps 的机器</td><td>CubeOps HTTP API <code>:3010</code></td><td>节点列表、隔离 / 取消隔离、删除节点、机型、标签</td><td>进入容器或 guest</td></tr>
+                            <tr><td><code>cubecli</code></td><td>运行 Cubelet 与 containerd 的计算节点</td><td>本地 Cubelet / containerd 状态</td><td>单节点 sandbox、容器 shell、日志、存储清理、tap</td><td>集群级调度与跨节点操作</td></tr>
+                            <tr><td><code>cube-runtime</code></td><td>承载目标 sandbox MVM 的计算节点</td><td>本地 CubeShim hybrid-vsock / debug console <code>:1026</code></td><td>登录 guest MVM、底层 VM snapshot 辅助操作</td><td>日常模板 / 快照操作（优先 <code>cubemastercli</code>）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="note"><strong>安装位置：</strong>一键安装会为 <code>cube-runtime</code>、<code>containerd-shim-cube-rs</code>、<code>cubecli</code>、<code>cubemastercli</code> 和 <code>cubeopscli</code> 创建 <code>/usr/local/bin</code> 软链接。Kubernetes 部署会把 <code>cubecli</code>、<code>cube-runtime</code> 等节点本地工具放进组件镜像或节点 toolbox 中。</div>
+                <div class="warning"><strong>只在可信运维机器上使用：</strong>这些工具绕过面向用户的 CubeAPI 体验，能够直接查看或修改集群、节点和运行时状态。它们不是给终端用户调用的 API。</div>
+            </section>
+
+            <section class="concept-section" id="webui">
+                <h2><span class="section-num">2</span>WebUI 控制台</h2>
+                <p>Dashboard 是一个静态前端，由<strong>控制节点</strong>上的 nginx 容器托管。它本质上只是 CubeAPI 的一个轻量客户端：每个页面背后都是一次 <code>/cubeapi/v1/*</code> 请求，和 E2B SDK、<code>curl</code> 调的是同一个 E2B 兼容 REST API。</p>
+
+                <h3>在哪里打开</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>部署方式</th><th>访问地址</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td>一键部署 / 多机集群</td><td><code>http://&lt;控制节点IP&gt;:12088</code></td><td>默认端口，可通过 <code>WEB_UI_HOST_PORT</code> 修改</td></tr>
+                            <tr><td>裸金属 / 物理机部署</td><td><code>http://&lt;服务器IP&gt;:12088</code></td><td>同样使用 12088</td></tr>
+                            <tr><td>本地开发</td><td><code>http://localhost:5173</code></td><td>Vite 开发服务器，自动代理 <code>/cubeapi</code> 到 <code>127.0.0.1:3000</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip"><strong>记住 12088，不是 3000：</strong><code>3000</code> 是 E2B 兼容的 REST API（CubeAPI），<code>12088</code> 是给人用的 Dashboard。Dashboard 在内部通过同源前缀 <code>/cubeapi/v1</code> 调用 CubeAPI，所以只需要打开 12088 这一个端口。如果不知道控制节点 IP，可在服务器上执行 <code>ip -4 addr</code>，或在同网段访问 <code>http://&lt;主机名&gt;:12088</code>。</div>
+
+                <h3>侧边栏一览</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>#</th><th>页面</th><th>用途</th></tr></thead>
+                        <tbody>
+                            <tr><td>1</td><td>Overview（概览）</td><td>集群关键指标：运行中沙箱数、CPU / 内存使用率、健康节点数</td></tr>
+                            <tr><td>2</td><td>Sandboxes（沙箱）</td><td>所有 micro-VM 的实时列表，支持暂停 / 恢复 / 销毁</td></tr>
+                            <tr><td>3</td><td>Templates（模板）</td><td>可复用的沙箱快照目录，支持从 OCI 镜像创建新模板</td></tr>
+                            <tr><td>4</td><td>Nodes（节点）</td><td>集群健康：每台宿主机的 CPU、内存、可用槽位</td></tr>
+                            <tr><td>5</td><td>Versions（版本矩阵）</td><td>跨节点的组件版本分布（内核、agent、guest 镜像）</td></tr>
+                            <tr><td>6</td><td>Warehouse（组件仓库）</td><td>导入一键包；创建 / 恢复时节点按需下载缺失的绑定版本</td></tr>
+                            <tr><td>7</td><td>Network（网络）</td><td>API 网关配置与每节点速率限制</td></tr>
+                            <tr><td>8</td><td>Observability（可观测性）</td><td>运行时状态、沙箱健康、模板构建总览</td></tr>
+                            <tr><td>9</td><td>API Keys（API 密钥）</td><td>存储 Dashboard 请求使用的 <code>X-API-Key</code></td></tr>
+                            <tr><td>10</td><td>Template Store（模板商店）</td><td>安装官方预置镜像，一键生成模板</td></tr>
+                            <tr><td>11</td><td>AgentHub（智能体中心）</td><td>在 CubeSandbox 上招募并管理 AI 智能体实例</td></tr>
+                            <tr><td>12</td><td>Settings（设置）</td><td>主题、语言、集群信息、键盘快捷键</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>检查集群是否健康</h3>
+                <p>打开 <strong>Overview</strong>（<code>/</code>），应看到几张偏绿色的 KPI 卡片：</p>
+                <ul>
+                    <li><strong>Running Sandboxes</strong>：当前活跃的 micro-VM 数量；</li>
+                    <li><strong>CPU / Memory Utilization</strong>：整集群的压力；</li>
+                    <li><strong>Healthy Nodes</strong>：<code>N/M</code> 个节点处于 <code>Ready</code> 状态。</li>
+                </ul>
+                <p>如果哪项数字飘红，点进 <strong>Nodes</strong> 看是哪个宿主出了问题。</p>
+
+                <h3>创建一个沙箱</h3>
+                <ol>
+                    <li>点左侧栏的 <strong>Sandboxes</strong>，再点右上角 <strong>+ New sandbox</strong>。</li>
+                    <li>在网格里挑一个模板。优先选 <code>READY</code>；如果模板标了“需重建”，先打开详情点“重建模板”，再建沙箱。其它 <code>READY</code> 模板在节点升级后仍可直接创建。</li>
+                    <li>（可选）填几对 <code>meta</code> 键值对作为标签。</li>
+                    <li>点 <strong>Create</strong>。几秒内会跳转到该沙箱的详情页，能看到日志实时滚动。</li>
+                </ol>
+                <p>要停掉一个沙箱，去 <strong>Sandboxes</strong> 列表，找到对应行，点最右边的暂停 / 销毁按钮。</p>
+
+                <h3>配置 API Key（仅在开启鉴权时需要）</h3>
+                <ol>
+                    <li>点左侧栏的 <strong>API Keys</strong>。</li>
+                    <li>把 Key（形如 <code>sk-cube-…</code>）粘进输入框。</li>
+                    <li>点 <strong>Save</strong>。Key 会保存在浏览器的 <code>localStorage.cube.apiKey</code>，之后每次请求自动带上 <code>X-API-Key</code> 请求头。</li>
+                </ol>
+
+                <h3>键盘快捷键</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>按键</th><th>作用</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>⌘ K</code> / <code>Ctrl K</code></td><td>打开 Command Palette，输入页面名直接跳转</td></tr>
+                            <tr><td><code>?</code></td><td>打开 Settings → Shortcuts，应用内查看完整快捷键列表</td></tr>
+                            <tr><td><code>R</code></td><td>刷新所有可见数据面板</td></tr>
+                            <tr><td><code>Esc</code></td><td>关闭弹窗或 Command Palette</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>个性化</h3>
+                <p>打开左侧栏的 <strong>Settings</strong>：</p>
+                <ul>
+                    <li><strong>Appearance → Theme</strong>：浅色 / 深色 / 跟随系统；</li>
+                    <li><strong>Appearance → Language</strong>：English、简体中文或繁體中文（台灣）；</li>
+                    <li><strong>Cluster</strong>：只读展示 CubeAPI 端点、沙箱域名、默认实例类型、速率限制、鉴权开关。</li>
+                </ul>
+
+                <h3>常见问题</h3>
+                <h4>为什么还要单独做个 Dashboard，不能直接用 curl 吗？</h4>
+                <p>绝大多数操作（从镜像创建模板、看版本矩阵、排查节点）在 UI 里更容易发现和理解。Dashboard 只是 CubeAPI 的轻量客户端，每个页面背后都是一次 <code>/cubeapi/v1/*</code> 请求。</p>
+                <h4>Dashboard 会保存我的数据吗？</h4>
+                <p>只会在浏览器里保存 <code>localStorage.cube.apiKey</code>。其他所有状态（模板、沙箱、日志）都在集群上。</p>
+                <h4>能改端口或关掉 Dashboard 吗？</h4>
+                <p>改端口：在 <code>.env</code> 里设 <code>WEB_UI_HOST_PORT</code>，重跑 <code>install.sh</code>，下次启动 <code>cube-sandbox-webui.service</code> 时生效。关掉：把 <code>WEB_UI_ENABLE</code> 设成 <code>0</code>（或不设），集群照常运行，只是不再提供 WebUI，<code>3000</code> 端口的 API 不受影响。</p>
+                <h4>Dashboard 是开源的吗？</h4>
+                <p>是。它在仓库的 <code>web/</code> 目录里，用 Vite + React + TypeScript + Tailwind 构建。</p>
+            </section>
+
+            <section class="concept-section" id="cli">
+                <h2><span class="section-num">3</span>CLI 工具速查</h2>
+                <p>四个 CLI 的分工很清晰：<code>cubemastercli</code> 面向集群、<code>cubeopscli</code> 面向节点管理、<code>cubecli</code> 面向单节点运行时、<code>cube-runtime</code> 面向 guest MVM。下面命令中的 <code>&lt;...&gt;</code> 都是占位符，复制后替换成真实值。</p>
+
+                <h3>cubemastercli：集群级管理</h3>
+                <pre><code><span class="c"># 确认地址与版本</span>
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 --help
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 version
+
+<span class="c"># 查看所有 sandbox / 单个 sandbox</span>
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 list --all
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 info --sandboxid &lt;sandbox-id&gt;
+
+<span class="c"># 模板列表与元数据（含各节点副本状态）</span>
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 tpl ls
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 tpl info &lt;template-id&gt;
+
+<span class="c"># 新增节点后，在指定节点重新构建 / 分发模板</span>
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 tpl redo \
+  --template-id &lt;template-id&gt; \
+  --node &lt;node-id-or-host&gt;
+
+<span class="c"># 从 OCI 镜像创建模板</span>
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 tpl create-from-image \
+  --image &lt;registry&gt;/&lt;repo&gt;:&lt;tag&gt; \
+  --writable-layer-size 1G \
+  --expose-port 49983 \
+  --probe 49983
+
+<span class="c"># 把 READY 模板的 rootfs artifact 迁入 TC 存储（API: /cube/template/migrate）</span>
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 tpl merge &lt;template-id&gt;
+
+<span class="c"># 只提交 migrate job，不等待结束</span>
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 tpl merge &lt;template-id&gt; --detach
+
+<span class="c"># 破坏性操作：通过控制面删除 sandbox</span>
+cubemastercli --address &lt;cubemaster-host&gt; --port 8089 cubebox destroy &lt;sandbox-id&gt;</code></pre>
+                <div class="info"><strong>merge 与 redo 的口径：</strong><code>tpl merge</code> 解决历史 artifact 的<strong>存储收敛</strong>问题（本地盘 → S3 托管存储），<code>tpl redo</code> 解决节点侧的<strong>重新分发 / 必要时重建</strong>问题。两者独立：同一次运维既要迁存储又要重新覆盖节点时，先 merge 再 redo。</div>
+
+                <h3>cubeopscli：节点管理</h3>
+                <pre><code><span class="c"># 节点列表 / 单节点查询</span>
+cubeopscli --address &lt;cubeops-host&gt; --port 3010 node list
+cubeopscli --address &lt;cubeops-host&gt; --port 3010 node list --hostid &lt;node_id&gt;
+
+<span class="c"># 隔离 / 取消隔离 / 删除</span>
+cubeopscli --address &lt;cubeops-host&gt; --port 3010 node isolate &lt;node-id&gt;
+cubeopscli --address &lt;cubeops-host&gt; --port 3010 node unisolate &lt;node-id&gt;
+cubeopscli --address &lt;cubeops-host&gt; --port 3010 node delete &lt;node-id&gt;
+cubeopscli --address &lt;cubeops-host&gt; --port 3010 node rm --force &lt;node-id&gt;
+
+<span class="c"># 版本信息</span>
+cubeopscli --version
+cubeopscli version
+cubeopscli version --versiononly</code></pre>
+                <p><code>delete</code> 的别名是 <code>rm</code>。删除节点要求节点<strong>已隔离且无沙箱</strong>；批量删除时单个节点失败不会中断后续节点，命令最终返回非零退出码。<code>--force</code> 可在无法校验沙箱清单时强制删除，但仍要求先隔离。</p>
+
+                <h3>cubecli：计算节点本地工具</h3>
+                <pre><code>cubecli --help
+cubecli version
+
+<span class="c"># 本机 Cubelet 上的 sandbox（可按 ID 过滤）</span>
+cubecli cubebox ls
+cubecli cubebox ls --sandbox &lt;sandbox-id&gt;
+
+<span class="c"># containerd 容器元数据 / sandbox 或模板日志</span>
+cubecli container info &lt;container-id&gt;
+cubecli logs &lt;sandbox-id&gt;
+cubecli logs --stderr &lt;sandbox-id&gt;
+
+<span class="c"># 本地 volume 与孤儿存储清理（先 dry-run）</span>
+cubecli storage ls
+cubecli storage cleanup --dry-run
+
+<span class="c"># Cubelet network runtime 的 tap 状态（需要 toolbox 配置，并会提示确认）</span>
+cubecli network ls
+
+<span class="c"># 进入 sandbox 容器 / rootfs 视角</span>
+cubecli exec -it &lt;sandbox-id&gt; bash</code></pre>
+                <div class="warning"><strong>unsafe 命令是运维变更：</strong><code>cubecli unsafe ...</code> 只应在明确理解本地节点影响范围时使用。例如 <code>cubecli unsafe rm --all</code> 会删除<strong>当前节点</strong>上的所有本地 sandbox。在多节点集群中，<code>cubecli</code> 只覆盖命令所在节点，集群级操作请优先使用 <code>cubemastercli</code>。</div>
+
+                <h3>cube-runtime：进入 guest MVM</h3>
+                <pre><code>cube-runtime --help
+cube-runtime login --help
+
+<span class="c"># 登录 sandbox MVM（默认 debug console 端口 1026，连接超时 10s）</span>
+cube-runtime login &lt;sandbox-id&gt;
+cube-runtime login &lt;sandbox-id&gt; --port 1026 --timeout 10</code></pre>
+                <p><code>login</code> 会连接 sandbox 的本地 hybrid-vsock 路径，再进入 debug console 端口。当需要 guest VM 视角时使用它，例如排查 guest 内核状态、guest 网络接口、agent 状态、挂载点或 MVM 级 pause / resume 行为。<code>cube-runtime snapshot</code> 是底层 snapshot 工作流使用的命令，通常由 Cubelet / CubeMaster 的上层流程调用；除非排查运行时内部问题，否则应优先使用 <code>cubemastercli</code> 的模板和快照操作。</p>
+
+                <h3>命令速查表</h3>
+                <div class="table-wrap">
+                    <table class="cmd-table">
+                        <thead><tr><th>任务</th><th>命令</th></tr></thead>
+                        <tbody>
+                            <tr><td>列出所有 sandbox</td><td><code>cubemastercli --address &lt;host&gt; --port 8089 list --all</code></td></tr>
+                            <tr><td>查看单个 sandbox</td><td><code>cubemastercli ... info --sandboxid &lt;sandbox-id&gt;</code></td></tr>
+                            <tr><td>模板列表 / 元数据</td><td><code>cubemastercli ... tpl ls</code> / <code>tpl info &lt;template-id&gt;</code></td></tr>
+                            <tr><td>模板 redo / merge</td><td><code>cubemastercli ... tpl redo --template-id &lt;id&gt; --node &lt;node&gt;</code> / <code>tpl merge &lt;id&gt;</code></td></tr>
+                            <tr><td>销毁 sandbox</td><td><code>cubemastercli ... cubebox destroy &lt;sandbox-id&gt;</code></td></tr>
+                            <tr><td>节点列表</td><td><code>cubeopscli --address &lt;host&gt; --port 3010 node list</code></td></tr>
+                            <tr><td>隔离 / 取消隔离</td><td><code>cubeopscli ... node isolate &lt;node-id&gt;</code> / <code>node unisolate &lt;node-id&gt;</code></td></tr>
+                            <tr><td>删除节点</td><td><code>cubeopscli ... node rm &lt;node-id&gt;</code></td></tr>
+                            <tr><td>本机 sandbox</td><td><code>cubecli cubebox ls</code></td></tr>
+                            <tr><td>sandbox 日志</td><td><code>cubecli logs &lt;sandbox-id&gt;</code></td></tr>
+                            <tr><td>本地 volume / 孤儿清理</td><td><code>cubecli storage ls</code> / <code>cubecli storage cleanup --dry-run</code></td></tr>
+                            <tr><td>本地 tap 状态</td><td><code>cubecli network ls</code></td></tr>
+                            <tr><td>进入容器</td><td><code>cubecli exec -it &lt;sandbox-id&gt; bash</code></td></tr>
+                            <tr><td>进入 guest VM</td><td><code>cube-runtime login &lt;sandbox-id&gt;</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="danger"><strong>安全注意事项：</strong>
+                    <ul>
+                        <li>不要把密钥、API key、镜像仓库凭据或私有 endpoint 粘贴进 shell history。</li>
+                        <li>收集 issue 证据时优先使用支持的 <code>--json</code> 输出；对外分享前先脱敏。</li>
+                        <li>多节点集群中，先用 <code>cubemastercli info --sandboxid &lt;sandbox-id&gt;</code> 确认 sandbox 所在节点，再到该计算节点执行 <code>cubecli</code> 或 <code>cube-runtime</code>。</li>
+                        <li><code>cubecli unsafe ...</code> 和破坏性 <code>cubemastercli</code> 命令属于运维变更，不是只读诊断。</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="concept-section" id="node-identity">
+                <h2><span class="section-num">4</span>节点身份与动态 IP 跟随</h2>
+                <p>CubeSandbox 把计算节点的<strong>稳定身份</strong>（<code>node_id</code> / <code>InstanceID</code>）与<strong>可拨号地址</strong>（<code>HostIP</code> / Endpoint IP）解耦，使节点 IP 变更后控制面与数据面链路仍能自动跟随新 IP。理解这套规则，是安全做节点换 IP、滚动升级和回滚的前提。</p>
+
+                <h3>node_id 与 Endpoint IP 的解析优先级</h3>
+                <p><code>cubelet</code> 启动时按以下优先级解析自身身份（见 <code>Cubelet/pkg/utils/cloud.go</code>）：</p>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>环境变量 / 来源</th><th>解析对象</th><th>优先级与说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>CUBE_SANDBOX_NODE_ID</code></td><td><code>node_id</code></td><td>最高优先级，可为任意稳定标识。Kubernetes Helm 部署中 Chart 通过 Downward API 默认注入 <code>spec.nodeName</code>，同一宿主机上 <code>cube-node</code> Pod 重启或重建后 <code>node_id</code> 保持不变。</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NODE_IP</code></td><td><code>node_id</code></td><td>未设置 <code>NODE_ID</code> 时使用。一键安装 / systemd / Terraform 物理机部署默认走此路径，节点静态 IP 直接作为 <code>node_id</code>。</td></tr>
+                            <tr><td>自动探测主网卡非回环 IPv4</td><td><code>node_id</code></td><td>兜底：默认路由网卡 → 出站探测 IPv4 → 首个非回环 IPv4。</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_ENDPOINT_IP</code></td><td>Endpoint IP</td><td>Kubernetes Helm 部署中 Chart 通过 Downward API 默认注入 <code>status.podIP</code>。</td></tr>
+                            <tr><td><code>node_id</code> 本身是合法非回环 IPv4</td><td>Endpoint IP</td><td>未设置 <code>ENDPOINT_IP</code> 时直接复用 <code>node_id</code>。</td></tr>
+                            <tr><td>自动探测主网卡非回环 IPv4</td><td>Endpoint IP</td><td>以上都不满足时的兜底。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="danger"><strong>动态 IP 跟随的前提：</strong><code>node_id</code> 在 IP 变更前后必须保持稳定（显式配置 <code>CUBE_SANDBOX_NODE_ID</code>，或使用 Kubernetes Helm Chart 默认注入的 <code>spec.nodeName</code>）。若未设置 <code>CUBE_SANDBOX_NODE_ID</code> 而由 IP 兜底作为 <code>node_id</code>，IP 变化会被视为一个<strong>新节点</strong>。</div>
+
+                <h3>控制面与数据面如何跟随节点 IP 变更</h3>
+                <p>当计算节点以相同 <code>node_id</code>、新 <code>HostIP</code> 重新注册时：</p>
+                <div class="layer-stack">
+                    <div class="layer accent"><span class="layer-tag">CubeOps</span><div class="layer-body"><span>更新 HostIP</span><span>写入共享 Redis Hash</span><span>节点删除时同步移除</span></div></div>
+                    <div class="layer"><span class="layer-tag">CubeMaster</span><div class="layer-body"><span>同时保存 HostID / HostIP</span><span>按 node_id 动态解析</span><span>关闭旧 IP 的 gRPC 连接池</span></div></div>
+                    <div class="layer"><span class="layer-tag">CubeProxy</span><div class="layer-body"><span>本地路由缓存保存 HostID</span><span>10s 刷新 TTL</span><span>单飞合并 / 1s 错误退避</span></div></div>
+                </div>
+                <ul>
+                    <li><strong>CubeOps</strong>：更新节点注册信息中的 <code>HostIP</code>，并在注册与每次心跳时将 <code>node_id -&gt; host_ip</code> 同步写入共享 Redis Hash <code>cube:v1:shared:node:endpoint</code>（节点删除时同步移除）；后续心跳保持最新注册的 <code>HostIP</code> 不被旧值覆盖。</li>
+                    <li><strong>CubeMaster</strong>：在沙箱代理路由、本地缓存、暂停快照、异步任务和状态对账器中同时保存 <code>HostID</code> 与 <code>HostIP</code>，向 <code>cubelet</code> 发起调用前按 <code>node_id</code> 动态解析最新 <code>HostIP</code>；检测到节点 IP 变更时自动关闭旧 IP 对应的 gRPC 连接池。</li>
+                    <li><strong>CubeProxy</strong>：在本地路由缓存中保存 <code>HostID</code>，通过 <code>cube:v1:shared:node:endpoint</code> 解析节点实时上游 IP（本地缓存 10s 刷新 TTL，并发刷新单飞合并，Redis 异常时优先回退到最近一次查到的实时 IP 并启用 1s 错误退避，无需清理存量沙箱路由缓存）。</li>
+                </ul>
+
+                <h3>滚动升级与回滚</h3>
+                <ul>
+                    <li><strong>兼容性</strong>：存量不含 <code>HostID</code> 的 <code>sandbox:proxy:{sandboxID}</code> 路由，在 CubeMaster 和 CubeProxy 中都会自动降级使用静态 <code>HostIP</code>，无需数据迁移。</li>
+                    <li><strong>推荐滚动升级顺序</strong>：先升级 <strong>CubeOps</strong>（节点心跳约 10s 内自动补齐 <code>cube:v1:shared:node:endpoint</code>），再升级 <strong>CubeProxy</strong> 和 <strong>CubeMaster</strong>（先升级 CubeMaster 再升级 CubeProxy 同样安全，旧版 CubeProxy 会忽略 <code>HostID</code> 并继续使用静态 <code>HostIP</code>）。</li>
+                    <li><strong>多副本 CubeMaster</strong>：在所有副本完成升级前，避免执行跨节点 Resume。新旧版本混跑期间，旧版只改写 <code>HostIP</code> 而不清除新版写入的 <code>HostID</code>，可能导致沙箱继续解析到旧节点。</li>
+                    <li><strong>回滚</strong>：若将 CubeMaster 从新版回滚到旧版，Redis 中已写入的 <code>HostID</code> 不会被旧版清理；回滚时请<strong>先回滚 CubeProxy</strong>，或清理受影响 <code>sandbox:proxy:{sandboxID}</code> 中的 <code>HostID</code> 字段。</li>
+                    <li><strong>CubeProxy 平滑重载</strong>：升级后通过 nginx 平滑重载保留的旧路由缓存项不含 <code>HostID</code>，首次命中时会集中从 Redis 重新加载一次。</li>
+                </ul>
+            </section>
+
+            <section class="concept-section" id="node-groups">
+                <h2><span class="section-num">5</span>节点分组、机型与标签</h2>
+                <p>沙箱的跨机恢复要求源节点和目标节点的 CPU 与 Kernel 完全一致。三个概念容易混淆，先记住一句话：<strong>节点分组是“自动识别出的同类机器”，机型是“人为声明可以互相恢复的一组节点”，标签是“自由格式的记录”。</strong></p>
+
+                <h3>节点分组</h3>
+                <p>系统按 CPU 与内核特征自动归类节点。查看集群的节点类别及每组成员：</p>
+                <pre><code>cubeopscli node groups</code></pre>
+                <p>输出示例（默认精简显示：组名、CPU 信息、成员数量和成员列表）：</p>
+                <pre><code>GROUP    CPU_VENDOR     CPU_MODEL             COUNT  NODES
+type-1   GenuineIntel   Intel(R) Xeon(R) ...  3      node-1,node-2,node-3
+type-2   AMD            AMD EPYC 7B13 ...     2      node-4,node-5(cordoned)</code></pre>
+                <ul>
+                    <li>同组节点之间可以互相跨机恢复内存快照，不同组之间不可以。</li>
+                    <li>构建共享存储后端的模板、执行跨机恢复、规划宿主内核滚动升级之前，都可以先用该命令确认集群里混用了几种节点类型。</li>
+                </ul>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>标记</th><th>含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>(down)</code></td><td>节点不健康</td></tr>
+                            <tr><td><code>(cordoned)</code></td><td>已隔离（停止调度）</td></tr>
+                            <tr><td><code>(tainted)</code></td><td>宿主机 KVM 模块带有可疑污染标志</td></tr>
+                            <tr><td><code>unknown</code> 组</td><td>未上报 <code>cpuid_hash</code> / <code>host_kernel_release</code>（例如旧版本 Cubelet 未采集）。类别无法确认，跨机恢复对其按失败处理</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>机型配置</h3>
+                <p>机型用于声明一组可以互相恢复内存快照的节点。默认规则要求源、目标节点 CPU 相同<strong>且</strong>宿主内核版本完全一致；宿主内核滚动升级之后，同一批机器的内核小版本常常不一致，本可以互相恢复的机器因此被挡在门外。把这组机器绑定到同一个机型，即可豁免内核一致性要求：</p>
+                <ul>
+                    <li>在 WebUI 的“节点 → 机型管理”或用 <code>cubeopscli machine-type</code> 创建机型，并把节点绑定到机型上；</li>
+                    <li>绑定后的节点会带上标签 <code>cube.cubesandbox.io/machine-type=&lt;机型名&gt;</code>，没有该标签就是未绑定；</li>
+                    <li>机型只放宽内核比较，<strong>CPU 仍必须相同</strong>。</li>
+                </ul>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>源节点</th><th>目标节点须满足</th></tr></thead>
+                        <tbody>
+                            <tr><td>未绑定机型</td><td><code>cpuid_hash</code> 和 <code>host_kernel_release</code> 都相等（不变）</td></tr>
+                            <tr><td>绑定机型 <code>&lt;T&gt;</code></td><td>同为机型 <code>&lt;T&gt;</code> 且 <code>cpuid_hash</code> 相同；不再比较宿主内核</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code><span class="c"># 创建机型并绑定首批节点</span>
+cubeopscli machine-type create intel-oc9-k66 \
+  --display-name "Intel OC9" \
+  --description "same CPU, mixed host kernel" \
+  --nodes node-1,node-2
+
+<span class="c"># 查看机型：成员、CPU 与内核分布、告警</span>
+cubeopscli machine-type list
+cubeopscli machine-type get intel-oc9-k66
+
+<span class="c"># 之后随时绑定、解绑；bind 会把节点从原机型迁出</span>
+cubeopscli machine-type bind intel-oc9-k66 node-3
+cubeopscli machine-type unbind node-3
+
+<span class="c"># 按机型查找节点</span>
+cubeopscli node list --machine-type intel-oc9-k66
+cubeopscli node list --unassigned-machine-type
+
+<span class="c"># 删除仍绑定节点的机型需要 --unbind</span>
+cubeopscli machine-type delete intel-oc9-k66 --unbind</code></pre>
+                <p>以上命令同样可以写成 <code>cubeopscli node machine-type …</code>。一个机型里混入多种 CPU 时只会得到告警——这些节点之间依然无法跨机恢复。给一组原本可互相恢复的节点启用机型时，要<strong>整组一起绑定</strong>；未绑定节点即使 CPU、内核一致也会被排除。</p>
+
+                <h3>节点标签</h3>
+                <pre><code>cubeopscli node label list node-1
+cubeopscli node label set node-1 team=infra
+cubeopscli node label replace node-1 team=infra zone=gz
+cubeopscli node label delete node-1 team</code></pre>
+                <div class="note"><strong>set 与 replace 的区别：</strong><code>set</code> 增加或更新单个标签；<code>replace</code> 安装完整标签集，命令里没写的标签会被删除。系统标签——机型、隔离状态、Cubelet 上报的数据面标签（<code>kubernetes.io/*</code>、<code>beta.kubernetes.io/*</code>、<code>cube.cloud.tencentcloud.com/*</code>）——不会被标签命令改动。机型由机型命令管理，隔离状态只能用 <code>node isolate</code> / <code>node unisolate</code> 修改。</div>
+            </section>
+
+            <section class="concept-section" id="node-lifecycle">
+                <h2><span class="section-num">6</span>节点扩容、隔离与删除</h2>
+                <p>节点没有单独的 <code>node add</code> 命令：<strong>计算节点服务启动后会自动完成注册</strong>。真正需要人工介入的是扩容后的模板分发、隔离、清空与删除。先看完整生命周期：</p>
+                <div class="state-machine">
+                    <span class="state pending">未注册</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">Ready</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state paused">cordoned 隔离</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state dead">已删除</span>
+                </div>
+                <p>其中“Ready → cordoned”可逆（<code>unisolate</code> 回到 Ready）；“cordoned → 已删除”不可逆，但也不是永久禁止注册——如果 Cubelet 仍在运行或再次启动，它可以使用相同节点 ID 重新注册为新节点记录。</p>
+
+                <h3>增加节点</h3>
+                <ol>
+                    <li>将控制节点使用的同一份发布包复制到计算节点并解压。</li>
+                    <li>复制环境配置模板，然后设置计算节点角色、节点 IP 和控制面地址：
+                        <pre><code>cp env.example .env
+
+ONE_CLICK_DEPLOY_ROLE=compute
+CUBE_SANDBOX_NODE_IP=&lt;当前节点IP&gt;
+ONE_CLICK_CONTROL_PLANE_IP=&lt;控制面IP&gt;</code></pre>
+                    </li>
+                    <li>（可选但强烈建议）从控制节点复制 <code>CUBE_S3_*</code> 到本机 <code>.env</code>：
+                        <pre><code><span class="c"># 在控制节点执行，把输出拷贝到计算节点 .env</span>
+grep '^CUBE_S3_' /usr/local/services/cubetoolbox/.one-click.env</code></pre>
+                        也可指向其他共享的 S3 兼容存储。缺失时仅告警并继续安装，但 S3 卷插件不可用，安装结束时会再次提醒。
+                    </li>
+                    <li>安装计算节点：<code>sudo ./install-compute.sh</code></li>
+                    <li>检查本地服务：<code>sudo ./quickcheck.sh</code></li>
+                    <li>在控制节点确认新节点已注册并处于健康状态：<code>cubeopscli node list</code></li>
+                    <li>将需要的模板分发到新节点。根据模板状态和部署方式，可对目标节点执行 template redo，或者重新构建模板。</li>
+                </ol>
+
+                <h3>隔离与取消隔离</h3>
+                <p>隔离会<strong>临时阻止 CubeMaster 向指定计算节点调度新沙箱</strong>，行为类似 Kubernetes <code>cordon</code>：节点仍保持健康，已有沙箱继续运行；后续新沙箱不再选择该节点，如果没有其他可调度节点，创建会失败。已有沙箱不会自动销毁或迁移。</p>
+                <pre><code><span class="c"># 隔离单个 / 多个节点（幂等）</span>
+cubeopscli node isolate &lt;node_id&gt;
+cubeopscli node isolate &lt;node_id_1&gt; &lt;node_id_2&gt;
+
+<span class="c"># 确认 SCHEDULING_DISABLED 为 true</span>
+cubeopscli node list
+
+<span class="c"># 维护完成，允许节点重新接收新沙箱</span>
+cubeopscli node unisolate &lt;node_id&gt;</code></pre>
+                <p>自动化场景可以使用带 JWT 的 CubeOps API：</p>
+                <pre><code><span class="c"># 隔离</span>
+curl -X PUT "http://127.0.0.1:3010/api/v1/nodes/&lt;node_id&gt;/isolation" \
+  -H "Authorization: Bearer $TOKEN"
+
+<span class="c"># 取消隔离</span>
+curl -X DELETE "http://127.0.0.1:3010/api/v1/nodes/&lt;node_id&gt;/isolation" \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+                <div class="warning"><strong>隔离不等于清空节点：</strong>隔离不会驱逐已有沙箱。执行会中断进程或网络的维护操作前，需要先隔离节点，再主动销毁该节点上的沙箱。进行破坏性维护前，建议至少等待 <strong>60 秒</strong>，让正在进行的调度和创建窗口结束。</div>
+
+                <h3>删除节点</h3>
+                <p>删除节点会从 CubeOps 移除节点注册信息、状态、组件版本元数据和指标缓存。它<strong>不会</strong>停止节点进程、销毁沙箱、删除磁盘或删除 Kubernetes Node 对象。CubeOps 只允许删除已经隔离且没有沙箱的节点；删除操作本身不会隔离节点，也不会销毁节点上的负载。</p>
+                <div class="timeline">
+                    <div class="timeline-item"><h4>隔离目标节点</h4><p><code>cubeopscli node isolate &lt;node_id&gt;</code>，确认 <code>SCHEDULING_DISABLED=true</code>。</p></div>
+                    <div class="timeline-item"><h4>等待至少 60 秒</h4><p>让正在进行的调度和创建窗口结束。</p></div>
+                    <div class="timeline-item"><h4>销毁该节点上的全部沙箱</h4><p>隔离不会驱逐沙箱，必须主动清空。</p></div>
+                    <div class="timeline-item"><h4>停止或退役 Cubelet</h4><p>避免节点立即重新注册。</p></div>
+                    <div class="timeline-item done"><h4>删除节点记录</h4><p><code>cubeopscli node rm &lt;node_id&gt;</code> 或调用内部 API。</p></div>
+                    <div class="timeline-item done"><h4>确认节点已从列表中消失</h4><p><code>cubeopscli node list</code> 复核。</p></div>
+                </div>
+                <pre><code><span class="c"># 删除单个节点</span>
+cubeopscli node rm &lt;node_id&gt;
+
+<span class="c"># rm 是 delete 的别名；支持一次删除多个节点</span>
+cubeopscli node delete &lt;node_id_1&gt; &lt;node_id_2&gt;
+
+<span class="c"># 计算节点不可达、无法校验沙箱清单时强制删除（仍要求先隔离）</span>
+cubeopscli node rm --force &lt;node_id&gt;
+
+<span class="c"># 内部 API 等价操作</span>
+curl -X DELETE "http://127.0.0.1:3010/internal/v1/nodes/&lt;node_id&gt;"
+curl -X DELETE "http://127.0.0.1:3010/internal/v1/nodes/&lt;node_id&gt;?force=true"</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>错误码</th><th>含义</th><th>处理</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>404 Not Found</code></td><td>节点不存在</td><td>核对 <code>node_id</code> 与 CubeOps 地址</td></tr>
+                            <tr><td><code>409 Conflict</code></td><td>节点未隔离，或者仍有沙箱</td><td>先 <code>node isolate</code>，再清空沙箱</td></tr>
+                            <tr><td><code>502 Bad Gateway</code></td><td>CubeMaster 无法校验沙箱清单</td><td>恢复连接，或明确使用 <code>--force</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="services">
+                <h2><span class="section-num">7</span>服务管理与重启</h2>
+                <p>新版一键安装会把服务注册为 systemd 单元（官方文档口径为 14 个，下表列出核心单元），并按节点角色聚合到两个 target 之下。日常运维最常做的是：改配置后重启<strong>直接读那份配置</strong>的服务。</p>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>Target</th><th>作用</th><th>节点角色</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>cube-sandbox-control.target</code></td><td>控制节点（默认 all-in-one）的全部服务</td><td><code>control</code></td></tr>
+                            <tr><td><code>cube-sandbox-compute.target</code></td><td>计算节点的最小子集</td><td><code>compute</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip"><strong>这是怎么生效的：</strong>Target 通过 <code>Wants=</code> 列出自己要拉起的 service；service 通过 <code>PartOf=</code> 反向声明属于哪个 target。所以 <code>systemctl stop cube-sandbox-control.target</code> 会把所有 <code>PartOf=cube-sandbox-control.target</code> 的 service 一起停掉，不需要逐个写名字。</div>
+
+                <h3>服务清单</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>单元</th><th>进程形态</th><th>端口 / 监听</th><th>出现在</th><th>上游依赖</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>cube-sandbox-mysql.service</code></td><td>Docker 容器</td><td><code>3306</code></td><td>control</td><td>docker</td></tr>
+                            <tr><td><code>cube-sandbox-redis.service</code></td><td>Docker 容器</td><td><code>6379</code></td><td>control</td><td>docker</td></tr>
+                            <tr><td><code>cube-sandbox-cubemaster.service</code></td><td>宿主机进程</td><td><code>8089</code></td><td>control</td><td>mysql, redis</td></tr>
+                            <tr><td><code>cube-sandbox-cube-api.service</code></td><td>宿主机进程</td><td><code>3000</code>（E2B 兼容 API）</td><td>control</td><td>cubemaster</td></tr>
+                            <tr><td><code>cube-sandbox-cubelet.service</code></td><td>宿主机进程</td><td><code>9999</code>（gRPC）、HTTP 诊断接口</td><td>control / compute</td><td>内置 network runtime + <code>/data/cubelet</code>（XFS）</td></tr>
+                            <tr><td><code>cube-sandbox-coredns.service</code></td><td>Docker 容器</td><td><code>127.0.0.54:53</code> 或 <code>169.254.254.53:53</code></td><td>control</td><td>docker</td></tr>
+                            <tr><td><code>cube-sandbox-cube-proxy.service</code></td><td>Docker 容器</td><td><code>443</code>（TLS）/ <code>80</code> / <code>9090</code>（gRPC）</td><td>control</td><td>docker, redis</td></tr>
+                            <tr><td><code>cube-sandbox-dns.service</code></td><td>oneshot（无常驻进程）</td><td>—</td><td>control</td><td>coredns（<code>BindsTo</code>）</td></tr>
+                            <tr><td><code>cube-sandbox-webui.service</code></td><td>Docker 容器</td><td><code>12088</code></td><td>control</td><td>docker, cube-api</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>控制节点启动依赖</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">基础运行时</div>
+                    <div class="arch-layer">
+                        <div class="arch-box obs wide">docker.service</div>
+                        <div class="arch-box obs wide">network-online.target</div>
+                    </div>
+                    <div class="arch-connector">↓ After= / Wants=</div>
+                    <div class="arch-label">数据与 DNS</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">mysql<small>:3306</small></div>
+                        <div class="arch-box data">redis<small>:6379</small></div>
+                        <div class="arch-box network">coredns<small>:53</small></div>
+                    </div>
+                    <div class="arch-connector">↓</div>
+                    <div class="arch-label">控制面</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">cubemaster<small>:8089</small></div>
+                        <div class="arch-box control">cube-proxy<small>443 / 80 / 9090</small></div>
+                        <div class="arch-box control">dns<small>oneshot, BindsTo coredns</small></div>
+                    </div>
+                    <div class="arch-connector">↓</div>
+                    <div class="arch-layer">
+                        <div class="arch-box accent">cube-api<small>:3000</small></div>
+                        <div class="arch-box accent">webui<small>:12088</small></div>
+                    </div>
+                    <div class="arch-connector">↓</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">cubelet<small>:9999</small></div>
+                    </div>
+                </div>
+                <div class="note">依赖只通过 <code>After=</code> / <code>Wants=</code> 表达启动顺序；运行期某个上游挂了<strong>不会</strong>自动把下游也带翻——cubelet 不会因为 cube-api 挂了而被一起重启，反过来也是一样。</div>
+
+                <h3>重启服务</h3>
+                <h4>场景 A：改了配置，想让单个服务生效</h4>
+                <p>最常见的两种配置入口：顶层环境 <code>/usr/local/services/cubetoolbox/.one-click.env</code>，以及组件原生配置 <code>Cubelet/config/config.toml</code>、<code>Cubelet/dynamicconf/conf.yaml</code>、<code>CubeMaster/conf.yaml</code>、<code>cubeproxy/global.conf</code>、<code>coredns/Corefile.template</code>。改完之后，重启<strong>直接读这份配置的那个服务</strong>：</p>
+                <pre><code>sudo systemctl restart cube-sandbox-cubelet.service
+sudo systemctl restart cube-sandbox-cubemaster.service
+sudo systemctl restart cube-sandbox-cube-api.service
+sudo systemctl restart cube-sandbox-cube-proxy.service
+sudo systemctl restart cube-sandbox-coredns.service</code></pre>
+                <div class="warning"><strong>CoreDNS：改模板，而不是渲染产物 Corefile。</strong><code>coredns/Corefile</code> 是渲染产物：<code>cube-sandbox-coredns.service</code> 每次启动都会从 <code>coredns/Corefile.template</code> 重新渲染（<code>coredns-prepare.sh</code> → <code>coredns-start.sh</code> → <code>render_template_atomic</code>）。直接改渲染文件会在下次重启时被静默覆盖，请修改模板文件再重启服务。</div>
+                <div class="info"><strong>改了 systemd unit 文件本身：</strong>如果直接动了 <code>/etc/systemd/system/cube-sandbox-*.service</code> 文件本身，需要先 <code>sudo systemctl daemon-reload</code> 再 <code>restart</code>。但如果你只是改了 helper 脚本（<code>/usr/local/services/cubetoolbox/scripts/systemd/*.sh</code>），不需要 <code>daemon-reload</code>，下一次 <code>restart</code> 就会重新拉起脚本生效。</div>
+
+                <h4>场景 B：服务挂了 / 反复重启</h4>
+                <p>每个 service 都配了 <code>Restart=on-failure</code>，进程崩一次会自动重启。但如果反复 fail，需要先看清楚原因再重启：</p>
+                <pre><code><span class="c"># 1. 当前状态：Active、Restart Counter、最近 10 条 journal</span>
+sudo systemctl status cube-sandbox-cube-proxy.service --no-pager
+
+<span class="c"># 2. 启动期日志：脚本、ExecStart、拉镜像、健康检查超时</span>
+sudo journalctl -u cube-sandbox-cube-proxy.service -n 200 --no-pager
+
+<span class="c"># 3. 业务日志在 /data/log/，不在 journal</span>
+sudo tail -200 /data/log/Cubelet/Cubelet-req.log
+sudo tail -200 /data/log/CubeMaster/cubemaster-req.log
+sudo tail -200 /data/log/CubeAPI/cube-api-$(date +%F).log
+
+<span class="c"># 4. 重置 failed 计数后再启</span>
+sudo systemctl reset-failed cube-sandbox-cube-proxy.service
+sudo systemctl restart cube-sandbox-cube-proxy.service</code></pre>
+
+                <h4>场景 C：整套重启 / 整机维护后复位</h4>
+                <pre><code><span class="c"># 控制节点</span>
+sudo systemctl restart cube-sandbox-control.target
+
+<span class="c"># 计算节点</span>
+sudo systemctl restart cube-sandbox-compute.target
+
+<span class="c"># 或者发布包目录下</span>
+sudo ./down.sh
+sudo systemctl start cube-sandbox-control.target</code></pre>
+                <div class="tip">target 本身没有进程，restart target 时 systemd 会顺序重启所有 <code>PartOf=cube-sandbox-control.target</code> 的 service。这条命令是替代“逐个写一长串 service 名”的快捷方式。</div>
+
+                <h4>场景 D：完整下线（停止整套服务）</h4>
+                <pre><code><span class="c"># 推荐：用发布包内的脚本（自动按角色走）</span>
+sudo /root/cube-sandbox-one-click-&lt;version&gt;/down.sh
+
+<span class="c"># 等价命令</span>
+sudo systemctl stop cube-sandbox-control.target   <span class="c"># 控制节点</span>
+sudo systemctl stop cube-sandbox-compute.target   <span class="c"># 计算节点</span></code></pre>
+                <p><code>down.sh</code> 不会删除任何数据：MySQL / Redis 数据卷、<code>/data/cubelet</code>、<code>/data/log/...</code> 等都保留，下次 <code>start</code> 即可恢复。</p>
+
+                <h3>CubeMaster 关键超时配置</h3>
+                <p>路径：<code>/usr/local/services/cubetoolbox/CubeMaster/conf.yaml</code>（one-click 包内来自 <code>configs/single-node/cubemaster.yaml</code>）。<code>cubelet_conf</code> 段中的主要超时字段：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>配置项</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>default_timeout_insec</code></td><td>客户端<strong>不传</strong> <code>timeout</code> 时，集群默认的<strong>沙箱空闲 TTL</strong>（秒）。未配置或 <code>&lt;= 0</code> 表示不设集群级空闲超时。仓库默认为 <code>-1</code>；生产环境若需自动回收未带 TTL 的沙箱，可改为正数（如 <code>300</code>）。</td></tr>
+                            <tr><td><code>create_timeout_insec</code></td><td>仅限制创建 / 调度 RPC 的截止时间，<strong>不是</strong>沙箱空闲 TTL。未配置时默认 <code>600</code>。</td></tr>
+                            <tr><td><code>common_timeout_insec</code></td><td>CubeMaster 访问 Cubelet 的通用 RPC 超时（非 create 专用）。</td></tr>
+                            <tr><td><code>create_image_timeout_insec</code></td><td>CubeMaster 调用单个计算节点<strong>下载镜像</strong>的超时时间，包含下载、校验和保存 rootfs artifact。默认 <code>300</code> 秒。</td></tr>
+                            <tr><td><code>app_snapshot_timeout_insec</code></td><td>CubeMaster 调用单个计算节点<strong>创建模板</strong>的超时时间，包含启动临时虚拟机、等待 readiness probe、保存内存和磁盘状态、清理临时虚拟机并返回结果。默认 <code>300</code> 秒。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>修改上述任一配置后需要重启 CubeMaster：<code>sudo systemctl restart cube-sandbox-cubemaster.service</code>。</p>
+
+                <h3>常用运维动作速查</h3>
+                <div class="table-wrap">
+                    <table class="cmd-table">
+                        <thead><tr><th>我想干什么</th><th>命令</th></tr></thead>
+                        <tbody>
+                            <tr><td>列出当前角色全部 cube 服务</td><td><code>systemctl --no-legend list-units 'cube-sandbox-*'</code></td></tr>
+                            <tr><td>查看某个服务状态</td><td><code>systemctl status cube-sandbox-&lt;service&gt;.service</code></td></tr>
+                            <tr><td>查看某个 target 的依赖图</td><td><code>systemctl list-dependencies cube-sandbox-control.target</code></td></tr>
+                            <tr><td>启动 / 停止 / 重启单个服务</td><td><code>systemctl {start|stop|restart} cube-sandbox-&lt;service&gt;.service</code></td></tr>
+                            <tr><td>启动 / 停止 / 重启整组</td><td><code>systemctl {start|stop|restart} cube-sandbox-{control,compute}.target</code></td></tr>
+                            <tr><td>看启动失败原因</td><td><code>journalctl -u cube-sandbox-&lt;service&gt;.service -n 200 --no-pager</code></td></tr>
+                            <tr><td>实时跟踪启动期日志</td><td><code>journalctl -u cube-sandbox-&lt;service&gt;.service -f</code></td></tr>
+                            <tr><td>重置 failed 计数</td><td><code>systemctl reset-failed cube-sandbox-&lt;service&gt;.service</code></td></tr>
+                            <tr><td>跑一轮健康检查</td><td><code>sudo /root/cube-sandbox-one-click-*/smoke.sh</code> 或 <code>sudo /usr/local/services/cubetoolbox/scripts/one-click/quickcheck.sh</code></td></tr>
+                            <tr><td>完整下线</td><td><code>sudo /root/cube-sandbox-one-click-*/down.sh</code></td></tr>
+                            <tr><td>收集诊断包</td><td><code>sudo /usr/local/services/cubetoolbox/scripts/cube-diag/collect-logs.sh</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>重要路径</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>用途</th><th>路径</th></tr></thead>
+                        <tbody>
+                            <tr><td>安装目录</td><td><code>/usr/local/services/cubetoolbox/</code></td></tr>
+                            <tr><td>运行期环境文件</td><td><code>/usr/local/services/cubetoolbox/.one-click.env</code></td></tr>
+                            <tr><td>systemd unit 安装位置</td><td><code>/etc/systemd/system/cube-sandbox-*</code></td></tr>
+                            <tr><td>systemd helper 脚本</td><td><code>/usr/local/services/cubetoolbox/scripts/systemd/*.sh</code></td></tr>
+                            <tr><td><strong>业务日志（核心入口）</strong></td><td><strong><code>/data/log/&lt;Module&gt;/</code></strong></td></tr>
+                            <tr><td>Cubelet 容器层存储（XFS）</td><td><code>/data/cubelet/</code></td></tr>
+                            <tr><td>沙箱镜像 / 快照</td><td><code>/data/cube-shim/disks/</code>、<code>/data/snapshot_pack/disks/</code></td></tr>
+                            <tr><td>systemd PID 文件</td><td><code>/run/cube-sandbox-systemd/</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="logs">
+                <h2><span class="section-num">8</span>日志、轮转与诊断</h2>
+                <p>CubeSandbox 的日志有四类来源，最容易踩的坑是：<strong>业务日志在 <code>/data/log/</code>，不在 <code>journalctl</code></strong>。各组件只把启动期 stdout/stderr 留给 journal，请求、调度、统计、审计、VMM 创建过程等业务日志全部直接写到 <code>/data/log/&lt;Module&gt;/</code>。</p>
+
+                <h3>四类日志来源</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>来源</th><th>包含什么</th><th>在哪里看</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>业务行为日志（推荐入口）</strong></td><td>请求、调度决策、stat、audit、VMM 启动过程</td><td><strong><code>/data/log/&lt;Module&gt;/</code></strong></td></tr>
+                            <tr><td>启动期日志</td><td>systemd 拉起 / hook / ExecStartPost / 退出码 / 容器 build 输出</td><td><code>journalctl -u &lt;unit&gt;</code></td></tr>
+                            <tr><td>cube-proxy 宿主机日志</td><td>OpenResty nginx 容器的 access / error</td><td><code>/data/log/cube-proxy/</code>（bind mount 到容器同路径）</td></tr>
+                            <tr><td>VMM / CubeShim 日志</td><td>沙箱 VMM 创建过程、shim 请求与统计</td><td><code>/data/log/CubeVmm/</code>、<code>/data/log/CubeShim/</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>/data/log 业务日志</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>模块</th><th>目录</th><th>主要文件</th></tr></thead>
+                        <tbody>
+                            <tr><td>Cubelet</td><td><code>/data/log/Cubelet/</code></td><td><code>Cubelet-req.log</code>（请求）、<code>Cubelet-stat.log</code>（指标 / 统计）</td></tr>
+                            <tr><td>CubeMaster</td><td><code>/data/log/CubeMaster/</code></td><td><code>cubemaster-req.log</code></td></tr>
+                            <tr><td>CubeAPI</td><td><code>/data/log/CubeAPI/</code></td><td><code>cube-api-YYYY-MM-DD.log</code>（按天滚动）</td></tr>
+                            <tr><td>CubeShim</td><td><code>/data/log/CubeShim/</code></td><td><code>cube-shim-req.log</code>、<code>cube-shim-stat.log</code></td></tr>
+                            <tr><td>Hypervisor (VMM)</td><td><code>/data/log/CubeVmm/</code></td><td><code>vmm.log</code>（每次创建沙箱都会写 VMM 日志）</td></tr>
+                            <tr><td>cube-proxy</td><td><code>/data/log/cube-proxy/</code></td><td><code>error.log</code>、<code>access.log</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code><span class="c"># 跟踪 Cubelet 收到的请求</span>
+sudo tail -F /data/log/Cubelet/Cubelet-req.log
+
+<span class="c"># 跟踪 CubeAPI（E2B 兼容层）按天滚动的日志</span>
+sudo tail -F /data/log/CubeAPI/cube-api-$(date +%F).log
+
+<span class="c"># 沙箱启动慢 / 启动失败：看 VMM 日志</span>
+sudo tail -200 /data/log/CubeVmm/vmm.log
+
+<span class="c"># cube-proxy 宿主机日志</span>
+sudo tail -200 /data/log/cube-proxy/error.log
+sudo tail -200 /data/log/cube-proxy/access.log</code></pre>
+
+                <h3>轮转：按小时 rename + create</h3>
+                <p>CubeShim 和 VMM 运行期间会保持日志文件打开。CubeShim 通过内部每 30 分钟轮转事件 reopen；VMM 控制线程自己持有 monotonic <code>timerfd</code>，每小时发出已有的 <code>LOG_CTRL_REOPEN</code> 控制记录。reopen 由固定周期驱动：宿主机执行“<code>rename</code> + <code>create</code>”后，会在下一次计划中的 reopen 时切换到新文件。因此宿主机侧仍应按小时执行轮转，并使用“<code>rename</code> + <code>create</code>”方式，<strong>不要使用 <code>copytruncate</code></strong>。</p>
+                <p>一键部署会安装 <code>/etc/cube-sandbox/logrotate.d/cubesandbox</code>，并启用每小时的 <code>cube-sandbox-logrotate.timer</code>。Kubernetes / Helm 仍需手工安装：把下面的示例保存为 <code>/etc/logrotate.d/cubesandbox</code>，并确保宿主机每小时执行一次 <code>logrotate</code>；发行版默认的每日任务只能按天轮转。</p>
+                <pre><code>/data/log/CubeVmm/vmm.log /data/log/CubeShim/*.log {
+    su root root
+    hourly
+    rotate 24
+    missingok
+    notifempty
+    compress
+    delaycompress
+    create 0640 root root
+}</code></pre>
+                <div class="note"><code>rotate 24</code> 约保留 24 小时日志，可按实际保留周期调整。<code>delaycompress</code> 会将最新的轮转文件延迟一个周期压缩，因为 writer 在下一次计划中的 reopen 之前可能仍使用旧 fd。不需要 <code>postrotate</code> 信号或重启服务；该策略保证宿主机侧 retention 有界，但不承诺对任意手工轮转立即响应，也不支持 <code>copytruncate</code>。示例使用 <code>root root</code>，因为随附的一键部署 systemd 服务以 root 运行；如果 CubeShim 或 VMM 使用其他账号运行，请把 <code>su</code> 和 <code>create</code> 的 user/group 都改成对应账号。</div>
+
+                <h3>journalctl 启动期日志</h3>
+                <p>journalctl 看的是<strong>进程被 systemd 拉起到稳定运行（或失败退出）期间</strong>的 stdout/stderr，主要用于：启动失败的退出码 / 异常信息、ExecStart / ExecStartPost / ExecStop 各 hook 的输出、容器拉镜像 / <code>docker build</code> / <code>apk update</code> 等失败信息、服务被自动重启的次数与原因。</p>
+                <pre><code><span class="c"># 最近 200 行</span>
+sudo journalctl -u cube-sandbox-cubelet.service -n 200 --no-pager
+
+<span class="c"># 实时追踪</span>
+sudo journalctl -u cube-sandbox-cubemaster.service -f
+
+<span class="c"># 看“上次启动以来”全部</span>
+sudo journalctl -u cube-sandbox-cube-api.service -b</code></pre>
+                <div class="warning"><strong>journalctl 里没有业务请求日志：</strong>进程跑稳之后的 stdout/stderr 输出非常少，因为各组件都把业务日志直接写到 <code>/data/log/&lt;Module&gt;/</code>。如果你想看“最近一小时谁创建了沙箱”，journalctl 是错的入口，请去 <code>/data/log/CubeMaster/cubemaster-req.log</code> 或 <code>/data/log/Cubelet/Cubelet-req.log</code>。</div>
+
+                <h3>一键打包诊断</h3>
+                <pre><code>sudo /usr/local/services/cubetoolbox/scripts/cube-diag/collect-logs.sh
+
+<span class="c"># 选择性收集：只取 cubelet + dmesg，各 500 行</span>
+sudo /usr/local/services/cubetoolbox/scripts/cube-diag/collect-logs.sh \
+  --module cubelet --module dmesg --lines 500
+
+<span class="c"># 打包后整体上传</span>
+tar czf cube-diag-&lt;ts&gt;.tar.gz cube-diag-&lt;ts&gt;/</code></pre>
+                <p>它会把以下内容统一收集到 <code>cube-diag-&lt;时间戳&gt;/</code> 目录下：</p>
+                <ul>
+                    <li><code>/data/log/CubeMaster|Cubelet|CubeAPI|CubeShim|CubeVmm/</code> 的 tail；</li>
+                    <li><code>/data/log/cube-proxy/</code> 下的 access / error 日志；</li>
+                    <li><code>dmesg</code> / 进程列表 / 端口 / 挂载 / cgroup / cpuinfo 等环境快照；</li>
+                    <li>主要配置文件（敏感信息已脱敏）。</li>
+                </ul>
+
+                <h3>沙箱创建失败排查顺序</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>1. 角色 target</b>：<code>systemctl status cube-sandbox-control.target</code> 是否 active</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2. 健康检查</b>：<code>sudo /root/cube-sandbox-one-click-*/smoke.sh</code></div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>3. CubeAPI 是否收到请求</b>：<code>tail -F /data/log/CubeAPI/cube-api-$(date +%F).log</code></div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4. 调度链路</b>：<code>tail -F /data/log/CubeMaster/cubemaster-req.log</code></div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>5. 节点在线与调度</b>：<code>curl http://127.0.0.1:3010/internal/v1/nodes</code>，看 <code>Cubelet-req.log</code></div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>6. VMM 启动</b>：<code>tail -200 /data/log/CubeVmm/vmm.log</code></div>
+                </div>
+            </section>
+
+            <section class="concept-section" id="scheduler">
+                <h2><span class="section-num">9</span>调度器配置与调度流程</h2>
+                <p>配置 CubeMaster 调度器只需要回答三个问题：配置写在哪、哪份配置在生效、怎么配。本节按这个顺序展开，末尾是排障参考。</p>
+
+                <h3>配置在哪里</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>部署方式</th><th>位置</th></tr></thead>
+                        <tbody>
+                            <tr><td>one-click / systemd</td><td><code>/usr/local/services/cubetoolbox/CubeMaster/conf.yaml</code></td></tr>
+                            <tr><td>源码配置模板</td><td><code>configs/single-node/cubemaster.yaml</code></td></tr>
+                            <tr><td>Terraform / TKE</td><td><code>tke-addons.tf</code> 中的 <code>kubernetes_secret.cubemaster_conf</code></td></tr>
+                            <tr><td>Helm chart</td><td><code>chart/files/cube-master/conf.yaml</code>（渲染为 Secret）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>修改后重启或滚动更新 cube-master 使其生效。节点的资源配额和标签不在这份配置里——它们由每台 Cubelet 自己上报。one-click 环境下 Cubelet 的配置在 <code>/usr/local/services/cubetoolbox/Cubelet/</code> 下：静态配置 <code>config/config.toml</code>（上报频率），动态配置 <code>dynamicconf/conf.yaml</code>（标签和配额），改完重启 Cubelet。</p>
+                <pre><code>host:
+  scheduler_label: "default-cluster"
+  quota:
+    mcpu_limit: 0
+    mem_limit: ""
+    mvm_limit: 0
+    creation_concurrent_num: 0
+    <span class="c"># 可选。仅在未设置 mcpu_limit / mem_limit 时生效。</span>
+    <span class="c"># 默认：cpu_overcommit_factor=2.0，mem_overcommit_factor=1.25。</span>
+    <span class="c"># 都设为 1.0 即可不超卖，同时仍自动识别宿主机规格。</span>
+    <span class="c"># 范围：cpu 0–20，mem 0–3；0 表示用默认。</span>
+    <span class="c"># cpu_overcommit_factor: 2.0</span>
+    <span class="c"># mem_overcommit_factor: 1.25</span></code></pre>
+                <div class="note">配额里的 <code>0</code> 表示让 Cubelet 按宿主机资源自动推导，<strong>不是无限</strong>。自动推导时会对检测到的 CPU 乘以 <code>cpu_overcommit_factor</code>（历史默认 <code>2.0</code>）、对内存乘以 <code>mem_overcommit_factor</code>（历史默认 <code>1.25</code>）。不想超卖时把两个 factor 都设为 <code>1.0</code>，而不必手填机器规格。这两个 factor 是节点本地配置（只改 <code>conf.yaml</code>，Web/CLI 不会下发）。调高 factor 时，CubeMaster 用作水位过滤的 Capacity / <code>CpuTotal</code> / <code>MemMBTotal</code> 也会按同一比例抬高。</div>
+
+                <h3>哪份配置在生效</h3>
+                <p>CubeMaster 按下面的优先级决定调度策略：</p>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>分支 1：配置了 scheduler.profiles</b> → 使用这些 Profile，按标签或实例类型路由</div>
+                    <div class="flow-arrow">↓ 否则</div>
+                    <div class="flow-step"><b>分支 2：配置了 legacy filter / score / postscore</b> → 编译为兼容的 default Profile</div>
+                    <div class="flow-arrow">↓ 否则</div>
+                    <div class="flow-step"><b>分支 3：全为空</b> → 注入出厂 Profile，启动时输出告警</div>
+                </div>
+                <ul>
+                    <li><strong>配了 <code>profiles</code></strong>：按配置顺序做路由，第一个命中请求标签或实例类型的 Profile 生效，都没命中走标记为 <code>default: true</code> 的那个。</li>
+                    <li><strong>只配了 legacy 块</strong>：编译成一个兼容的 <code>default</code> Profile，容错语义和 <code>priority_select_num</code>、<code>least_select_name</code> 的行为都保持不变。</li>
+                    <li><strong>全为空</strong>：注入出厂 Profile（<code>burst_balance</code>、<code>template_reuse</code>、<code>mixed_binpack</code>），零配置也能按真实策略调度。因为放置行为和旧版的随机选点不同，注入时会打一条告警；想保持旧行为就设 <code>scheduler.disable_factory_profiles: true</code>。</li>
+                </ul>
+                <div class="warning"><strong>内置 Score 的因子开关不在 Profile 里：</strong><code>real_time_weighted_average</code>、<code>image_score</code>、<code>multi_factor_weighted_average</code> 始终读全局的 <code>scheduler.score</code> 树。Profile 引用了它们但缺这块配置，会在启动或热更新时报编译错误。出厂 Profile 自带这块配置，所以零配置部署不受影响；自己写 Profile 引用内置 Score 时要记得保留。</div>
+
+                <h3>推荐配置</h3>
+                <h4>小集群（POC、功能验证、低并发）</h4>
+                <p>新建集群可以直接用，已有集群按需合并，不要整体覆盖：</p>
+                <pre><code>scheduler:
+  priority_select_num: 3
+  metric_update_timeout: 300s
+  local_metric_update_timeout: 300s
+  filter:
+    enable_filters:
+      - cpu
+      - mem
+      - template_locality
+      - realtime_create_num
+  score:
+    enable_scorers:
+      - real_time_weighted_average
+    resource_weights:
+      mvm_num: 2
+      local_create_num: 3
+      quota_cpu_usage: 1
+      quota_mem_usage: 1
+    plugin_conf:
+      real_time_weighted_average:
+        weight: 1.0
+        enable_weight_factors:
+          - mvm_num
+          - local_create_num
+          - quota_cpu_usage
+          - quota_mem_usage</code></pre>
+                <p>要点：至少 2 台计算节点；<code>priority_select_num</code> 从 3 开始，节点不够 3 台就设成节点数；Cubelet 上报周期和超时保持默认；配额用推导值即可，压测前再显式检查。</p>
+
+                <h4>生产集群</h4>
+                <ul>
+                    <li>用 <code>host.scheduler_label</code> 把不同用途的节点分成节点池（通用、内存型、压测等），避免互相挤占；</li>
+                    <li>大小规格混部时，给不同 <code>instance_type</code> 单独设 <code>node_max_mvm_num_conf</code>，不要共用一组上限；</li>
+                    <li><code>priority_select_num</code> 调到健康节点数的一小部分即可，大到接近全量就退化成完全随机；</li>
+                    <li><code>template_locality</code> 过滤器保持开启；</li>
+                    <li>给 <code>host.quota.creation_concurrent_num</code> 设明确上限，防止单节点被突发创建打满；</li>
+                    <li>控制面同步扩容（TKE 节点数、控制面副本数），别让 CubeMaster 或 cube-api 先成为瓶颈。</li>
+                </ul>
+
+                <h3>调度流程</h3>
+                <p>一次创建请求进来后，CubeMaster 做四步：</p>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>1. 解析请求约束</b>：实例类型、CPU / 内存、模板、标签亲和</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2. 过滤节点</b>：排除不健康、指标过期、超出 MVM 上限、缺模板副本、创建并发到顶、不满足亲和性的节点</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>3. 打分</b>：基于 MVM 数、实时创建数、CPU / 内存配额使用率加权</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4. 从高分节点中选一个</b>：legacy 配置下由 <code>priority_select_num</code> 控制候选范围，Profile 模式下对应 <code>selection.method</code> 与 <code>selection.top_n</code></div>
+                </div>
+                <div class="warning"><strong>没配评分时仍然会过滤：</strong>但选点会偏向候选列表的前几个节点，表现为新沙箱集中到少数机器，直到资源过滤器把流量推走。</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>字段</th><th>作用</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>priority_select_num</code></td><td>最终选点从评分前 N 名里做。多节点建议大于 1，小集群从 3 开始。</td></tr>
+                            <tr><td><code>metric_update_timeout</code></td><td>节点指标超过此时长视为过期、不可调度。应远大于上报周期。</td></tr>
+                            <tr><td><code>local_metric_update_timeout</code></td><td>本地指标超时字段。当前预过滤对两类指标的新鲜度检查都用 <code>metric_update_timeout</code>。</td></tr>
+                            <tr><td><code>filter.enable_filters</code></td><td>启用过滤器，常见有 CPU、内存、模板本地性、实时创建并发。</td></tr>
+                            <tr><td><code>score.enable_scorers</code></td><td>启用评分器。多机部署通常启用 <code>real_time_weighted_average</code>，且必须配好对应的 <code>plugin_conf</code>，否则该评分器不生效（有 Warn 日志）。</td></tr>
+                            <tr><td><code>score.resource_weights</code></td><td>各打分因子的权重；因子必须同时列在 <code>enable_weight_factors</code> 里。</td></tr>
+                            <tr><td><code>node_max_mvm_num</code> / <code>node_max_mvm_num_conf</code></td><td>全局或按实例类型限制单节点 MVM 数，与 Cubelet 上报值共同决定实际上限。</td></tr>
+                            <tr><td><code>disk_usage_max_percent</code></td><td>磁盘水位阈值，超过的节点被排除。</td></tr>
+                            <tr><td><code>affinityconf</code> / <code>node_affinity_selector_allowed_keys</code></td><td>按标签、可用区、机型等做亲和约束。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>节点元数据</h3>
+                <p>Cubelet 通过 CubeOps 的 <code>/internal/v1/node-agent</code> 接口注册并持续上报状态，数据落在 MySQL / Redis；CubeMaster 每隔几秒同步一次节点视图，调度时读的是本地缓存快照。这些值是每台节点独立配置的，异构集群里不同节点可以有不同的标签、配额和上限。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>上报内容</th><th>来源</th><th>用途</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>instance_type</code></td><td>节点身份</td><td>匹配请求、选模板副本、套用按类型的上限</td></tr>
+                            <tr><td><code>cluster_label</code></td><td><code>host.scheduler_label</code></td><td>节点池亲和与隔离</td></tr>
+                            <tr><td><code>quota_cpu</code> / <code>quota_mem_mb</code></td><td><code>host.quota</code> 绝对额度，或宿主机 CPU / 内存 × 超卖倍率（默认 2.0 / 1.25）</td><td>可调度容量，参与过滤和打分</td></tr>
+                            <tr><td><code>max_mvm_num</code></td><td><code>host.quota.mvm_limit</code> 或内存推导</td><td>单节点 MVM 上限</td></tr>
+                            <tr><td><code>create_concurrent_num</code></td><td><code>host.quota.creation_concurrent_num</code></td><td>创建并发；为 0 时调度层回落到 CubeMaster 自身的限流配置</td></tr>
+                            <tr><td>资源用量 / 磁盘 / cgroup</td><td>周期上报</td><td>使用率、磁盘水位、打分因子</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>扩容后的 template redo</h3>
+                <p>新节点注册成功不代表模板已经在它上面可用——<code>template_locality</code> 过滤器要求目标节点有模板副本，否则创建会失败或继续落到旧节点。镜像构建的模板需要在扩容后执行一次 redo：</p>
+                <pre><code>cubemastercli tpl redo --template-id &lt;tpl-id&gt; --node &lt;node-ip&gt;</code></pre>
+                <p><code>--node</code> 可重复传入多个节点；默认等待任务完成，<code>--detach</code> 只提交不等待，<code>--failed-only</code> 只重做失败的节点。redo 成功后再放开这个节点上的业务流量。标准扩容顺序：<strong>装节点 → 确认节点健康、上报正常 → 对需要的模板执行 redo → 等任务成功 → 放流量。</strong></p>
+
+                <h3>调度排障</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>现象</th><th>检查点</th><th>命令 / 动作</th></tr></thead>
+                        <tbody>
+                            <tr><td>创建报 <code>no more resource</code></td><td>配额是否低于请求的资源需求（尤其还在用推导默认值时）；<code>mvm_num</code> 是否到上限；创建并发是否被打满。注意 <code>create_concurrent_num: 0</code> 在调度层仍会回落到 CubeMaster 的限流配置，不等于不限并发</td><td><code>curl http://127.0.0.1:3010/internal/v1/nodes</code>；<code>tail -F /data/log/CubeMaster/cubemaster-req.log</code></td></tr>
+                            <tr><td>日志出现 <code>metric update timeout</code></td><td>计算节点 <code>cube-sandbox-cubelet.service</code> 是否在跑；能否访问 CubeOps；<code>node_status_update_frequency</code> 是否被误改；<code>metric_update_timeout</code> 是否远大于上报周期</td><td>逐项核对 Cubelet 配置与连通性</td></tr>
+                            <tr><td>模板不可用</td><td>请求的 <code>template_id</code> 是否正确；新节点是否缺少副本。不要通过关掉 <code>template_locality</code> 来绕过</td><td>对新增节点执行 redo，看模板 job 状态确认成功</td></tr>
+                            <tr><td>节点标签不匹配</td><td>请求带了 affinity 或 cluster label 但没有候选节点</td><td>对照 <code>host.scheduler_label</code>；确认 <code>node_affinity_selector_allowed_keys</code> 放行；异构节点池确认模板已 redo 到对应实例类型</td></tr>
+                            <tr><td>创建集中在少数节点</td><td><code>score.enable_scorers</code> 是否启用；<code>enable_weight_factors</code> 是否包含预期因子；<code>priority_select_num</code> 是否大于 1；各节点模板副本是否都可用（缺副本会被 <code>template_locality</code> 排除）</td><td>检查配置与模板副本分布</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="scheduler-plugin">
+                <h2><span class="section-num">10</span>可扩展调度插件</h2>
+                <p>CubeMaster 把每个创建请求路由到一个<strong>调度 Profile</strong>，按 Profile 定义的 Guards、Filter、Score 和选点方式完成调度。请求走完整条管线：</p>
+                <div class="h-diagram">
+                    <div class="arch-box">创建请求</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box control">路由到 Profile</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box security">Guards</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box network">Filters</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box data">Score</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box accent">选点</div>
+                </div>
+                <p>请求由哪个 Profile 服务由策略选择规则决定；本节讲怎么配置和扩展 Profile。</p>
+
+                <h3>升级时的行为变化</h3>
+                <p>从 <strong>v0.7.3 及更早版本</strong>升级、且不修改调度配置的集群，受两处影响：</p>
+                <ul>
+                    <li><strong>零调度配置会激活出厂 Profile</strong>：完全没配调度策略的集群，选点从“预过滤候选里随机挑”变为“强制 Guards + 出厂 Score 按 spread 选点”，放置会不同（注入时打一条告警）。想保持旧行为，设 <code>scheduler.disable_factory_profiles: true</code>，或配置任一 legacy 块；已配置过调度策略的集群不受影响。</li>
+                    <li><strong>模板亲和打分</strong>：持有模板的节点得满分，其余 0 分。受影响的只有显式启用 <code>image_score</code> 的部署（含出厂 <code>template_reuse</code> Profile 和 legacy <code>enable_scorers: [image_score]</code> 集群）——默认配置、推荐配置和一键部署都不启用它，升级无感知。落点变化不符合预期时：想完全恢复升级前的放置，从 <code>score.plugin_conf.image_score.enable_weight_factors</code> 移除 <code>template_id</code>，或把 <code>score.resource_weights.template_id</code> 置 0；想保留模板亲和、但让负载能压过它，调低 <code>image_score</code> 权重。JFS 等共享存储后端不要为此启用模板亲和——模板所有节点都能直接读取，没有“避免拉取”的收益。</li>
+                </ul>
+
+                <h3>出厂 Profile</h3>
+                <p>二进制内置三条 Profile（<code>scheduler_factory.yaml</code>）：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Profile</th><th>路由条件</th><th>行为</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>burst_balance</code></td><td>label <code>workload=burst_balance</code></td><td>高并发同规格请求按资源水位与在途创建打散</td></tr>
+                            <tr><td><code>template_reuse</code></td><td>label <code>workload=template_reuse</code></td><td>优先落在已持有模板本地副本的节点</td></tr>
+                            <tr><td><code>mixed_binpack</code></td><td>默认</td><td>紧凑放置，保留整空节点</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>系统只在没有任何调度配置时注入这套出厂策略；显式配置了 <code>profiles</code> 或任一 legacy 块，整套出厂策略就不生效（legacy 块编译为兼容的 <code>default</code> Profile，行为不变）。</p>
+
+                <h3>配置 Profile</h3>
+                <pre><code>scheduler:
+  profile_route_label_keys: [workload]
+  profiles:
+    - name: burst
+      route:
+        labels: {workload: burst}
+      filters:
+        - name: skip-high-create
+          type: expr
+          expr: "node.creating &lt; 8"
+      scores:
+        - name: prefer-idle
+          type: expr
+          expr: "node.cpu_util &lt; 60.0 ? 80.0 : 20.0"
+          weight: 2
+      selection: {top_n: 5, method: spread}
+      failure:
+        filter: fail-closed
+        score: default-score
+        no_candidate: fail</code></pre>
+                <ul>
+                    <li>只有 <code>profile_route_label_keys</code> 列出的请求 label 能参与路由，也才会传给外部插件。</li>
+                    <li>路由按配置顺序匹配，第一个命中的 Profile 生效；非默认 Profile 必须带 instance type 或 label 条件（<code>instance_type</code> 当前统一为 <code>cubebox</code>，实际区分流量用 label 即可）。</li>
+                    <li><code>selection.method</code> 从打分结果里选最终节点：<code>highest</code> 取最高分；<code>spread</code> 在前 <code>top_n</code> 里选当前运行沙箱数最少的（把放置摊开）；<code>random</code>（缺省）按分数加权随机。<code>top_n: -1</code> 表示全部通过过滤的节点。</li>
+                    <li>每个 Profile 固定跑 <code>node_safety</code>、<code>cpu</code>、<code>mem</code>、<code>disk</code>、<code>template_locality</code>、<code>realtime_create_num</code> 这六个 Guards，配置关不掉。</li>
+                </ul>
+
+                <h3>失败语义</h3>
+                <p>Guards 永远 <strong>fail-closed</strong>。Filter 默认 fail-closed，显式配 fail-open 会打风险告警。Score 默认 <code>default-score</code>，单个插件失败后用它的 <code>default_score</code> 继续，也可以配成 fail-closed。<code>no_candidate</code> 支持 <code>fail</code> 和 <code>backoff</code>，<code>backoff</code> 时会重新执行整条管线。配置在启动或热更新时<strong>整体编译</strong>——插件名、路由、表达式、权重、选点或失败策略任何一处无效，新配置都不生效，调度器继续用上一份。</p>
+
+                <h3>准入与预留</h3>
+                <p>跨副本准入是<strong>建议性</strong>的：每个副本按本地节点快照做准入，指标按上报窗口独立传播，所以窗口内多个 Master 可能对同一份可见容量重复准入，短暂超发。节点实际装不下时，创建第一次尝试就直接失败，不会转移到其他节点重试——建议配额贴近节点实际容量，并在客户端处理好创建失败。</p>
+                <div class="warning"><strong>Redis 是必选依赖：</strong>节点指标读取和创建后的路由元数据写入都要走它，Redis 故障会打断创建链路。滚动升级时混合版本不具备完整跨副本协调；旧版本还在服务时不要删旧版本的 reservation key，全部升级完后这些 key 就没人用了。</div>
+
+                <h3>插件开发者：三种插件与 Score 契约</h3>
+                <ul>
+                    <li><strong>go</strong>（默认）：编译进 CubeMaster，实现 <code>filter.Selector</code> 或 <code>score.Selector</code> 接口，在包初始化时调 <code>plugin.RegisterGoFilter</code> / <code>plugin.RegisterGoScore</code> 注册。新增插件后要重新编译；重名在启动时被拒。</li>
+                    <li><strong>expr</strong>：启动时编译 CEL。Filter 返回 <code>bool</code>，Score 返回 0—100。CEL 拿到的是强类型只读的 <code>node</code> 和 <code>request</code> 对象；未知字段、类型错误、返回类型不对在 Profile 激活时被拒；Score 数值超出 0—100 在请求时才会报错并触发 score 失败策略。常用节点字段有 <code>cpu_util</code>、<code>quota_cpu</code>、<code>allocated_cpu</code>、<code>creating</code>、<code>mvm_num</code>、<code>labels</code>、<code>template_local</code>、<code>snapshot_storage_writable</code> 等；请求字段有 <code>instance_type</code>、<code>cpu_millis</code>、<code>memory_bytes</code>、<code>template_id</code>、<code>labels</code>。</li>
+                    <li><strong>grpc</strong>：独立进程。启动时完成一次握手，之后批量调 <code>Filter</code> 或 <code>Score</code>；CubeMaster 校验超时、熔断、快照版本和返回值。协议在 <code>pkgs/proto/services/schedulerplugin/v1/plugin.proto</code>。每个请求都带完整冻结快照，所以插件服务端可以无状态，并发请求共享一条连接即可；生产环境建议 Unix Domain Socket。</li>
+                </ul>
+                <pre><code>      filters:
+        - name: company-policy
+          type: grpc
+          socket_path: /run/cube/company-scheduler.sock
+          timeout: 100ms
+          circuit_breaker_failures: 3
+          circuit_breaker_cooldown: 30s</code></pre>
+                <div class="info"><strong>Score 插件契约：</strong>评分维度对当前请求不适用时，返回 <code>score.ErrNotApplicable</code> 显式跳过——不计分、不计权重，也不算失败（即使在 fail-closed 下）。返回空评分列表加 nil 错误是<strong>违反契约</strong>，会触发配置的失败策略。内置 scorer 在 legacy 因子配置缺失、被禁用或权重全为零时也返回 <code>ErrNotApplicable</code>。可运行示例在 <code>examples/scheduler-plugin</code>：<code>SOCKET=/tmp/cube-scheduler-example.sock go run .</code>。</div>
+
+                <h3>验证</h3>
+                <p>所有调度指标都带 <code>profile</code> 标签。最常用的三个：</p>
+                <ul>
+                    <li><code>scheduler_attempts_total{profile=...}</code>：哪个 Profile 在承接流量；</li>
+                    <li><code>scheduler_plugin_duration_seconds{profile,kind,plugin}</code>：逐插件耗时，调权重时用；</li>
+                    <li><code>sandbox_create_duration_seconds{profile,result}</code>：按 Profile 的端到端创建延迟。</li>
+                </ul>
+            </section>
+
+            <section class="concept-section" id="soft-delete">
+                <h2><span class="section-num">11</span>软删除墓碑清理</h2>
+                <p>CubeSandbox 在很多表上使用 GORM 的<strong>软删除</strong>：删除一行时只是把它的 <code>deleted_at</code> 列置位，GORM 随后在普通查询里把它隐藏起来。此前没有任何机制回收这些“墓碑”行，于是表会无限增长，过期的墓碑还会一直占用<strong>唯一键</strong>（即软删除 + 唯一键陷阱）。墓碑清理器（tombstone purger）就是解决这个问题的定时“看门人”。</p>
+
+                <h3>它做什么</h3>
+                <p>一个共享包 <code>pkgs/cubedb/tombstone</code> 同时运行在共享数据库的<strong>两个</strong>二进制里：</p>
+                <ul>
+                    <li><strong>CubeMaster</strong>：清理 <code>t_cube_*</code> 软删除表；</li>
+                    <li><strong>CubeOps</strong>：清理 <code>t_agenthub_*</code> 软删除表。</li>
+                </ul>
+                <p>每个组件在启动时注册清理器。它按固定间隔获取一个集群级咨询锁（保证每个 tick 内只有一个 HA 副本干活），然后对每张配置的表，硬删除 <code>deleted_at</code> 早于保留窗口的行。单次 pass 是<strong>有上限的</strong>（<code>max_per_pass</code>），大的积压会分摊到很多个 tick 里慢慢清，而不是一次长事务把锁占满。硬删除是跨方言的，并且<strong>对复活竞态安全</strong>——<code>DELETE</code> 会重新校验墓碑谓词，因此应用层 UPSERT 复活（<code>deleted_at = NULL</code>）的行在 select 与 delete 之间不会被硬删。</p>
+
+                <h3>配置</h3>
+                <pre><code>soft_delete_purge:
+  enable: false       <span class="c"># 默认关闭：清理不可逆，需显式开启</span>
+  dry_run: false      <span class="c"># 只 select 并打印计数，不真正 DELETE（用于安全的首轮观察）</span>
+  retention: 168h     <span class="c"># deleted_at 早于 now-retention 的行会被清理。</span>
+                      <span class="c">#   &lt;=0 -&gt; 7 天默认值；(0, 1h) 之间的值会上调到 1h。</span>
+  interval: 1h        <span class="c"># 两次 pass 之间的间隔。</span>
+                      <span class="c">#   &lt;=0 -&gt; 1h 默认值；(0, 1m) 之间的值会上调到 1m。</span></code></pre>
+                <p><code>max_per_pass</code>（5000）和批次大小 batch size（500）是包级常量，不可配置。所有字段都是可选的；默认值是安全的，且特性<strong>默认关闭</strong>（需显式开启），因为清理不可逆。</p>
+
+                <h3>覆盖的表</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>组件</th><th>表</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td>CubeMaster（始终）</td><td><code>t_cube_sandbox_spec</code>、<code>t_cube_template_replica</code></td><td>始终被清理；不是实例记录，没有“保留”语义</td></tr>
+                            <tr><td>CubeMaster（仅默认情况）</td><td><code>t_cube_instance_info</code>、<code>t_cube_instance_userdata</code></td><td>受 <code>disable_hard_delete</code> 影响，见下一节</td></tr>
+                            <tr><td>CubeOps</td><td><code>t_agenthub_instance</code>、<code>t_agenthub_snapshot</code>、<code>t_agenthub_template</code></td><td>agent hub 相关软删除表</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><strong>排除</strong>（有专属生命周期 / 不是软删除）：</p>
+                <ul>
+                    <li><code>t_cube_rootfs_artifact</code>、<code>t_cube_artifact_node_placement</code>：有“复活”逻辑 + 专属的 <code>artifact_gc</code>；</li>
+                    <li><code>t_cube_snapshot_runtime_ref</code>：append-only 历史表，<code>deleted_at</code> 从不写入；</li>
+                    <li>仅硬删的表（<code>t_cube_template_definition</code>、<code>t_cube_template_image_job</code>、<code>t_cube_volume</code> 等）。</li>
+                </ul>
+                <p>迁移 <code>20260731120000</code> 会给每个缺少前导 <code>deleted_at</code> 索引的清理目标表补上该索引，使 <code>deleted_at &lt; cutoff</code> 的扫描走索引。</p>
+
+                <h3>优先级：disable_hard_delete 与 soft_delete_purge</h3>
+                <p><code>common.disable_hard_delete</code>（CubeMaster）存在的目的是让运维可以<strong>保留</strong>实例记录用于审计 / 恢复：置位后，<code>t_cube_instance_info</code> 改为软删而非硬删（<code>t_cube_instance_userdata</code> 本就总是软删）。<strong>对于实例记录，<code>disable_hard_delete</code> 优先于 <code>soft_delete_purge</code>。</strong>当 <code>disable_hard_delete: true</code> 时，<code>t_cube_instance_info</code> 与 <code>t_cube_instance_userdata</code> <strong>豁免清理</strong>——否则清理器会硬删掉运维明确要求保留的记录。清理表清单由 <code>cubeMasterPurgeTables(disableHardDelete)</code> 依此构建。</p>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>disable_hard_delete</th><th>soft_delete_purge</th><th>实例记录</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>false</code>（默认）</td><td>开</td><td><code>userdata</code> 被清理（本就软删）；<code>instance_info</code> 在删除路径硬删（不产生墓碑）</td></tr>
+                            <tr><td><code>false</code></td><td>关</td><td><code>userdata</code> 墓碑累积（不清理）</td></tr>
+                            <tr><td><code>true</code></td><td>开</td><td><strong>保留</strong>——实例表豁免清理</td></tr>
+                            <tr><td><code>true</code></td><td>关</td><td>保留——反正不清理</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>运维注意事项</h3>
+                <div class="warning"><strong>默认关闭，先 dry-run：</strong>清理不可逆，需显式开启（<code>soft_delete_purge.enable: true</code>）；升级不应静默硬删此前一直保留的墓碑。开启后首次 pass 会按 <code>max_per_pass</code> 分批回收已积压的墓碑。面对大的历史积压，可先把 <code>dry_run: true</code> 设一个间隔，观察“将要清理”的计数，再开启真正删除。</div>
+                <ul>
+                    <li><strong>带外 DDL</strong>：设置了 <code>CUBE_AUTO_MIGRATION=false</code> 的部署，必须带外应用迁移 <code>20260731120000</code> 中的 <code>deleted_at</code> 索引；否则清理会是全表扫描。</li>
+                    <li><strong>PostgreSQL</strong>：迁移中的普通 <code>CREATE INDEX</code> 在构建每个索引期间会持有 ACCESS EXCLUSIVE 锁（阻塞写入）——对当前以 PG 为非主力的较小部署可接受；较大的 PostgreSQL 部署请在低峰期或维护窗口执行迁移。一次大规模回收 pass 之后，相关表会出现短暂的 autovacuum 高峰（大规模 <code>DELETE</code> 的正常现象）。</li>
+                </ul>
+            </section>
+
+            <section class="concept-section" id="multiversion">
+                <h2><span class="section-num">12</span>组件多版本</h2>
+                <p>节点上同时留着好几个版本的组件。建沙箱、恢复沙箱都按模板绑定的版本来取；本地没有，就去 CubeOps 仓库拉一份下来。这样节点把组件升到新版后，用老版本建的沙箱照样能恢复、老模板照样能调度，不会被升级连累。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>组件</th><th>是什么</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>cube-shim</code></td><td>容器运行时 shim 和 <code>cube-runtime</code></td></tr>
+                            <tr><td><code>cube-image</code></td><td>客户机根文件系统镜像</td></tr>
+                            <tr><td><code>cube-agent</code></td><td>客户机里的 agent</td></tr>
+                            <tr><td><code>cube-kernel-scf</code></td><td>客户机内核</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>背景：为什么要多版本</h3>
+                <p>以前节点上只有一份组件（当前工具箱），升级器一升，版本就跟着变。模板是按特定版本建的：节点把 <code>cube-image</code> 从 v1 升到 v2 后，用 v1 建好的沙箱恢复时只能取到 v2，版本对不上，恢复直接失败；用 v1 的老模板副本被判成不兼容（STALE），没法调度。想救回来只能把老模板重做、重新给节点装组件，新老模板没法在一台节点上并存。</p>
+                <p>有了多版本：每个版本各留一份。v1 还在节点上存着，老沙箱恢复照样取 v1，老模板照样调度，节点升到 v2 一点都不影响它。新老模板能在一台节点上并存，升级不再伤筋动骨。一句话：<strong>缺版本不会拿当前工具箱凑合，而是去仓库下</strong>。所以当前工具箱随便升，都不影响已经绑定老版本的副本——这就是稳定恢复（stable restore）。新模板会把四个组件的版本都绑上；只有从老版本迁过来的历史副本可能只绑了两件，不享受稳定恢复。</p>
+
+                <h3>它怎么跑</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>1. 建 / 恢复沙箱</b>：读取模板绑定的组件版本（如 v1.2）</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2. 查本地版本库</b>：<code>/data/cubelet/root/component_versions/</code> 里有没有 v1.2？有则直接用</div>
+                    <div class="flow-arrow">↓ 没有</div>
+                    <div class="flow-step"><b>3. 检查 cubeops_addr</b>：没配 → 失败 <code>component version missing</code>；配了 → 进入下一步</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4. 向 CubeOps 仓库拉取</b>：仓库没有 → <code>not in warehouse</code>；有 → 下载 · 解压 · 校验 · 落盘</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>5. 继续创建</b>：版本落盘后从本地版本库取用</div>
+                </div>
+                <p>节点磁盘上有两块地方：</p>
+                <pre><code>/usr/local/services/cubetoolbox            <span class="c">← 当前工具箱：升级器就地更新，节点现在用的就是它</span>
+/data/cubelet/root/component_versions/     <span class="c">← 版本库：多版本并排，建 / 恢复从这里取</span>
+├── cube-image/
+│   ├── v1.0/
+│   └── v1.2/
+└── cube-kernel-scf/
+    └── v1.2/</code></pre>
+
+                <h3>运维该干啥</h3>
+                <ol>
+                    <li><strong>把版本导进仓库</strong>（节点才有东西可下）：仓库首页点“导入一键包”。只认 <code>cube-sandbox-one-click-&lt;tag&gt;-{amd64,arm64}.tar.gz</code>，按包导——一个包里几个组件一次写进去，没有“只导某一个”的说法。来源三种：GitHub Release（默认只让下 <code>TencentCloud/CubeSandbox</code>）、CNB Release（<code>CubeSandbox/CubeSandbox</code>）、本地传 tar.gz（最大 8 GB）。提交完去“任务”页看进度。</li>
+                    <li><strong>把大版本提前装到节点</strong>（别让第一次建沙箱卡在下载）：进组件详情页点“预装”，勾上没装的节点，后台就会下。<strong>预装不建沙箱</strong>，纯粹是把版本先装过去。<code>cube-image</code>、内核这些体积大（GB 级），第一次建的时候才去下，十有八九会超过 10 分钟超时——提前装好就没事。</li>
+                    <li><strong>看对照、清旧版本</strong>（管磁盘）：仓库首页每张卡片有个“对照”：绿 = 都齐了，黄 = 有 N 个节点缺，灰的“对照不可用”= CubeOps 列不出节点。<strong>版本库不会自动清</strong>，老版本越攒越多；删之前先看兼容矩阵的“已绑版本”列，确认没有副本还绑着这个版本。在控制台删某版本，只删仓库里的中心副本，节点上那份不删。</li>
+                </ol>
+
+                <h3>出问题怎么查</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>报错</th><th>含义</th><th>怎么办</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>component version missing on node</code></td><td>没配 <code>cubeops_addr</code>，节点上又没这版本</td><td>给节点配上 <code>cubeops_addr</code>，打通到 CubeOps <code>:3010</code></td></tr>
+                            <tr><td><code>component version not in warehouse</code></td><td>地址配了，但仓库里压根没这版本</td><td>去控制台导入对应的一键包</td></tr>
+                            <tr><td>下载失败（网络错 / 5xx / 校验不过）</td><td>仓库有，但下载或解压出了错</td><td>翻 Cubelet 日志 <code>mod=warehouse</code>，重试或重新导</td></tr>
+                            <tr><td>对照栏“对照不可用”</td><td>CubeOps 列不出节点</td><td>查 CubeOps 节点管理 / Redis 和 node-agent 心跳</td></tr>
+                            <tr><td>导入任务失败</td><td>任务页会写原因：白名单外、没 token、源连不上、包格式不对</td><td>照着改</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>部署与配置</h3>
+                <p>“缺了自动拉”依赖两条网络：<strong>节点 → CubeOps</strong>（领下载地址、上报本地版本清单；不通就退回“只用已有的版本”，缺了直接失败）和<strong>节点 → 对象存储</strong>（数据真正下载的地方，组件包统一放在独立的 <code>cube-ops</code> 桶）。CubeOps 的地址三种部署方式都会自动配给节点（需要时用 <code>CUBE_OPS_ADDR</code> 覆盖），差别只在对象存储这一侧：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>部署方式</th><th>开箱即用</th><th>对象存储</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>Helm</strong></td><td>是</td><td>默认用 chart 内置 MinIO。要换自己的 S3 / COS 就配 <code>cubeOps.s3</code>，并确认节点能访问那个地址。</td></tr>
+                            <tr><td><strong>一键安装</strong></td><td>是</td><td>自动复用 Volume 的 MinIO / S3 连接，独立 <code>cube-ops</code> 桶，无需配置。</td></tr>
+                            <tr><td><strong>Terraform TKE</strong></td><td>否</td><td>默认栈没有对象存储，仓库处于禁用状态；给 cube-ops 接上 COS（或其他 S3）后才可用，地址必须是集群外 CVM 能访问的。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>仓库数据都在 S3、不占 CubeOps 本地盘，所以 CubeOps 可以跑多副本；可用性的短板在 chart 内置 MinIO——单实例，要 HA 就换外部 S3 / COS。</p>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>配置</th><th>默认</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>cubeops_addr</code>（Cubelet）</td><td>空</td><td>CubeOps 地址，比如 <code>http://&lt;ops&gt;:3010</code>。<strong>留空 = 不下</strong>，缺版本直接失败。</td></tr>
+                            <tr><td><code>cubeops_timeout</code>（Cubelet）</td><td><code>10m</code></td><td>拉一个版本的总时限；GB 级组件要留够余量。</td></tr>
+                            <tr><td><code>CUBE_OPS_STORE_BACKEND</code>（CubeOps）</td><td><code>s3</code></td><td><code>fs</code> = 本地 / PVC 仓库，由 CubeOps 签发下载 URL。</td></tr>
+                            <tr><td><code>CUBE_OPS_STORE_FS_PUBLIC_URL</code>（CubeOps）</td><td>空</td><td><code>backend=fs</code> 时节点可达的 CubeOps 地址。</td></tr>
+                            <tr><td><code>CUBE_OPS_S3_ENDPOINT</code>（CubeOps）</td><td>空</td><td>对象存储地址。<strong>留空 = 仓库禁用</strong>，CubeOps 本身照常启动。</td></tr>
+                            <tr><td><code>CUBE_OPS_S3_NODE_ENDPOINT</code>（CubeOps）</td><td>同 endpoint</td><td>节点下载用的地址；节点访问不到默认地址（比如在集群外）时才需要设。</td></tr>
+                            <tr><td><code>CUBE_OPS_S3_BUCKET</code>（CubeOps）</td><td><code>cube-ops</code></td><td>仓库专用的桶。</td></tr>
+                            <tr><td><code>CUBE_OPS_WAREHOUSE_WORK_DIR</code>（CubeOps）</td><td><code>/var/tmp/cubeops-warehouse</code></td><td>导入时解包用的本地临时空间，要放得下最大的包。</td></tr>
+                            <tr><td><code>CUBE_OPS_WAREHOUSE_GITHUB_REPOS</code> / <code>CNB_REPOS</code></td><td>见白名单</td><td>导入白名单，逗号分隔，可覆盖。</td></tr>
+                            <tr><td><code>CUBE_OPS_WAREHOUSE_*_TOKEN</code></td><td>空</td><td>私有 release 才用得上。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="danger"><strong>cube-ops 桶的两条边界：</strong>权限上要给 CubeOps 这个桶的读写权限（含分块上传），最小 IAM 清单见 CubeOps README；凭据上，节点<strong>不持有 S3 凭据</strong>（这点和 s3fs 卷不同），拿到的只是短时效的签名下载 URL。也因此，能写这个桶的人就能改节点执行的二进制——把 AK/SK 当作信任域边界。节点调的 <code>/internal/warehouse/*</code> 不带 JWT（就靠 <code>X-Cube-Node-ID</code> 认，跟 <code>/internal/meta</code> 一个待遇），<strong>只开给计算节点网络，别挂公网</strong>。管理 API 走 <code>/opsapi</code>，带 JWT。</div>
+            </section>
+
+            <section class="concept-section" id="redis-cluster">
+                <h2><span class="section-num">13</span>Redis Cluster 部署与迁移</h2>
+                <p>CubeSandbox 支持用外部原生 Redis Cluster 作为 Redis 后端。单机和 Sentinel 模式不受影响。Cluster 模式下不部署内置 Redis；Master 和 TemplateCenter 的配置变更会滚动其 Pod。</p>
+
+                <h3>前置要求</h3>
+                <ul>
+                    <li><strong>仅支持 DB 0</strong>：启用前先把数据迁出非零数据库；</li>
+                    <li><strong>仅支持密码认证</strong>：不支持 TLS 和 ACL 用户名；</li>
+                    <li><strong>仅支持 IPv4</strong>：IPv6 集群的重定向地址各客户端处理不一致；</li>
+                    <li><strong>每个通告地址都必须从客户端网络直连可达</strong>：单个负载均衡入口通常不够。</li>
+                </ul>
+
+                <h3>配置</h3>
+                <p>Helm：在 values 里提供种子节点列表，密码走现有私有配置；Cluster 模式不部署内置 Redis。</p>
+                <pre><code>redis:
+  host: ""
+  masterName: ""
+  sentinelNodes: ""
+  clusterNodes: "redis-1.example:6379,redis-2.example:6379,redis-3.example:6379"
+  db: 0</code></pre>
+                <p>一键部署：在 <code>.env</code> 中设置，密码沿用 <code>CUBE_EXTERNAL_REDIS_PASSWORD</code>。启用前先清空单机地址和 Sentinel 配置。</p>
+                <pre><code>CUBE_EXTERNAL_REDIS_CLUSTER_NODES=redis-1.example:6379,redis-2.example:6379,redis-3.example:6379
+CUBE_EXTERNAL_REDIS_DB=0</code></pre>
+                <p>手动部署：各客户端配置如下。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>组件</th><th>配置</th></tr></thead>
+                        <tbody>
+                            <tr><td>Master / TemplateCenter</td><td><code>redis.cluster_nodes</code>，<code>redis.db_no: 0</code></td></tr>
+                            <tr><td>Ops</td><td><code>REDIS_CLUSTER_NODES</code>，<code>REDIS_DB=0</code>，不设 <code>REDIS_URL</code></td></tr>
+                            <tr><td>生命周期管理器</td><td><code>CUBE_LCM_REDIS_CLUSTER_NODES</code>，<code>CUBE_LCM_REDIS_DB=0</code></td></tr>
+                            <tr><td>Proxy 路由</td><td>nginx <code>$redis_cluster_nodes</code>，<code>$redis_index=0</code></td></tr>
+                            <tr><td>Proxy 注册心跳</td><td><code>CUBE_PROXY_REGISTRY_REDIS_CLUSTER_NODES</code>，<code>CUBE_PROXY_REGISTRY_REDIS_DB=0</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>部署后验证</h3>
+                <ul>
+                    <li>从客户端网络确认所有通告地址可达；</li>
+                    <li>跑一遍完整沙箱生命周期：创建、路由、暂停、恢复、删除；</li>
+                    <li>确认节点快照覆盖多个主节点上的节点。</li>
+                </ul>
+
+                <h3>运行行为与限制</h3>
+                <ul>
+                    <li>key 名称不变。热点 key（生命周期状态、事件流、代理注册表）仍是单 key，分片拆不开；</li>
+                    <li>单 key 锁、解锁脚本和 WATCH 事务在所属主节点上仍然原子；</li>
+                    <li>跨槽位的批量读取是近似视图，不是全局一致快照；</li>
+                    <li>多 key 删除可能部分成功，失败后重试幂等清理即可；</li>
+                    <li>Proxy pipeline 逐条独立路由，保序执行，不重放已成功的命令；</li>
+                    <li>Master、Ops、Proxy 只重试服务器明确返回的重定向（MOVED / ASK / TRYAGAIN）。切主后收到 READONLY 会刷新路由并重试一次；传输错误一律返回调用方，不重放。Master 的 <code>max_retry</code> 在 Cluster 下不生效；</li>
+                    <li>生命周期管理器保留 go-redis 的重定向和断连重试。EXEC 响应丢失时 WATCH 回调可能重复执行，不重放保证不适用于生命周期写入；</li>
+                    <li>升级本 Chart 会一次性滚动重启全部控制面组件，即使不启用 Cluster。请预留容量。</li>
+                </ul>
+
+                <h3>迁移</h3>
+                <div class="timeline">
+                    <div class="timeline-item"><h4>备份现有 Redis 数据</h4><p>迁移前先做一份可回滚的备份。</p></div>
+                    <div class="timeline-item"><h4>非零数据库迁到 DB 0</h4><p>检查 key 冲突。</p></div>
+                    <div class="timeline-item"><h4>维护窗口内暂停写入和生命周期任务</h4><p>等在途操作结束。</p></div>
+                    <div class="timeline-item"><h4>所有组件同时切换到新集群</h4><p>避免新旧后端混跑造成状态分裂。</p></div>
+                    <div class="timeline-item done"><h4>恢复流量前验证</h4><p>验证节点发现、路由和状态恢复；回滚前先停新写入并核对新增数据。</p></div>
+                </div>
+            </section>
+
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">14</span>易错点与最佳实践</h2>
+                <p>这一章的命令多、路径多，下面九条是运维现场最容易踩的坑。做任何破坏性操作前，先对照一遍。</p>
+                <div class="warning"><strong>易错点 1：把 12088 当成 3000。</strong><code>3000</code> 是 E2B 兼容 REST API，<code>12088</code> 才是 WebUI。打开 Dashboard 用 12088，不需要额外暴露 3000。</div>
+                <div class="warning"><strong>易错点 2：去 journalctl 找业务日志。</strong>请求、调度、审计、VMM 创建过程都在 <code>/data/log/&lt;Module&gt;/</code>；journalctl 只覆盖启动期 stdout/stderr。</div>
+                <div class="warning"><strong>易错点 3：把“隔离”当成“清空”。</strong>隔离只阻止新调度，不会驱逐已有沙箱。维护前要先隔离，再主动销毁该节点上的沙箱，并等待至少 60 秒让在途调度结束。</div>
+                <div class="warning"><strong>易错点 4：以为删除节点会停进程。</strong>删除只移除 CubeOps 中的注册信息、状态、版本元数据和指标缓存；不停止进程、不销毁沙箱、不删磁盘。Cubelet 再启动会用相同 ID 重新注册。</div>
+                <div class="warning"><strong>易错点 5：IP 变了但 node_id 没配。</strong>未设置 <code>CUBE_SANDBOX_NODE_ID</code> 而由 IP 兜底时，IP 变化会被视为新节点。要动态跟随，必须显式配置稳定的 <code>node_id</code>。</div>
+                <div class="warning"><strong>易错点 6：扩容后不 redo 模板。</strong>新节点注册成功不代表模板可用，<code>template_locality</code> 会把缺副本的节点排除。标准顺序是装节点 → 健康检查 → redo → 等成功 → 放流量。</div>
+                <div class="warning"><strong>易错点 7：用关闭 template_locality 绕过模板问题。</strong>这会把模板副本缺失变成隐性故障。正确姿势是对新增节点执行 redo，并确认模板 job 状态。</div>
+                <div class="warning"><strong>易错点 8：直接打开软删除清理。</strong>清理不可逆且默认关闭。先用 <code>dry_run: true</code> 观察计数，并确认 <code>disable_hard_delete</code> 是否符合保留审计记录的预期。</div>
+                <div class="warning"><strong>易错点 9：Redis Cluster 用了非 0 库或 TLS。</strong>Cluster 仅支持 DB 0、密码认证与 IPv4；每个通告地址都必须从客户端网络直连可达。升级 Chart 会滚动重启全部控制面组件，请预留容量。</div>
+
+                <h3>最佳实践清单</h3>
+                <ul>
+                    <li>先用 <code>cubeopscli node list</code> 和 <code>cubeopscli node groups</code> 确认节点状态与机型分布，再做任何维护。</li>
+                    <li>多节点排障先 <code>cubemastercli info --sandboxid &lt;id&gt;</code> 定位节点，再登录该节点用 <code>cubecli</code> / <code>cube-runtime</code>。</li>
+                    <li>改配置只重启直接读该配置的服务；改 CoreDNS 只改 <code>Corefile.template</code>；改 unit 文件先 <code>daemon-reload</code>。</li>
+                    <li>提 issue 前用 <code>collect-logs.sh</code> 打包，先脱敏再分享。</li>
+                    <li>生产集群保持 <code>template_locality</code> 开启，<code>priority_select_num</code> 取健康节点数的一小部分，并给 <code>creation_concurrent_num</code> 设上限。</li>
+                </ul>
+            </section>
+
+            <section class="concept-section" id="memory">
+                <h2><span class="section-num">15</span>记忆卡片与自测</h2>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>端口分工</b>12088 给人看 Dashboard，3000 给程序调 E2B 兼容 API，8089 是 CubeMaster，3010 是 CubeOps。</div>
+                    <div class="memory-card"><b>工具选型</b>集群级 <code>cubemastercli</code>，节点管理 <code>cubeopscli</code>，单节点 <code>cubecli</code>，guest 内 <code>cube-runtime</code>。</div>
+                    <div class="memory-card"><b>日志入口</b>业务日志 <code>/data/log/&lt;Module&gt;/</code>；启动失败才看 <code>journalctl -u &lt;unit&gt;</code>。</div>
+                    <div class="memory-card"><b>删节点三步</b>隔离 → 等 60 秒并清空沙箱 → 删除；删除不停止进程，Cubelet 会重新注册。</div>
+                    <div class="memory-card"><b>扩容四步</b>装节点 → 健康与上报正常 → 模板 redo → 等成功放流量。</div>
+                    <div class="memory-card"><b>多版本原则</b>缺版本去仓库下，不拿当前工具箱凑合；这样才能稳定恢复老沙箱。</div>
+                </div>
+
+                <div class="quiz">
+                    <h4>自测</h4>
+                    <details>
+                        <summary>1. 为什么删除计算节点前必须先隔离并清空？删除操作到底做了什么、没做什么？</summary>
+                        <p>CubeOps 只允许删除<strong>已经隔离且没有沙箱</strong>的节点；删除本身不会隔离节点，也不会销毁负载。删除只移除节点注册信息、状态、组件版本元数据和指标缓存，<strong>不会</strong>停止节点进程、销毁沙箱、删除磁盘或删除 Kubernetes Node 对象。正确顺序是：隔离 → 等至少 60 秒 → 销毁全部沙箱 → 停止或退役 Cubelet → 删除 → 确认消失。</p>
+                    </details>
+                    <details>
+                        <summary>2. 新沙箱总是集中创建到少数几个节点，应按什么顺序排查？</summary>
+                        <p>先确认 <code>score.enable_scorers</code> 是否启用、<code>enable_weight_factors</code> 是否包含预期因子，以及 <code>priority_select_num</code> 是否大于 1（等于 1 或接近全量都会退化）。再检查各节点的模板副本是否都可用——<code>template_locality</code> 会把缺副本的节点排除出候选集。若刚扩容，先对新节点执行 <code>cubemastercli tpl redo</code>。</p>
+                    </details>
+                    <details>
+                        <summary>3. 组件多版本场景下，创建沙箱报 <code>component version not in warehouse</code> 或 <code>component version missing on node</code>，分别怎么处理？</summary>
+                        <p><code>component version missing on node</code> 表示节点没配 <code>cubeops_addr</code>，且本地版本库没有该版本——给节点配置可访问的 CubeOps <code>:3010</code> 地址。<code>component version not in warehouse</code> 表示地址配了，但仓库里没有这个版本——去控制台导入对应的 <code>cube-sandbox-one-click-&lt;tag&gt;-{amd64,arm64}.tar.gz</code> 一键包，再到“任务”页确认导入成功。体积大的组件建议提前“预装”，避免首次创建卡在下载超时。</p>
+                    </details>
+                </div>
+
+                <div class="tip"><strong>下一步：</strong>本章覆盖的是“怎么管”。接下来 <a href="observability.html">可观测性</a> 会展开日志之外的另一半——指标、追踪与性能基准；<a href="troubleshooting.html">故障排查</a> 则把本章的排障入口串成完整手册。</div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

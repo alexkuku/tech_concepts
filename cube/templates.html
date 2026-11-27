@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模板与镜像 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>模板与镜像</span>
+            </h1>
+            <p class="subtitle">从 OCI 镜像、自定义镜像到运行中沙箱，掌握模板的构建、分发、别名与 MCP 网关</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 07 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">模板与镜像</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 07 章</span>
+                <h1>模板与镜像</h1>
+                <p>模板决定了每个沙箱「生下来」时是什么样子。本章从模板与镜像的关系讲起，覆盖三种制作方式（OCI 镜像、自定义镜像 BYOI、运行中沙箱提交）、预热模板服务、本地与远程镜像实战、环境变量作用域、模板别名，以及沙箱内 MCP 网关的约定与安全边界。学完你可以独立产出并安全发布一个生产可用的模板。</p>
+                <div class="page-meta">
+                    <span>📖 预计 45 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 8 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#relation">1. 模板与镜像：是什么关系</a></li>
+                    <li><a href="#compare">2. 三种制作方式对比</a></li>
+                    <li><a href="#from-image">3. 从 OCI 镜像制作模板</a></li>
+                    <li><a href="#byoi">4. 自定义模板镜像（BYOI）</a></li>
+                    <li><a href="#from-sandbox">5. 从运行中沙箱提交模板</a></li>
+                    <li><a href="#prewarm">6. 预热模板服务</a></li>
+                    <li><a href="#practice">7. 本地与远程镜像实战</a></li>
+                    <li><a href="#env">8. 环境变量的可见性</a></li>
+                    <li><a href="#alias">9. 模板别名</a></li>
+                    <li><a href="#mcp">10. MCP 网关</a></li>
+                    <li><a href="#pitfalls">11. 易错点、记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <!-- ============ 1 ============ -->
+            <section class="concept-section" id="relation">
+                <h2><span class="section-num">1</span>模板与镜像：是什么关系</h2>
+                <p>一句话：<strong>模板不是镜像，而是「镜像 + 构建产物 + 就绪探针 + 分发」四件事的封装。</strong>镜像只是原料，模板是 CubeSandbox 真正用来创建沙箱的、可被调度到集群各节点的制品。记住这条公式，后面所有命令和排错都能挂上去。</p>
+
+                <div class="layer-stack">
+                    <div class="layer accent"><span class="layer-tag">镜像</span><div class="layer-body"><span>OCI 镜像（基础 rootfs）</span><span>公开 / 私有仓库</span></div></div>
+                    <div class="layer"><span class="layer-tag">产物</span><div class="layer-body"><span>rootfs ext4 artifact</span><span>artifact_id</span><span>artifact_sha256</span></div></div>
+                    <div class="layer"><span class="layer-tag">探针</span><div class="layer-body"><span>--probe 端口</span><span>--probe-path 路径（返回 2xx）</span></div></div>
+                    <div class="layer"><span class="layer-tag">分发</span><div class="layer-body"><span>distribution N/M ready</span><span>template_spec_fingerprint 复用</span></div></div>
+                </div>
+
+                <h3>从镜像到沙箱的流水线</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">模板构建与分发流水线</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">OCI 镜像<small>PULLING 拉取</small></div>
+                        <div class="arch-box primary">模板构建<small>BUILDING 生成 rootfs</small></div>
+                        <div class="arch-box storage">rootfs 产物<small>ext4 artifact + sha256</small></div>
+                        <div class="arch-box compute">节点分发<small>DISTRIBUTING</small></div>
+                        <div class="arch-box accent">沙箱<small>tpl-... 派生实例</small></div>
+                    </div>
+                    <div class="arch-connector strong">探针返回 2xx → status: READY → 可用 template_id 创建沙箱</div>
+                </div>
+
+                <h3>几个必须记住的关键字段</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>概念</th><th>含义</th><th>为什么要关心</th></tr></thead>
+                        <tbody>
+                            <tr><td>OCI 镜像</td><td>标准容器镜像，是模板的原料</td><td>镜像拉不到就卡在 <code>PULLING</code></td></tr>
+                            <tr><td>rootfs artifact</td><td>构建出的可写层文件系统，带稳定 <code>artifact_id</code></td><td>多模板可共享同一 artifact，删除不立即回收</td></tr>
+                            <tr><td>就绪探针</td><td><code>--probe</code> 指定端口、<code>--probe-path</code> 指定路径，必须返回 HTTP 2xx</td><td>探针不通，模板永远进不了 <code>READY</code></td></tr>
+                            <tr><td>distribution</td><td><code>N/M ready</code>，已收到 artifact 的节点数</td><td><code>0/N</code> 长时间不变多半是分发/网络问题</td></tr>
+                            <tr><td>fingerprint</td><td>决定能否复用 artifact 的确定性指纹</td><td>只改 cpu/memory/env 等字段可复用同一 artifact</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="note">
+                    <strong>与快照的关系：</strong>模板的底层产物与「快照 / 跨机迁移」共享同一套 artifact 存储（<code>xfs</code> 或 <code>s3</code> CoW 后端）。加上 <code>--backend s3</code> 后，模板及其派生的沙箱与快照会走集群共享 S3 后端，这是跨机 Pause / Resume / FromSnap 的前提。
+                </div>
+            </section>
+
+            <!-- ============ 2 ============ -->
+            <section class="concept-section" id="compare">
+                <h2><span class="section-num">2</span>三种制作方式对比</h2>
+                <p>制作模板有三条路：从 OCI 镜像构建、自定义镜像（BYOI，先把 <code>envd</code> 等塞进你的镜像再构建）、以及把运行中的沙箱直接提交成模板。先看结论，再决定用哪条。</p>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>方式</th><th>核心流程</th><th>关键命令</th><th>适用场景</th><th>主要限制</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>从 OCI 镜像</strong></td>
+                                <td>选镜像 → <code>create-from-image</code> → watch → 使用</td>
+                                <td><code>tpl create-from-image</code></td>
+                                <td>已有标准镜像；可复现的构建流水线</td>
+                                <td>镜像须能被集群节点拉取；探针端口/路径必须对</td>
+                            </tr>
+                            <tr>
+                                <td><strong>自定义镜像 BYOI</strong></td>
+                                <td>写 Dockerfile（注入 envd）→ 构建推送 → <code>create-from-image</code></td>
+                                <td><code>COPY --from=</code> / <code>--enable-inject-envd</code></td>
+                                <td>现有镜像没有 envd、需要 SDK/命令/文件能力</td>
+                                <td>入口契约必须满足；<code>-isnotfc</code> 不可省</td>
+                            </tr>
+                            <tr>
+                                <td><strong>运行中沙箱提交</strong></td>
+                                <td>进入沙箱装依赖 → <code>tpl commit</code></td>
+                                <td><code>cubecli exec</code> + <code>tpl commit</code></td>
+                                <td>不适合写 Dockerfile、环境已手工调好</td>
+                                <td>会保存内存状态；<code>--file</code> 是整体替换而非合并</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="decision">
+                    <div class="decision-card"><span class="badge badge-primary">可复现优先</span><h4>选「从 OCI 镜像」</h4><p>能用 Dockerfile 描述的环境就用它，构建产物可审计、可重建、可纳入 CI。</p></div>
+                    <div class="decision-card"><span class="badge badge-violet">镜像缺 envd</span><h4>选「BYOI」</h4><p>你的应用镜像要用 SDK 执行命令/读写文件，就先注入 envd 与入口脚本再构建。</p></div>
+                    <div class="decision-card"><span class="badge badge-teal">环境调好不想重来</span><h4>选「沙箱提交」</h4><p>手工装好依赖、跑通服务后一键 commit，连内存状态一起保存成模板。</p></div>
+                </div>
+            </section>
+
+            <!-- ============ 3 ============ -->
+            <section class="concept-section" id="from-image">
+                <h2><span class="section-num">3</span>从 OCI 镜像制作模板</h2>
+                <p>这是最常用、最推荐纳入流水线的方式。下面按「前置 → 选镜像 → 创建 → 监控 → 使用 → 查询 → 迁移 → 删除 → 排错」完整走一遍。</p>
+
+                <h3>前置条件</h3>
+                <ul>
+                    <li>已安装 <code>cubemastercli</code>，且能连接 CubeMaster。</li>
+                    <li>OCI 镜像能被 CubeMaster 节点访问（公开仓库，或已配置认证的私有仓库）。</li>
+                    <li>明文 HTTP 仓库（未启用 TLS）须在镜像引用前加 <code>http://</code>，例如 <code>http://harbor.internal:5000/ns/app:tag</code>。不加前缀时 CubeMaster 默认走 HTTPS（<code>localhost</code> 与 RFC1918 地址除外）。</li>
+                </ul>
+
+                <h3>选择 OCI 镜像</h3>
+                <p><code>create-from-image</code> 接收一个已构建发布的标准 OCI 镜像。本教程用预装 <code>envd</code> 的官方基础镜像：</p>
+                <pre><code>ghcr.io/tencentcloud/cubesandbox-base:latest</code></pre>
+                <p>该镜像中的 <code>envd</code> 默认监听 <code>49983</code>，可直接用 <code>GET /health</code> 作为模板探针。</p>
+
+                <h3>创建模板</h3>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image     ghcr.io/tencentcloud/cubesandbox-base:latest \
+  --writable-layer-size 1G \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health</code></pre>
+                <p>也可以暴露多个端口、自定义探针路径，并传入环境变量：</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image     cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --writable-layer-size 1G \
+  --expose-port 49999 \
+  --expose-port 49983 \
+  --probe      49999 \
+  --probe-path /health \
+  --env        MY_ENV=production</code></pre>
+                <p><code>--user</code> 指定模板构建进程、以及之后从该模板创建沙箱的容器用户。写法是 <code>uid</code>、<code>uid:gid</code>、<code>用户名</code> 或 <code>用户名:gid</code>，组必须是数字；不传仍以 <code>root</code> 运行。模板构建仍保持 privileged（构建过程要准备设备），变的只是容器进程用户。</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image     ghcr.io/tencentcloud/cubesandbox-base:latest \
+  --writable-layer-size 1G \
+  --user      1000:1000</code></pre>
+                <div class="tip">
+                    <strong>需要跨机 Pause / Resume / FromSnap？</strong>加上 <code>--backend s3</code>，让模板及其派生的沙箱 / 快照走集群共享 S3 CoW 后端；省略则沿用历史 <code>xfs</code> 路径。
+                </div>
+
+                <h3>监控进度：watch 与 status</h3>
+                <p><strong>Watch（阻塞，推荐）：</strong>循环轮询任务，直到终态（<code>READY</code> 或 <code>FAILED</code>）才退出。</p>
+                <pre><code>cubemastercli tpl watch --job-id <span class="n">&lt;job_id&gt;</span></code></pre>
+                <p>完成时输出示例：</p>
+                <pre><code>job_id:                    2e71b561-153e-4c08-ac37-5270d94f5f15
+template_id:               tpl-748094d2f2374b0a8a37e6ec
+attempt_no:                1
+artifact_id:               rfs-1e8e07c90e9bb8eff94ecde2
+status:                    READY
+phase:                     READY
+progress:                  100%
+distribution:              1/1 ready, 0 failed
+artifact_status:           READY
+artifact_sha256:           5d413bc735062d49d36ef9c0e62cd0c3a915853be5ec0c7fba90e13d9fd33f79
+template_status:           READY</code></pre>
+
+                <div class="state-machine">
+                    <span class="state pending">PULLING</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state paused">BUILDING</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">DISTRIBUTING</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">READY</span>
+                    <span class="diagram-arrow">╳</span>
+                    <span class="state dead">FAILED</span>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>字段</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>status</code> / <code>template_status</code></td><td>任务和模板的整体状态，<code>READY</code> 表示可用</td></tr>
+                            <tr><td><code>phase</code></td><td>流水线阶段：<code>PULLING</code> → <code>BUILDING</code> → <code>DISTRIBUTING</code> → <code>READY</code></td></tr>
+                            <tr><td><code>progress</code></td><td>当前阶段完成百分比</td></tr>
+                            <tr><td><code>distribution</code></td><td><code>N/M ready</code>，已收到 artifact 的节点数</td></tr>
+                            <tr><td><code>artifact_id</code> / <code>artifact_sha256</code></td><td>rootfs artifact 的稳定 ID 与完整性摘要</td></tr>
+                            <tr><td><code>template_spec_fingerprint</code></td><td>判断能否复用 artifact 的确定性指纹</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="info">
+                    <strong>指纹口径：</strong>不包含 <code>--cpu</code>/<code>--memory</code>、<code>--cmd</code>/<code>--arg</code>、<code>--env</code>、<code>--probe</code>、工作目录、volume 挂载、rlimit——仅这些字段不同的模板共享同一 artifact（相同 <code>artifact_id</code>）。而 <code>--expose-port</code>、<code>--network-type</code>、<code>--dns</code>、<code>--writable-layer-size</code>、<code>--instance-type</code>、<code>--user</code> 仍会改变指纹。
+                </div>
+
+                <p><strong>Status（单次查询）：</strong>只想看一次当前状态、不阻塞时使用。</p>
+                <pre><code>cubemastercli tpl status --job-id <span class="n">&lt;job_id&gt;</span></code></pre>
+
+                <h3>使用模板</h3>
+                <p><code>template_status: READY</code> 后，通过 <code>template_id</code> 用 E2B SDK 创建沙箱：</p>
+                <pre><code><span class="k">export</span> CUBE_TEMPLATE_ID=tpl-748094d2f2374b0a8a37e6ec
+python CubeAPI/examples/create.py</code></pre>
+
+                <h3>查询模板</h3>
+                <pre><code><span class="c"># 列出所有模板</span>
+cubemastercli tpl list
+
+<span class="c"># 同时查看 VERSION 与 LAST_ERROR</span>
+cubemastercli tpl list -o wide
+
+<span class="c"># 输出完整 JSON，便于脚本处理</span>
+cubemastercli tpl list --json | jq <span class="s">'.data[].template_id'</span>
+
+<span class="c"># 查看单个模板（模板 ID 可作位置参数，也可用 --template-id）</span>
+cubemastercli tpl info tpl-748094d2f2374b0a8a37e6ec
+
+<span class="c"># 机器可读 + 查看保存的创建请求体</span>
+cubemastercli tpl info tpl-748094d2f2374b0a8a37e6ec --json --include-request
+
+<span class="c"># 预览创建沙箱时最终生效的请求</span>
+cubemastercli tpl render --template-id tpl-748094d2f2374b0a8a37e6ec --json</code></pre>
+                <p>列表中的 <code>IMAGE_INFO</code> 优先展示「镜像引用 + digest」（<code>image@sha256:...</code>），digest 不可用时降级为仅镜像引用；<code>CREATED_AT</code> 使用 UTC RFC3339。</p>
+
+                <h3>（可选）把历史本地 artifact 迁入 TC 存储</h3>
+                <p>大多数<strong>新建</strong>的 <code>from-image</code> 模板已沿当前数据面直接走 TC 构建，<strong>不一定需要</strong>手动 <code>tpl merge</code>。它主要用于：历史 rootfs ext4 还在 CubeMaster 本地盘；集群后来开启 <code>s3Backed=true</code> 想收敛旧模板；或想再次触发幂等检查并清理遗留本地文件。命令名 <code>merge</code> 对应 API 路径 <code>/cube/template/migrate</code>，默认阻塞到 migrate job 结束。</p>
+                <pre><code><span class="c"># 阻塞迁移</span>
+cubemastercli tpl merge tpl-748094d2f2374b0a8a37e6ec
+
+<span class="c"># 只提交 migrate job 就返回</span>
+cubemastercli tpl merge tpl-748094d2f2374b0a8a37e6ec --detach
+
+<span class="c"># 存量模板：先收敛存储，再重新分发 / 必要时重建</span>
+cubemastercli tpl merge tpl-748094d2f2374b0a8a37e6ec
+cubemastercli tpl redo --template-id tpl-748094d2f2374b0a8a37e6ec</code></pre>
+                <div class="warning">
+                    <strong>口径统一：</strong><code>tpl merge</code> 解决历史 artifact 的<strong>存储收敛</strong>，<code>tpl redo</code> 解决节点侧<strong>重新分发 / 必要时重建</strong>。开启 <code>s3Backed=true</code> 后旧模板不会自动补做迁移；若本地 ext4 已丢失，再跑 <code>merge</code> 也修不回来，只能对可重建的 <code>from-image</code> 模板执行 <code>tpl redo</code>。
+                </div>
+
+                <h3>删除模板</h3>
+                <pre><code>cubemastercli tpl delete tpl-748094d2f2374b0a8a37e6ec
+
+<span class="c"># 一次删除多个（失败项最后汇总返回）</span>
+cubemastercli tpl delete tpl-first tpl-second tpl-third
+
+<span class="c"># 用 --force 清除卡住的构建工作</span>
+cubemastercli tpl delete --force tpl-748094d2f2374b0a8a37e6ec</code></pre>
+                <p>成功后输出 <code>template deleted: tpl-...</code>。<code>--force</code> 只清除卡住的构建任务/定义，<strong>不覆盖使用中检查</strong>——只要仍有运行中的沙箱依赖该模板，后端就拒绝删除（包括带 <code>--force</code> 的请求）。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>删除相关规则</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td>共享 artifact</td><td>rootfs 与其他模板共享时，最后一个引用它的模板删除后才回收</td></tr>
+                            <tr><td>不可达节点</td><td>超过 15 分钟未心跳的节点不阻塞删除，记为待清理，删除照常成功</td></tr>
+                            <tr><td>清理时机</td><td>节点恢复后后台完成清理，通常 10 分钟内；一直不恢复则记录保留</td></tr>
+                            <tr><td>ID 复用</td><td>待清理完成前<strong>不要</strong>复用已删除的模板 ID</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>日志关键字</th><th>含义</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>unreachable past grace</code></td><td>节点被跳过，已记为待清理</td></tr>
+                            <tr><td><code>orphan replica cleanup still failing</code></td><td>节点已恢复，但清理仍然失败</td></tr>
+                            <tr><td><code>orphan replica cleanup converged</code></td><td>该节点上的模板本地数据已删除</td></tr>
+                            <tr><td><code>deferred placement cleanup converged</code></td><td>该节点上的镜像文件已删除</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>常见问题</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>现象</th><th>可能原因</th><th>处理方式</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>phase: PULLING</code> 长时间卡住</td><td>镜像拉取慢或节点无法访问镜像仓库</td><td>检查网络/防火墙；私有仓库加 <code>--registry-username</code> / <code>--registry-password</code></td></tr>
+                            <tr><td>明文 HTTP 仓库拉取失败（<code>server gave HTTP response to HTTPS client</code>）</td><td>镜像引用未加 <code>http://</code> 前缀</td><td>写成 <code>http://harbor.internal:5000/ns/app:tag</code></td></tr>
+                            <tr><td><code>status: FAILED</code>（BUILDING 阶段）</td><td>构建错误（磁盘满、Dockerfile 问题等）</td><td><code>tpl status --job-id &lt;id&gt; --json</code> 查看 <code>last_error</code></td></tr>
+                            <tr><td><code>distribution: 0/N ready</code>（状态已 READY）</td><td>artifact 分发仍在进行（短暂正常）</td><td>等待后重跑 <code>tpl info</code>；长期未恢复查目标节点 Cubelet 日志</td></tr>
+                            <tr><td>沙箱启动后探针一直失败</td><td>服务未在预期端口/路径监听，或 HTTP server 过早启动</td><td>确认 HTTP server 在应用完全就绪后再启动；核对 <code>--probe-path</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============ 4 ============ -->
+            <section class="concept-section" id="byoi">
+                <h2><span class="section-num">4</span>自定义模板镜像（BYOI）</h2>
+                <p>当你的应用镜像要接入 CubeSandbox、用 SDK 执行命令 / 读写文件 / 建 PTY 时，镜像里必须带 <code>envd</code>。本节讲清「什么时候需要、怎么塞进去、入口契约、本地怎么验证」。</p>
+
+                <h3>我的镜像什么时候需要 envd</h3>
+                <p><code>envd</code> 是 CubeSandbox SDK 和 E2B SDK 执行命令、读写文件和建立 PTY 所使用的<strong>数据面服务</strong>。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>能力</th><th>沙箱内的 envd 接口</th><th>没有 envd 会怎样</th></tr></thead>
+                        <tbody>
+                            <tr><td>健康检查（可作模板 probe）</td><td><code>GET :49983/health</code> → 204</td><td>该探活端点不可用</td></tr>
+                            <tr><td><code>Sandbox.commands.run()</code></td><td><code>:49983</code> 上的 Process API</td><td>命令 API 不可用</td></tr>
+                            <tr><td><code>Sandbox.files.read/write()</code></td><td><code>:49983</code> 上的 Files API</td><td>文件 API 不可用</td></tr>
+                            <tr><td>创建时环境变量初始化</td><td><code>POST :49983/init</code></td><td>传入创建时环境变量时，沙箱创建失败</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>交互式开发 / 代码执行沙箱建议保留 <code>envd</code> 便于排障；仅提供自有业务服务、不用上述能力的镜像可省略，此时把模板 probe 配成应用自己的 HTTP 健康检查端点。</p>
+
+                <h3>基于 cubesandbox-base 构建</h3>
+                <p><code>cubesandbox-base</code> 就是普通 <code>ubuntu:22.04</code>，在 <code>/usr/bin/envd</code> 预装了 envd，并附带通用入口脚本——后台拉起 envd、前台 exec 你提供的 <code>CMD</code>。三步走：写 Dockerfile → 构建推送 → 创建模板。</p>
+                <pre><code><span class="k">FROM</span> ghcr.io/tencentcloud/cubesandbox-base:2026.16
+
+<span class="c"># 安装你自己需要的工具链</span>
+<span class="k">RUN</span> apt-get update \
+    &amp;&amp; apt-get install -y --no-install-recommends python3 python3-pip \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+<span class="k">RUN</span> pip install --no-cache-dir pandas matplotlib numpy
+
+<span class="c"># 应用若需作为前台进程运行，在这里设置 CMD 即可。</span>
+<span class="c"># envd 仍会作为后台进程持续运行。</span>
+<span class="c"># CMD ["python3", "/srv/app.py"]</span></code></pre>
+
+                <pre><code>docker build -t my-registry.example.com/my-team/my-sandbox:v1 .
+docker push   my-registry.example.com/my-team/my-sandbox:v1</code></pre>
+                <p>镜像仓库需能被 Cube 集群拉到；明文 HTTP 仓库须加 <code>http://</code> 前缀。创建模板时暴露 <code>49983</code>（envd）外加应用端口：</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image       my-registry.example.com/my-team/my-sandbox:v1 \
+  --writable-layer-size 1G \
+  --expose-port 49983 \
+  --expose-port <span class="n">&lt;your-custom-port&gt;</span> \
+  --probe       49983 \
+  --probe-path  /health</code></pre>
+
+                <h3>向现有镜像注入 envd 的两种方式</h3>
+                <p><strong>方式 A：在 Dockerfile 中 <code>COPY --from=</code></strong>——从 <code>cubesandbox-base</code> 拷贝 <code>envd</code> 与入口脚本。</p>
+                <pre><code><span class="k">FROM</span> e2bdev/code-interpreter:latest
+
+<span class="k">USER</span> root
+
+<span class="c"># 从 cubesandbox-base 拉取 envd 与通用入口脚本</span>
+<span class="k">COPY</span> --from=ghcr.io/tencentcloud/cubesandbox-base:2026.16 \
+     /usr/bin/envd /usr/bin/envd
+<span class="k">COPY</span> --from=ghcr.io/tencentcloud/cubesandbox-base:2026.16 \
+     /usr/local/bin/cube-entrypoint.sh /usr/local/bin/cube-entrypoint.sh
+
+<span class="c"># 上游镜像通常已有自己的 entrypoint/CMD，推荐用 cube-entrypoint.sh 包裹它</span>
+<span class="k">ENTRYPOINT</span> ["/usr/local/bin/cube-entrypoint.sh"]
+<span class="k">CMD</span> ["/bin/sh", "-c", "sudo --preserve-env=E2B_LOCAL /root/.jupyter/start-up.sh"]</code></pre>
+                <p>从轻量 Python 镜像出发的例子（注意 <code>EXPOSE 49983 8000</code>，应用在 8000）：</p>
+                <pre><code><span class="k">FROM</span> python:3.11-slim
+
+<span class="k">COPY</span> --from=ghcr.io/tencentcloud/cubesandbox-base:2026.16 \
+     /usr/bin/envd /usr/bin/envd
+<span class="k">COPY</span> --from=ghcr.io/tencentcloud/cubesandbox-base:2026.16 \
+     /usr/local/bin/cube-entrypoint.sh /usr/local/bin/cube-entrypoint.sh
+
+<span class="k">RUN</span> apt-get update \
+    &amp;&amp; apt-get install -y --no-install-recommends curl \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+<span class="k">RUN</span> pip install --no-cache-dir fastapi uvicorn
+
+<span class="k">COPY</span> app.py /srv/app.py
+
+<span class="k">EXPOSE</span> 49983 8000
+<span class="k">ENTRYPOINT</span> ["/usr/local/bin/cube-entrypoint.sh"]
+<span class="k">CMD</span> ["uvicorn", "app:app", "--app-dir", "/srv", "--host", "0.0.0.0", "--port", "8000"]</code></pre>
+
+                <p><strong>方式 B：在模板构建阶段注入</strong>——不改 Dockerfile，用 <code>--enable-inject-envd</code> 上传并注入 envd。</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image <span class="n">&lt;your-image&gt;</span> \
+  --writable-layer-size 1G \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health \
+  --enable-inject-envd</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>参数</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>--enable-inject-envd</code></td><td>从 <code>cubemastercli</code> 上传一个 envd 二进制并写入模板 rootfs</td></tr>
+                            <tr><td><code>--envd-path</code></td><td>运行 CLI 的机器上的本地路径；仅设置 <code>--enable-inject-envd</code> 时生效。省略则用 CLI 构建期内嵌的默认 envd</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>CLI 通过 multipart 上传二进制，CubeMaster 校验后写入 rootfs 的 <code>/usr/local/bin/envd</code>，并把二进制的 SHA-256 纳入指纹（避免复用不同 envd 构建的 artifact）。上传文件必须是非空 ELF 二进制、<strong>不超过 16 MiB</strong>、且与目标 rootfs 的 OS/CPU 架构兼容。若 CLI 构建时没有内嵌默认 envd，则必须同时指定 <code>--envd-path</code>：</p>
+                <pre><code>make cubemastercli <span class="n">ENVD_LOCAL_PATH=/path/to/envd</span></code></pre>
+                <div class="note">
+                    <strong>cubebox 类型额外行为：</strong>CubeMaster 会保留注入标记，创建沙箱时<strong>自动包装主容器启动命令</strong>——先后台运行 <code>/usr/local/bin/envd</code>，再执行镜像原有命令，并补充暴露 <code>49983</code> 端口。因此无需修改原镜像入口；非 <code>cubebox</code> 类型不会应用该启动包装。
+                </div>
+
+                <h3>入口脚本契约：为什么必须 -isnotfc</h3>
+                <p><code>cube-entrypoint.sh</code> 实现「envd 后台 + 用户应用前台」的组合模式：</p>
+                <ol>
+                    <li>启动时一律后台拉起 <code>envd -port "${ENVD_PORT:-49983}"</code>，使 <code>/health</code> 在容器启动约 1 秒内就能响应。</li>
+                    <li>如果启动时带了 <code>CMD</code>，脚本 <code>exec</code> 执行它——envd 后台伴跑，用户进程占用 stdout/stderr 并接收 <code>SIGTERM</code>。</li>
+                    <li>如果没有 <code>CMD</code>，脚本 <code>wait</code> 住 envd，让它成为前台主进程。</li>
+                </ol>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>变量</th><th>默认值</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>ENVD_PORT</code></td><td><code>49983</code></td><td>envd 监听端口</td></tr>
+                            <tr><td><code>ENVD_EXTRA_ARGS</code></td><td>（空）</td><td>追加到 <code>-port</code> 之后；未包含 <code>-isnotfc</code> 时脚本会自动追加以跳过 Firecracker MMDS 查询</td></tr>
+                            <tr><td><code>ENVD_LOG_FILE</code></td><td><code>/var/log/envd.log</code></td><td>envd stdout/stderr 落盘位置；设为 <code>-</code> 则继承容器 stdio</td></tr>
+                            <tr><td><code>ENVD_BIN</code></td><td><code>/usr/bin/envd</code></td><td>envd 安装在别处时覆盖</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code><span class="c">#!/bin/bash</span>
+<span class="c"># your-entrypoint.sh</span>
+
+<span class="c"># 后台启动 envd</span>
+<span class="c"># -isnotfc 是必须的：它让 envd 跳过对 169.254.169.254 的 Firecracker MMDS</span>
+<span class="c"># 查询。CubeSandbox 不使用 Firecracker，MMDS 服务不存在。缺少此参数时</span>
+<span class="c"># envd 会尝试访问不存在的 MMDS，可能引发网络超时、/init 延迟、</span>
+<span class="c"># env_vars 注入失败等各种问题。</span>
+/usr/bin/envd -port 49983 -isnotfc &gt;/var/log/envd.log 2&gt;&amp;1 &amp;
+
+<span class="c"># ... 你原本的启动流程 ...</span>
+<span class="k">exec</span> <span class="s">"$@"</span></code></pre>
+                <div class="danger">
+                    <strong>为什么必须 <code>-isnotfc</code>：</strong>envd 默认会去 <code>169.254.169.254</code> 查 Firecracker MMDS。CubeSandbox 不用 Firecracker，该服务不存在；缺少此参数会触发网络超时、<code>/init</code> 延迟、<code>env_vars</code> 注入失败等连锁问题。<code>cube-entrypoint.sh</code> 会自动追加，手写入口时务必自己加上。
+                </div>
+
+                <h3>本地验证镜像（可选）</h3>
+                <p>创建模板前，先确认镜像用默认启动命令能保持运行且 envd 可响应。宿主需 Docker，镜像内需 <code>curl</code> 与 <code>/usr/bin/envd</code>，全程同一终端。</p>
+                <pre><code><span class="c"># 1. 启动镜像</span>
+IMG=my-registry.example.com/my-team/my-sandbox:v1
+cid=$(docker create <span class="s">"$IMG"</span>) &amp;&amp; docker start <span class="s">"$cid"</span>
+
+<span class="c"># 2. 检查状态与 envd（应 running + 204）</span>
+docker inspect --format <span class="s">'{{json .State}}'</span> <span class="s">"$cid"</span>
+docker exec <span class="s">"$cid"</span> curl -sS --noproxy <span class="s">'*'</span> --connect-timeout 1 --max-time 3 \
+    -o /dev/null -w <span class="s">'envd /health =&gt; %{http_code}\n'</span> \
+    http://127.0.0.1:49983/health
+<span class="c"># 预期: envd /health =&gt; 204</span>
+docker exec <span class="s">"$cid"</span> /usr/bin/envd -version
+<span class="c"># =&gt; 2026.16</span>
+
+<span class="c"># 3. 失败时，删除前先看状态与日志</span>
+docker logs --tail 100 <span class="s">"$cid"</span>
+logdir=$(mktemp -d)
+docker cp <span class="s">"$cid"</span>:/var/log/envd.log <span class="s">"$logdir/envd.log"</span> &amp;&amp; tail -n 100 <span class="s">"$logdir/envd.log"</span>
+
+<span class="c"># 4. 清理测试容器</span>
+docker rm -f <span class="s">"$cid"</span></code></pre>
+                <div class="warning">
+                    探活必须输出 <code>204</code>，<strong>其他状态码（包括 200、500）都不算通过</strong>。<code>docker start</code> 成功不代表容器会保持运行——<code>docker inspect</code> 须显示 <code>"Status":"running"</code> 与 <code>"Running":true</code>；即使 <code>ExitCode</code> 为 0，容器退出也不能视为通过。本地检查不覆盖集群拉镜像、sandbox 网络和 envd <code>/init</code>。
+                </div>
+
+                <h3>排错速查</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>现象</th><th>可能原因</th><th>解决</th></tr></thead>
+                        <tbody>
+                            <tr><td>模板创建探活失败</td><td>envd 未启动 / 起在错误端口</td><td>确认 <code>ENTRYPOINT</code> 为 <code>cube-entrypoint.sh</code>，或脚本里有 <code>envd -port 49983 &amp;</code></td></tr>
+                            <tr><td><code>curl :49983/health</code> 返回 <code>000</code></td><td>端口无人监听；入口被 CMD 整个替换</td><td>检查 <code>.Config.Entrypoint</code>，保留 <code>cube-entrypoint.sh</code></td></tr>
+                            <tr><td>envd 立刻退出</td><td>二进制版本与容器预期不匹配</td><td><code>envd -version</code> 确认版本；从 pin 的 base tag 重新拷贝</td></tr>
+                            <tr><td><code>/init</code> 异常缓慢 / <code>create_time env_vars</code> 失败</td><td>缺少 <code>-isnotfc</code>，envd 尝试访问不存在的 MMDS</td><td>用 <code>cube-entrypoint.sh</code>（自动追加），或手动加 <code>-isnotfc</code></td></tr>
+                            <tr><td>49983 端口冲突</td><td>自家应用也监听 49983</td><td>把应用迁到别的端口，并一起 <code>--expose-port</code> 暴露</td></tr>
+                            <tr><td><code>sudo: command not found</code></td><td>基于 <code>-slim</code>/<code>-alpine</code> 等无 sudo 镜像</td><td><code>apt-get install -y sudo</code>，或去掉 CMD 里的 sudo（入口脚本不依赖它）</td></tr>
+                            <tr><td>长时间卡在 <code>PULLING</code></td><td>registry 从 Cube 节点不可达</td><td>推送到可达 registry，或用 <code>--registry-username</code>/<code>--registry-password</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>进阶：自己重建基础镜像</h3>
+                <p>基础镜像由仓库单个 GitHub Actions workflow（<code>.github/workflows/build-envd-base-image.yml</code>）自动构建：checkout <code>e2b-dev/infra</code> 指定 tag（默认 <code>2026.16</code>），在原生 <code>linux/amd64</code> 与 <code>linux/arm64</code> runner 上用 Go 1.25.4 编译 envd，构建 <code>docker/Dockerfile.cube-base</code>，分别对 <code>:49983/health</code> 做 smoke test，再合成 multi-arch manifest list 推送到 <code>ghcr.io/tencentcloud/cubesandbox-base</code>。</p>
+            </section>
+
+            <!-- ============ 5 ============ -->
+            <section class="concept-section" id="from-sandbox">
+                <h2><span class="section-num">5</span>从运行中沙箱提交模板</h2>
+                <p>当环境不适合写 Dockerfile、或你已有一个调好的运行环境时，可把运行中沙箱的<strong>当前文件系统和内存状态</strong>直接制成模板，供后续复用。</p>
+
+                <h3>操作沙箱</h3>
+                <p>创建沙箱后用 <code>cubecli</code> 进入（类似 docker），在内部装依赖、执行命令等：</p>
+                <pre><code>cubecli exec -it <span class="n">&lt;sandbox-id&gt;</span> bash</code></pre>
+
+                <h3>提交沙箱</h3>
+                <pre><code>cubemastercli tpl commit --sandbox-id <span class="n">&lt;sandbox-id&gt;</span></code></pre>
+                <p>提交成功后，CubeMaster 会生成新的 <code>tpl-...</code> 模板 ID，并在源沙箱所在节点创建初始副本。</p>
+
+                <h3>高级配置：为新模板指定创建请求</h3>
+                <p>执行 <code>tpl commit</code> 时，CubeMaster 不仅保存文件系统和内存状态，还会为模板保存一份 <code>CreateCubeSandboxReq</code>，用于之后恢复容器、启动命令、端口和网络等配置。默认无需额外文件，会自动恢复源沙箱原创建请求；只有希望新模板用一套<strong>不同</strong>的配置时，才通过 <code>--file &lt;path&gt;</code> 提供完整 JSON：</p>
+                <pre><code>cubemastercli tpl commit \
+  --sandbox-id <span class="n">&lt;sandbox-id&gt;</span> \
+  --file template-request.json</code></pre>
+                <div class="danger">
+                    <strong><code>--file</code> 是整体替换，不是合并：</strong>它会用文件中的请求<strong>完整替换</strong>自动恢复的原请求。文件里没包含容器、启动命令、环境变量或暴露端口时，这些配置不会被自动保留，生成的模板可能无法按预期启动。若只是想把当前沙箱保存为模板，<strong>不要</strong>传 <code>--file</code>。
+                </div>
+                <p>即使使用 <code>--file</code>，CubeMaster 仍会读取源沙箱的持久化创建请求以继承模板托管的 QoS；记录不可读时 commit 会失败，而不是生成无 QoS 限速的模板，也不要在文件中设置 <code>cube.master.net</code> 或 <code>cube.master.blk.qos</code>（由模板托管，传入会被拒绝）。</p>
+                <pre><code>{
+  <span class="s">"instance_type"</span>: <span class="s">"cubebox"</span>,
+  <span class="s">"network_type"</span>: <span class="s">"tap"</span>,
+  <span class="s">"cube_network_config"</span>: {
+    <span class="s">"allowInternetAccess"</span>: <span class="k">true</span>,
+    <span class="s">"allowOut"</span>: [<span class="s">"10.0.0.0/8"</span>],
+    <span class="s">"denyOut"</span>: []
+  }
+}</code></pre>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>参数</th><th>作用</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>--allow-internet-access=false</code></td><td>显式设置请求中的联网开关</td></tr>
+                            <tr><td><code>--allow-out-cidr &lt;cidr&gt;</code></td><td>追加允许访问的出站 CIDR，可重复传入</td></tr>
+                            <tr><td><code>--deny-out-cidr &lt;cidr&gt;</code></td><td>追加禁止访问的出站 CIDR，可重复传入</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>这些网络参数只修改 <code>--file</code> 提供的请求，<strong>必须与 <code>--file</code> 一同使用</strong>：</p>
+                <pre><code>cubemastercli tpl commit \
+  --sandbox-id <span class="n">&lt;sandbox-id&gt;</span> \
+  --file template-request.json \
+  --allow-internet-access=false</code></pre>
+            </section>
+
+            <!-- ============ 6 ============ -->
+            <section class="concept-section" id="prewarm">
+                <h2><span class="section-num">6</span>预热模板服务</h2>
+                <p>普通模板能预装系统和依赖，但应用仍可能在每次沙箱启动后执行耗时初始化（加载 SDK、创建 Agent 会话、扫描工作区、建本地缓存）。<strong>预热模板</strong>让 CubeSandbox 等应用完成这些工作后再制作快照，使后续沙箱从已初始化的内存和进程状态恢复。</p>
+
+                <h3>工作原理</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>1 常驻服务</b>：镜像启动一个常驻进程，负责承载预热状态。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2 初始化</b>：服务完成需要预热的初始化工作，此时就绪端点仍返回 503。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>3 就绪</b>：全部状态就绪后，就绪端点才返回 HTTP 2xx。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4 探针命中</b>：CubeSandbox 探测到成功响应，保存此刻的文件系统、内存和进程状态。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>5 恢复即用</b>：从模板创建沙箱时，常驻服务随快照恢复，可直接处理请求。</div>
+                </div>
+                <div class="warning">
+                    <strong>就绪端点不要过早返回成功。</strong>HTTP server 刚开始监听时不应返回 2xx，应先返回 503，直到所有需要保存在快照中的状态都准备完成。
+                </div>
+
+                <h3>常驻服务 → 探针 → 就绪 时序</h3>
+                <div class="timeline">
+                    <div class="timeline-item"><h4>常驻服务启动</h4><p>镜像 CMD 拉起 adapter / 业务常驻进程，envd 作为后台伴跑。</p></div>
+                    <div class="timeline-item"><h4>初始化预热内容</h4><p>加载 SDK、创建 <code>AgentSession</code>、建缓存；此刻就绪端点返回 503。</p></div>
+                    <div class="timeline-item done"><h4>探针命中 2xx</h4><p>CubeSandbox 探测 <code>--probe-path</code>（如 <code>/readyz</code>）返回 200。</p></div>
+                    <div class="timeline-item done"><h4>保存快照</h4><p>固化为模板：文件系统 + 内存 + 进程状态一并保存。</p></div>
+                    <div class="timeline-item done"><h4>恢复即用</h4><p>从模板创建沙箱，常驻服务随快照恢复，直接处理请求。</p></div>
+                </div>
+
+                <h3>Pi Agent 示例</h3>
+                <p>Pi Agent 普通运行方式会为每个任务启动新进程；示例中的 warmup adapter 作为常驻进程，启动阶段创建一个 Pi SDK <code>AgentSession</code>，只有会话初始化完成后 <code>GET /readyz</code> 才返回 200。</p>
+                <p><strong>1）常驻服务核心逻辑</strong>（<code>pi_warmup_adapter.mjs</code>）：</p>
+                <pre><code><span class="k">let</span> ready = <span class="k">false</span>;
+
+<span class="k">const</span> server = http.createServer((request, response) =&gt; {
+  <span class="k">if</span> (request.method === <span class="s">"GET"</span> &amp;&amp; request.url === <span class="s">"/readyz"</span>) {
+    response.writeHead(ready ? 200 : 503);
+    <span class="k">return</span> response.end();
+  }
+
+  <span class="c">// 处理恢复后的业务请求。</span>
+});
+
+session = <span class="k">await</span> createAgentSession(<span class="c">/* ... */</span>);
+ready = <span class="k">true</span>;
+server.listen(8080, <span class="s">"0.0.0.0"</span>);</code></pre>
+                <p><strong>2）把常驻服务设为镜像 CMD</strong>（<code>Dockerfile.warmup</code>）：</p>
+                <pre><code><span class="k">ARG</span> PI_AGENT_IMAGE=pi-agent-cube:latest
+<span class="k">FROM</span> ${PI_AGENT_IMAGE}
+
+<span class="k">COPY</span> pi_warmup_adapter.mjs /tmp/pi_warmup_adapter.mjs
+<span class="k">RUN</span> PI_PACKAGE_DIR="$(npm root -g)/@earendil-works/pi-coding-agent" \
+    &amp;&amp; install -m 0755 /tmp/pi_warmup_adapter.mjs \
+       "${PI_PACKAGE_DIR}/pi_warmup_adapter.mjs" \
+    &amp;&amp; rm /tmp/pi_warmup_adapter.mjs
+
+<span class="k">ENV</span> PI_WARMUP_HOST=0.0.0.0 \
+    PI_WARMUP_PORT=8080
+
+<span class="k">EXPOSE</span> 49983 8080
+
+<span class="k">CMD</span> ["sh", "-c", "exec node \"$(npm root -g)/@earendil-works/pi-coding-agent/pi_warmup_adapter.mjs\""]</code></pre>
+                <p>端口 <code>8080</code> 提供应用就绪检查和任务接口；<code>49983</code> 由基础镜像中的 envd 使用，以保留 SDK 的命令、文件和终端能力。</p>
+                <p><strong>3）构建并推送：</strong></p>
+                <pre><code>docker build --platform linux/amd64 \
+  -t localhost:5000/pi-agent-cube:latest \
+  examples/pi-agent-integration
+
+docker build --platform linux/amd64 \
+  -f examples/pi-agent-integration/Dockerfile.warmup \
+  --build-arg PI_AGENT_IMAGE=localhost:5000/pi-agent-cube:latest \
+  -t localhost:5000/pi-agent-warmup-cube:latest \
+  examples/pi-agent-integration
+
+docker push localhost:5000/pi-agent-cube:latest
+docker push localhost:5000/pi-agent-warmup-cube:latest</code></pre>
+                <p><strong>4）用应用探针制作模板</strong>——暴露 envd 和 warmup adapter 端口，但探针指向真正代表 Pi 会话初始化完成的 <code>/readyz</code>：</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image localhost:5000/pi-agent-warmup-cube:latest \
+  --alias pi-warmup \
+  --writable-layer-size 4G \
+  --expose-port 49983 \
+  --expose-port 8080 \
+  --probe 8080 \
+  --probe-path /readyz</code></pre>
+                <div class="tip">
+                    <strong>不能拿 <code>49983/health</code> 当预热完成信号：</strong>它只说明 envd 就绪，不能说明 Pi <code>AgentSession</code> 已创建。应等待 <code>/readyz</code> 就绪，此时所有服务才均已启动完成。
+                </div>
+
+                <h3>设计自己的预热服务</h3>
+                <ul>
+                    <li><strong>探测真实的预热状态</strong>：完成模型加载、运行时初始化或缓存构建后，再让就绪端点返回 2xx。</li>
+                    <li><strong>保持进程常驻</strong>：完成初始化的进程必须继续运行，才能随内存快照一起恢复。</li>
+                    <li><strong>不要把密钥写入模板</strong>：构建期不要注入 API Key、令牌或用户数据；应在沙箱恢复后通过请求、密钥保险柜等运行时机制提供。</li>
+                    <li><strong>谨慎处理外部连接</strong>：数据库连接、长连接和临时凭证在恢复时可能已失效，恢复后应检测并重建。</li>
+                    <li><strong>明确并发模型</strong>：Pi 示例一个 adapter 只维护一个 session，并发任务返回 HTTP 409；需要并发时应用连接池 / 会话池，或让每个沙箱只处理一个任务。</li>
+                    <li><strong>保持就绪检查轻量</strong>：探针只读本地状态，不重复执行昂贵初始化或产生外部副作用。</li>
+                </ul>
+
+                <h3>排查问题</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>现象</th><th>检查项</th></tr></thead>
+                        <tbody>
+                            <tr><td>模板构建一直等待探针</td><td>确认服务监听 <code>0.0.0.0</code>、端口和路径匹配，并查看初始化日志</td></tr>
+                            <tr><td>模板 READY，但应用首次请求仍需初始化</td><td>就绪端点返回过早；把 <code>ready</code> 状态设置移到完整初始化之后</td></tr>
+                            <tr><td>SDK 命令或文件 API 不可用</td><td>确认镜像包含 envd，并通过 <code>--expose-port 49983</code> 暴露其端口</td></tr>
+                            <tr><td>恢复后外部请求失败</td><td>检查快照前建立的连接或凭证是否过期，并在恢复后重新建立</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============ 7 ============ -->
+            <section class="concept-section" id="practice">
+                <h2><span class="section-num">7</span>本地与远程镜像实战</h2>
+                <p>两条实操路线：<strong>方式一</strong>本地构建镜像（镜像只在当前机器，无需推送到远端）；<strong>方式二</strong>远程镜像（镜像已推送 Registry，集群从远端拉取）。先看前置条件。</p>
+
+                <h3>前置条件</h3>
+                <ul>
+                    <li>已安装 <code>cubemastercli</code> 并加入 <code>$PATH</code>；已安装 Docker。</li>
+                    <li>CubeMaster 服务正常（<code>cubemastercli tpl list</code> 能返回结果）。</li>
+                    <li>已找到 mkcert CA 证书路径（SDK 连接沙箱时需要）：<code>ls ~/.local/share/mkcert/rootCA.pem</code>。</li>
+                </ul>
+
+                <h3>方式一：本地构建镜像</h3>
+                <p>适合在 <strong>CubeMaster 所在机器上本地开发调试</strong>。Dockerfile 基于预装 envd 的 <code>cubesandbox-base</code>：</p>
+                <pre><code><span class="k">FROM</span> ghcr.io/tencentcloud/cubesandbox-base:latest
+
+<span class="c"># 安装你需要的工具和依赖</span>
+<span class="k">RUN</span> apt-get update &amp;&amp; apt-get install -y --no-install-recommends \
+    python3 python3-pip curl wget git vim jq \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+<span class="k">RUN</span> pip install --no-cache-dir numpy pandas requests httpx</code></pre>
+                <p>保存为 <code>/tmp/Dockerfile.cube-test</code>，构建并验证 envd 正常（期望 <code>204</code>）：</p>
+                <pre><code>docker build -f /tmp/Dockerfile.cube-test -t my-sandbox:v1 .
+
+cid=$(docker run -d my-sandbox:v1)
+sleep 2
+docker exec <span class="s">"$cid"</span> curl -s -o /dev/null -w <span class="s">"envd /health =&gt; %{http_code}\n"</span> http://127.0.0.1:49983/health
+<span class="c"># 期望输出: envd /health =&gt; 204</span>
+docker rm -f <span class="s">"$cid"</span></code></pre>
+                <p>制作模板 → 拿到 <code>job_id</code> / <code>template_id</code> → watch 等待 READY：</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image my-sandbox:v1 \
+  --writable-layer-size 2G \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health
+
+cubemastercli tpl watch --job-id <span class="n">&lt;job_id&gt;</span></code></pre>
+                <p>验证模板可用（方式 B 的 cubesandbox SDK 无需 SSL 证书，推荐）：</p>
+                <pre><code><span class="k">export</span> CUBE_API_URL=http://127.0.0.1:3000
+<span class="k">export</span> CUBE_TEMPLATE_ID=<span class="n">&lt;template_id&gt;</span>
+<span class="k">export</span> CUBE_PROXY_NODE_IP=127.0.0.1   <span class="c"># 本机；远程访问填 CubeProxy 节点 IP</span>
+
+python3 - &lt;&lt; <span class="s">'EOF'</span>
+import os
+from cubesandbox import Sandbox, Config
+
+cfg = Config(
+    api_url=os.environ[<span class="s">"CUBE_API_URL"</span>],
+    template_id=os.environ[<span class="s">"CUBE_TEMPLATE_ID"</span>],
+    proxy_node_ip=os.environ.get(<span class="s">"CUBE_PROXY_NODE_IP"</span>, <span class="s">""</span>),
+)
+
+with Sandbox.create(config=cfg) as sb:
+    r = sb.run_code(<span class="s">'import sys; print(sys.version); print("hello-cube")'</span>)
+    <span class="k">for</span> line <span class="k">in</span> r.logs.stdout:
+        print(line, end=<span class="s">""</span>)
+<span class="s">EOF</span></code></pre>
+                <div class="warning">
+                    <strong>run_code 依赖 Jupyter kernel（49999 端口）：</strong>自定义模板需在 Dockerfile 中安装 <code>jupyter_kernel_gateway ipykernel</code>，并在制作模板时同时暴露 49983 和 49999 两个端口。若用 e2b_code_interpreter 方式，则需 <code>export SSL_CERT_FILE=~/.local/share/mkcert/rootCA.pem</code>。
+                </div>
+
+                <h3>方式二：远程镜像</h3>
+                <p>适合<strong>团队共享镜像</strong>或<strong>多节点集群</strong>：镜像推送到 Registry 后，各节点都能拉取。Dockerfile 同方式一；构建时带 Registry 前缀，然后登录推送：</p>
+                <pre><code>docker build -f /tmp/Dockerfile.cube-test \
+  -t ccr.ccs.tencentyun.com/<span class="n">&lt;命名空间&gt;</span>/<span class="n">&lt;镜像名&gt;</span>:v1 .
+
+docker login ccr.ccs.tencentyun.com
+docker push ccr.ccs.tencentyun.com/<span class="n">&lt;命名空间&gt;</span>/<span class="n">&lt;镜像名&gt;</span>:v1</code></pre>
+                <p>私有仓库需加认证参数：</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image ccr.ccs.tencentyun.com/<span class="n">&lt;命名空间&gt;</span>/<span class="n">&lt;镜像名&gt;</span>:v1 \
+  --writable-layer-size 2G \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health \
+  --registry-username <span class="n">&lt;用户名&gt;</span> \
+  --registry-password <span class="n">&lt;密码&gt;</span></code></pre>
+
+                <h3>两种方式对比</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th></th><th>本地镜像</th><th>远程镜像</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>是否需要推送</strong></td><td><span class="cross">不需要</span></td><td><span class="check">需要 push</span></td></tr>
+                            <tr><td><strong>适用场景</strong></td><td>单机开发调试</td><td>团队共享、多节点集群</td></tr>
+                            <tr><td><strong>镜像名格式</strong></td><td><code>my-sandbox:v1</code></td><td><code>registry/ns/image:tag</code></td></tr>
+                            <tr><td><strong>私有仓库认证</strong></td><td>不需要</td><td>可能需要 <code>--registry-username/password</code></td></tr>
+                            <tr><td><strong>速度</strong></td><td>快（本地直接读）</td><td>取决于网络和镜像大小</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>探针参数速记</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>参数</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>--expose-port</code></td><td>声明容器对外暴露的端口</td></tr>
+                            <tr><td><code>--probe</code></td><td>探活使用的端口，必须已在 <code>--expose-port</code> 中声明</td></tr>
+                            <tr><td><code>--probe-path</code></td><td>探活的 HTTP GET 路径，必须以 <code>/</code> 开头且返回 2xx</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>错误配置</th><th>现象</th><th>正确做法</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>--probe</code> 端口未在 <code>--expose-port</code> 中声明</td><td>参数校验报错</td><td>先 <code>--expose-port</code> 再 <code>--probe</code>，端口一致</td></tr>
+                            <tr><td><code>--probe-path</code> 填不存在的路径（<code>/healthz</code> 实际是 <code>/health</code>）</td><td>探活超时，模板 FAILED</td><td>本地先 <code>curl http://127.0.0.1:&lt;port&gt;&lt;path&gt;</code> 确认 2xx</td></tr>
+                            <tr><td><code>sandbox-code</code> 只暴露 49983，未暴露 49999</td><td>模板 READY 但 <code>run_code</code> 连接失败</td><td>同时暴露 49999 和 49983</td></tr>
+                            <tr><td><code>--probe-path</code> 漏写开头 <code>/</code>（写成 <code>health</code>）</td><td>探活 404</td><td>路径必须以 <code>/</code> 开头</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>7 类常见问题</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>现象</th><th>原因与解决</th></tr></thead>
+                        <tbody>
+                            <tr><td>1</td><td>apt 报 <code>Temporary failure resolving</code></td><td>容器默认 DNS <code>8.8.8.8</code> 内网不可达。<code>--dns</code> 旧版不支持、<code>resolv.conf</code> 会被覆盖。查出内网 apt 镜像 IP 硬编码进 <code>sources.list</code>；pip 同理用 IP 替换镜像域名（<code>-i http://&lt;ip&gt;/pypi/simple/ --trusted-host &lt;ip&gt;</code>）</td></tr>
+                            <tr><td>2</td><td>envd <code>/health</code> 不返回 204</td><td><code>ENTRYPOINT</code>/<code>CMD</code> 覆盖了 <code>cube-entrypoint.sh</code>，envd 未启动。确保 <code>ENTRYPOINT ["/usr/local/bin/cube-entrypoint.sh"]</code>，或在自定义入口手动 <code>envd -port 49983 &amp;</code></td></tr>
+                            <tr><td>3</td><td>SDK 报 <code>SSL: CERTIFICATE_VERIFY_FAILED</code></td><td>本机不信任 Cube 内置 mkcert CA。<code>export SSL_CERT_FILE=~/.local/share/mkcert/rootCA.pem</code></td></tr>
+                            <tr><td>4</td><td>卡在 <code>phase: PULLING</code></td><td>节点拉不到镜像。<code>tpl status --job-id &lt;id&gt; --json | jq '.last_error'</code>，在 CubeMaster 节点手动 <code>docker pull &lt;镜像&gt;</code> 验证；本地镜像不会卡（直接读本地 Docker）</td></tr>
+                            <tr><td>5</td><td><code>status: FAILED</code>（BUILDING 阶段）</td><td><code>--writable-layer-size</code> 过小写满，或节点磁盘不足（<code>df -h</code>）；查 <code>.last_error</code></td></tr>
+                            <tr><td>6</td><td><code>distribution: 0/N ready</code> 长时间不变</td><td>artifact 正在分发，多节点集群稍等；长期未恢复 <code>journalctl -u cubelet -f</code> 查目标节点 Cubelet 日志</td></tr>
+                            <tr><td>7</td><td>制作卡住、沙箱一直 <code>running</code> 且无法删除</td><td>磁盘满导致快照写入失败、进程卡死。<code>df -h /data/docker/lib/</code> 与 <code>/var/lib/cube/</code> 排查；<code>docker system prune -f</code> + <code>docker image prune -f</code>；必要时 <code>kill -9</code> 残留进程后重新提交。预防：剩余空间 &gt; 镜像大小 × 2</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============ 8 ============ -->
+            <section class="concept-section" id="env">
+                <h2><span class="section-num">8</span>环境变量的可见性</h2>
+                <p>CubeSandbox 设置环境变量有三种时机：<strong>创建模板时</strong>、<strong>创建沙箱时</strong>、<strong>单次命令/PTY/代码执行时</strong>。<strong>关键陷阱：不同时机创建的环境变量，对不同交互方式（envd 处理的命令 vs Jupyter kernel）可见性不同。</strong></p>
+
+                <h3>创建模板时</h3>
+                <p>可写进 Dockerfile <code>ENV</code>、SDK <code>Template.build(envs=...)</code>，或 <code>create-from-image --env</code>：</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --writable-layer-size 1G \
+  --expose-port 49999 \
+  --expose-port 49983 \
+  --probe 49999 \
+  --env DEMO_ENV=template-only</code></pre>
+                <div class="warning">
+                    <strong>envd 不继承 OCI process envs。</strong>因此构建模板时设置的环境变量，通过 <code>sandbox.commands.run</code> / <code>sandbox.pty.create</code> 是<strong>不可见</strong>的（<code>echo -n DEMO_ENV=$DEMO_ENV</code> 输出空）；但 <code>sandbox.run_code</code>（走 Jupyter kernel 而非 envd）<strong>可以看到</strong>镜像 ENV 和模板构建 env，<code>cubecli exec</code> 交互终端与沙箱主进程也可见。写入模板的 env 对所有使用者可见，<strong>不要存放密钥</strong>。
+                </div>
+
+                <h3>创建沙箱时</h3>
+                <p>用 <code>Sandbox.create(envs={...})</code> 注入，仅对当前沙箱可见，不写回模板、不注入主进程/长期服务/<code>cubecli exec</code>。<code>commands.run</code> 可读，但 <code>run_code</code> 默认读不到（lightweight code interpreter 不把 envd 中的沙箱变量注入 Jupyter kernel）；若需继承，参考 <code>run-code-env-inheritance</code> 派生镜像。</p>
+                <pre><code>with Sandbox.create(
+    template=<span class="s">"tpl-example"</span>,
+    envs={<span class="s">"DEMO_ENV"</span>: <span class="s">"sandbox-only"</span>},
+) as sandbox:
+    print(sandbox.commands.run(<span class="s">'echo -n "DEMO_ENV=$DEMO_ENV"'</span>).stdout)
+    <span class="c"># DEMO_ENV=sandbox-only</span></code></pre>
+
+                <h3>单次命令 / PTY / 代码执行时</h3>
+                <p>调用级 <code>envs</code> 仅作用于当前调用，并<strong>覆盖</strong>创建沙箱时的同名变量（优先级最高）：</p>
+                <pre><code>with Sandbox.create(
+    template=<span class="s">"tpl-example"</span>,
+    envs={<span class="s">"DEMO_ENV"</span>: <span class="s">"sandbox-only"</span>},
+) as sandbox:
+    print(sandbox.commands.run(<span class="s">'echo -n "DEMO_ENV=$DEMO_ENV"'</span>,
+    envs={<span class="s">"DEMO_ENV"</span>: <span class="s">"one-shot"</span>}).stdout)
+    <span class="c"># DEMO_ENV=one-shot</span></code></pre>
+
+                <h3>可见性总结</h3>
+                <div class="table-wrap">
+                    <table class="matrix-table">
+                        <thead><tr><th>来源</th><th>commands.run / SDK PTY</th><th>cubecli exec / OCI Exec</th><th>主进程 / 服务</th></tr></thead>
+                        <tbody>
+                            <tr><td>镜像 ENV、模板 build envs</td><td>不应依赖 / 当前通常不可见</td><td>可见</td><td>可见</td></tr>
+                            <tr><td><code>Sandbox.create(envs=...)</code></td><td>可见</td><td>不可见</td><td>不可见</td></tr>
+                            <tr><td>command / PTY 调用 envs</td><td>当前调用可见，优先级最高</td><td>不适用</td><td>不影响</td></tr>
+                            <tr><td><code>run_code(..., envs=...)</code></td><td>不适用</td><td>仅当前执行</td><td>不适用</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip">
+                    <strong>选择建议：</strong>固定配置（运行环境、默认参数）用模板 <code>--env</code>；动态配置（密钥、用户参数）用 <code>Sandbox.create(envs={...})</code>——最常用、灵活且不污染模板；临时变量在代码内 <code>os.environ</code> 设置。
+                </div>
+            </section>
+
+            <!-- ============ 9 ============ -->
+            <section class="concept-section" id="alias">
+                <h2><span class="section-num">9</span>模板别名</h2>
+                <p>模板别名是稳定且易读的名称。应用配置无需保存 <code>tpl-01abc...</code> 这样的生成 ID，可改用 <code>python-runtime</code>。模板重建或替换后，应用仍可使用固定别名，由运维把别名切到新模板。</p>
+                <pre><code>from cubesandbox import Sandbox
+
+with Sandbox.create(template=<span class="s">"python-runtime"</span>) as sandbox:
+    print(sandbox.commands.run(<span class="s">"python3 --version"</span>).stdout)</code></pre>
+
+                <h3>命名规则与行为</h3>
+                <ul>
+                    <li>只能包含小写字母、数字和连字符；必须以字母或数字开头；长度为 1 到 64 个字符。</li>
+                    <li>不能使用保留的 <code>tpl-</code> 或 <code>snap-</code> 前缀；不能分配给快照。</li>
+                    <li>同一时间只能属于一个 READY 模板；每个模板最多一个别名。</li>
+                </ul>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>有效别名</th><th>无效别名</th><th>无效原因</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>python</code>、<code>python-3-12</code>、<code>app-v2</code></td><td><code>MyApp</code></td><td>含大写</td></tr>
+                            <tr><td>—</td><td><code>my_app</code></td><td>含下划线</td></tr>
+                            <tr><td>—</td><td><code>-my-app</code></td><td>以连字符开头</td></tr>
+                            <tr><td>—</td><td><code>tpl-custom</code></td><td>使用保留前缀 <code>tpl-</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="note">
+                    把已有别名分配给另一个模板时，别名会<strong>转移到目标模板并从原模板清除</strong>。应视为一次部署变更：已运行的沙箱不受影响，后续通过该别名执行的操作会解析到新模板。
+                </div>
+
+                <h3>创建时设置别名</h3>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image ghcr.io/example/python-runtime:3.12 \
+  --alias python-runtime \
+  --writable-layer-size 2G \
+  --expose-port 49983 \
+  --probe 49983 \
+  --probe-path /health</code></pre>
+                <p>模板 ID 仍由服务端生成；模板达到 <code>READY</code> 并成功取得别名后，别名才可使用。通过 E2B 风格 SDK 构建时，<code>name</code> 字段即稳定别名：</p>
+                <pre><code>from cubesandbox import Template
+
+job = Template.build(
+    image=<span class="s">"ghcr.io/example/python-runtime:3.12"</span>,
+    name=<span class="s">"python-runtime"</span>,
+    writable_layer_size=<span class="s">"2G"</span>,
+    exposed_ports=[49983],
+    probe_port=49983,
+    probe_path=<span class="s">"/health"</span>,
+)
+print(job.template_id)</code></pre>
+
+                <h3>设置、修改或清除别名</h3>
+                <pre><code><span class="c"># 为已有的 READY 模板设置或修改别名</span>
+cubemastercli tpl set-alias tpl-01abc --alias python-runtime
+
+<span class="c"># 第一个参数既可以是模板 ID，也可以是模板当前的别名</span>
+cubemastercli tpl set-alias python-runtime --alias python-runtime-v2
+
+<span class="c"># 清除别名</span>
+cubemastercli tpl set-alias tpl-01abc --clear</code></pre>
+                <p>各语言 SDK 提供相同操作：</p>
+                <pre><code><span class="c"># Python</span>
+Template.set_alias(<span class="s">"tpl-01abc"</span>, <span class="s">"python-runtime"</span>)
+Template.set_alias(<span class="s">"tpl-01abc"</span>, None)  <span class="c"># 清除</span>
+
+<span class="c"># Go</span>
+info, err := client.SetTemplateAlias(ctx, <span class="s">"tpl-01abc"</span>, <span class="s">"python-runtime"</span>)
+_, err = client.SetTemplateAlias(ctx, info.TemplateID, <span class="s">""</span>) <span class="c">// 清除</span>
+
+<span class="c"># Node.js</span>
+<span class="k">await</span> Template.setAlias(<span class="s">"tpl-01abc"</span>, <span class="s">"python-runtime"</span>);
+<span class="k">await</span> Template.setAlias(<span class="s">"tpl-01abc"</span>, null); <span class="c">// 清除</span></code></pre>
+
+                <h3>使用和查询别名</h3>
+                <p>任何接受模板标识符的位置都能传别名（包括创建沙箱）。列表和详情响应的 <code>aliases</code> 数组返回已配置别名，也可直接经 CubeAPI 解析：</p>
+                <pre><code>curl http://<span class="n">&lt;cubeapi-host&gt;</span>:3000/templates/aliases/python-runtime
+<span class="c"># { "templateID": "tpl-01abc", "public": false }</span></code></pre>
+
+                <h3>安全发布流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>1 构建新模板</b>：暂时不修改生产环境使用的别名。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2 验证</b>：等待新模板 <code>READY</code>，用生成的模板 ID 完成验证。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>3 切换别名</b>：把生产别名分配给新模板。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4 回归</b>：用别名创建测试沙箱，确认解析符合预期。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>5 收尾</b>：按回滚策略保留或删除旧模板。</div>
+                </div>
+                <div class="success">
+                    修改别名<strong>不会</strong>改变或重启已经存在的沙箱。
+                </div>
+            </section>
+
+            <!-- ============ 10 ============ -->
+            <section class="concept-section" id="mcp">
+                <h2><span class="section-num">10</span>MCP 网关</h2>
+                <p>MCP（Model Context Protocol）是 AI Agent 发现和调用工具的协议。<code>mcp</code> 参数用于创建沙箱时声明需要哪些 MCP 服务，这些服务运行在沙箱<strong>内部</strong>，与你自己的机器隔离。创建后你会拿到一个 URL 和一个 Token，Agent 连上即可调用所有已声明服务提供的工具。</p>
+                <div class="warning">
+                    <strong>预览特性：</strong>MCP 支持目前处于预览阶段，<code>mcp</code> 参数和示例网关都可能调整。
+                </div>
+                <pre><code>from cubesandbox import Sandbox
+
+sandbox = Sandbox.create(mcp={<span class="s">"time"</span>: {}, <span class="s">"fetch"</span>: {}})
+url = sandbox.get_mcp_url()      <span class="c"># http://50005-&lt;sandbox-id&gt;.&lt;domain&gt;/mcp</span>
+token = sandbox.get_mcp_token()  <span class="c"># 以 "Authorization: Bearer &lt;token&gt;" 发送</span></code></pre>
+
+                <h3>工作原理与调用链</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">MCP 调用链</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">你的 Agent<small>MCP over HTTP + Token</small></div>
+                        <div class="arch-box network">CubeProxy<small>50005-&lt;id&gt;.&lt;domain&gt;</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 路由到沙箱 50005</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">沙箱内的 mcp-gateway<small>端口 50005 /mcp</small></div>
+                    </div>
+                    <div class="arch-connector">↓ stdio</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">time 服务</div>
+                        <div class="arch-box data">fetch 服务</div>
+                        <div class="arch-box data">github/... 服务</div>
+                    </div>
+                </div>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>1 CubeAPI</b>：校验 <code>mcp</code> 结构，格式不对在创建任何沙箱前返回 <code>400</code>。它不保存该值，也不下发调度层或在响应中返回。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2 模板</b>：SDK 按「模板优先级」确定模板，<strong>该模板中必须包含 <code>mcp-gateway</code> 程序</strong>，默认沙箱镜像里没有。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>3 SDK</b>：沙箱启动后，SDK 以 <code>root</code> 执行 <code>mcp-gateway --config '&lt;json&gt;'</code>，通过 <code>GATEWAY_ACCESS_TOKEN</code> 传随机 Token，最多等 60 秒。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4 网关</b>：拉起所需服务并在 <code>50005</code> 对外提供工具；CubeProxy 把 <code>50005-&lt;id&gt;.&lt;domain&gt;</code> 路由到该端口。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>5 失败处理</b>：命令失败或超时，SDK 销毁沙箱并抛出附网关输出的 <code>Failed to start MCP gateway: ...</code>。</div>
+                </div>
+                <p>Cube 本身只负责第 1、3 步和路由；沙箱里实际跑什么，由模板决定。</p>
+
+                <h3>模板优先级</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>顺序</th><th>规则</th></tr></thead>
+                        <tbody>
+                            <tr><td>1</td><td>传了 <code>template</code>（Go 为 <code>TemplateID</code>），用对应模板</td></tr>
+                            <tr><td>2</td><td>未传 <code>template</code>，用别名为 <code>mcp-gateway</code> 的模板</td></tr>
+                            <tr><td>3</td><td>上述都不存在，用环境变量 <code>CUBE_TEMPLATE_ID</code> 对应模板</td></tr>
+                            <tr><td>4</td><td>全部不存在，创建失败并报模板不存在错误</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>想改默认别名（默认 <code>mcp-gateway</code>），设环境变量 <code>CUBE_MCP_TEMPLATE_ID</code>：</p>
+                <pre><code><span class="k">export</span> CUBE_MCP_TEMPLATE_ID=custom-mcp-gateway</code></pre>
+
+                <h3>网关约定</h3>
+                <p>任何程序都可充当网关，只要以 <code>mcp-gateway</code> 为名装在 <code>PATH</code> 中并满足以下约定：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>项目</th><th>要求</th></tr></thead>
+                        <tbody>
+                            <tr><td>命令</td><td>以 <code>root</code> 执行 <code>mcp-gateway --config '&lt;json&gt;'</code>，<code>&lt;json&gt;</code> 即创建沙箱时的 <code>mcp</code> 对象</td></tr>
+                            <tr><td>Token</td><td>从 <code>GATEWAY_ACCESS_TOKEN</code> 读取并写入 <code>/etc/mcp-gateway/.token</code>；<code>get_mcp_token()</code> 从此文件取回</td></tr>
+                            <tr><td>就绪</td><td>命令退出后网关需继续服务；端点就绪才以 <code>0</code> 退出，失败以非零码退出并输出可读错误；必须 60 秒内完成</td></tr>
+                            <tr><td>端点</td><td>端口 <code>50005</code>、路径 <code>/mcp</code> 上的 MCP streamable HTTP 端点，拒绝无 <code>Authorization: Bearer &lt;token&gt;</code> 的请求</td></tr>
+                            <tr><td>模板</td><td>创建模板时暴露端口 <code>50005</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>示例网关快速上手</h3>
+                <pre><code>cd examples/mcp-gateway
+docker build -f template/Dockerfile \
+  --build-arg BASE_IMAGE=cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --build-arg MCP_SERVERS=<span class="s">"duckduckgo fetch time arxiv"</span> \
+  -t <span class="n">&lt;镜像仓库&gt;</span>/mcp-gateway:latest .
+docker push <span class="n">&lt;镜像仓库&gt;</span>/mcp-gateway:latest
+
+cubemastercli tpl create-from-image \
+  --image <span class="n">&lt;镜像仓库&gt;</span>/mcp-gateway:latest \
+  --alias mcp-gateway \
+  --writable-layer-size 1G \
+  --expose-port 49983 --expose-port 49999 --expose-port 50005 \
+  --probe 49983 --probe-path /health</code></pre>
+                <p>调用工具（<code>pip install mcp</code>）：</p>
+                <pre><code>import asyncio
+from cubesandbox import Sandbox
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+async def main():
+    with Sandbox.create(mcp={<span class="s">"time"</span>: {}, <span class="s">"fetch"</span>: {}}) as sandbox:
+        headers = {<span class="s">"Authorization"</span>: f<span class="s">"Bearer {sandbox.get_mcp_token()}"</span>}
+        async with streamablehttp_client(sandbox.get_mcp_url(), headers=headers) as (read, write, _):
+            async with ClientSession(read, write) as session:
+                <span class="k">await</span> session.initialize()
+                print([tool.name <span class="k">for</span> tool <span class="k">in</span> (<span class="k">await</span> session.list_tools()).tools])
+                result = <span class="k">await</span> session.call_tool(<span class="s">"get_current_time"</span>, {<span class="s">"timezone"</span>: <span class="s">"Asia/Shanghai"</span>})
+                print(result.content[0].text)
+
+asyncio.run(main())</code></pre>
+                <p>示例网关支持三类条目：<strong>目录服务</strong>（<code>duckduckgo</code>、<code>arxiv</code>、<code>fetch</code>、<code>time</code>、<code>filesystem</code>、<code>memory</code>、<code>sequentialthinking</code>，可在模板内 <code>mcp-gateway catalog</code> 查看）、<strong>GitHub 服务</strong>（<code>github/&lt;owner&gt;/&lt;repo&gt;</code>，执行 <code>installCmd</code> 后 <code>runCmd</code>）和<strong>本地命令</strong>（任意带 <code>runCmd</code> 的键）。同名工具按服务名排序，第一个保留原名，其余重命名为 <code>&lt;server&gt;_&lt;tool&gt;</code>；网关只聚合工具，不提供 prompts 和 resources。端口 <code>50005</code> 上的 <code>GET /health</code> 无需 Token，返回服务数和工具数。</p>
+
+                <h3>输入校验</h3>
+                <p>以下情况 CubeAPI 返回 <code>400</code>：</p>
+                <ul>
+                    <li><code>mcp</code> 不是对象；某个条目不是对象；</li>
+                    <li>GitHub 键不符合 <code>github/&lt;owner&gt;/&lt;repo&gt;</code> 格式；缺少 <code>runCmd</code> 或为空；</li>
+                    <li><code>envs</code> 中有非法变量名或非字符串值；</li>
+                    <li>服务数量超过 64 个。</li>
+                </ul>
+                <p>服务名是否可识别由网关判断，示例网关遇到未知服务名会启动失败，SDK 会把这个错误报出来。</p>
+
+                <h3>生命周期</h3>
+                <ul>
+                    <li><strong>暂停 / 恢复</strong>：网关及其服务进程属于内存快照的一部分，恢复后继续用原 Token 服务。</li>
+                    <li><strong>重新连接</strong>：<code>get_mcp_token()</code> 读 Token 文件，新的 SDK 句柄可直接复用端点。</li>
+                    <li><strong>克隆与快照恢复</strong>：运行中的网关及 Token 一并复制，所有克隆接受同一 Token，应视为同一信任域。</li>
+                    <li><strong>进程崩溃</strong>：某个服务进程退出后，网关会在下一次调用时重新启动它。</li>
+                </ul>
+
+                <h3>安全说明</h3>
+                <div class="danger">
+                    <strong>同一沙箱内的所有 MCP 服务属于同一信任域，彼此之间没有隔离。</strong>示例网关以 <code>root</code> 运行所有服务，任何服务都能读取其他服务的 <code>envs</code>（如 <code>/proc/&lt;pid&gt;/environ</code>）和 <code>/etc/mcp-gateway/.token</code> 并外传；GitHub 服务的 <code>installCmd</code>/<code>runCmd</code> 本身就是以 root 执行的任意命令。<strong>不要把不可信的服务和敏感凭据放进同一个沙箱</strong>；需要隔离时为不同信任域分别创建沙箱。
+                </div>
+                <ul>
+                    <li>Token 只保护 MCP 端点本身；CubeProxy 鉴权和网络策略照常生效，沙箱内服务也受出网规则约束。</li>
+                    <li>与 E2B 约定一致，SDK 通过命令行参数传 <code>mcp</code> 配置，网关启动期间（最长约 60 秒）完整配置（含 <code>envs</code>）会出现在进程参数中，沙箱内任何进程都能读到。</li>
+                    <li>示例网关会从自身及每个服务的环境变量中移除 Token，只把 <code>envs</code> 设到所属服务环境变量，不写盘或日志（但不能防范恶意服务）。</li>
+                    <li>示例网关日志 <code>/var/log/mcp-gateway.log</code> 会记录各服务 <code>stderr</code>；服务自行打印密钥时也会出现在其中。</li>
+                </ul>
+
+                <h3>使用自己的网关</h3>
+                <p>你可以用任何满足「网关约定」的程序替换示例网关。例如在 Docker MCP Gateway 这类网关前放一个名为 <code>mcp-gateway</code> 的轻量启动脚本；E2B 托管的 <code>mcp-gateway</code> 模板就基于 Docker MCP Gateway 构建。注意 Docker MCP Gateway 会把每个服务作为容器运行，因此模板里还需一个能在沙箱内正常工作的 Docker 守护进程——CubeSandbox 尚未验证过这种方式（以官方文档为准）。</p>
+            </section>
+
+            <!-- ============ 11 ============ -->
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">11</span>易错点、记忆卡片与自测</h2>
+
+                <h3>易错点</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>易错点</th><th>正确做法</th></tr></thead>
+                        <tbody>
+                            <tr><td>把模板当成「就是个 Docker 镜像」</td><td>模板 = 镜像 + 构建产物 + 就绪探针 + 分发；镜像只是原料</td></tr>
+                            <tr><td>手写入口忘了 <code>-isnotfc</code></td><td>envd 会去查不存在的 Firecracker MMDS，导致超时 / init 失败；用 <code>cube-entrypoint.sh</code> 或手动加</td></tr>
+                            <tr><td>探活返回 200 就当通过</td><td>envd <code>/health</code> 必须返回 <code>204</code>，其它状态码都不算</td></tr>
+                            <tr><td>预热模板用 <code>49983/health</code> 当完成信号</td><td>那只说明 envd 就绪；应用预热要用自己的 <code>/readyz</code> 等真实就绪端点</td></tr>
+                            <tr><td><code>tpl commit --file</code> 以为是改几个字段</td><td>它是<strong>整体替换</strong>，不是合并；只想保存现状就别传 <code>--file</code></td></tr>
+                            <tr><td>模板 <code>--env</code> 放密钥</td><td>模板 env 对所有使用者可见；密钥用 <code>Sandbox.create(envs=...)</code> 注入</td></tr>
+                            <tr><td>用 <code>commands.run</code> 读模板 <code>--env</code></td><td>envd 不继承 OCI process envs，读不到；<code>run_code</code> 才可见</td></tr>
+                            <tr><td>用明文 HTTP 仓库不加 <code>http://</code></td><td>会报 <code>server gave HTTP response to HTTPS client</code></td></tr>
+                            <tr><td>把不可信 MCP 服务和敏感凭据放同一沙箱</td><td>同沙箱服务无隔离，可互读 <code>envs</code> 与 Token</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>模板公式</b>模板 = 镜像 + 构建产物 + 就绪探针 + 分发。</div>
+                    <div class="memory-card"><b>构建四阶段</b>PULLING → BUILDING → DISTRIBUTING → READY。</div>
+                    <div class="memory-card"><b>三种制作</b>OCI 镜像 / 自定义镜像 BYOI / 运行中沙箱 commit。</div>
+                    <div class="memory-card"><b>必带参数</b><code>envd -port 49983 -isnotfc</code>，缺 <code>-isnotfc</code> 必翻车。</div>
+                    <div class="memory-card"><b>探活硬指标</b>envd <code>/health</code> 必须 <code>204</code>，不是 200。</div>
+                    <div class="memory-card"><b>预热诀窍</b>先 503 后 200；就绪端点要代表真正初始化完成。</div>
+                    <div class="memory-card"><b>别名规则</b>小写字母/数字/连字符，1–64 位，禁 <code>tpl-</code>/<code>snap-</code>，一模板一别名。</div>
+                    <div class="memory-card"><b>MCP 优先级</b>template → <code>mcp-gateway</code> 别名 → <code>CUBE_TEMPLATE_ID</code> → 失败。</div>
+                </div>
+
+                <h3>自测</h3>
+                <div class="quiz">
+                    <h4>自测</h4>
+                    <details>
+                        <summary>1. 自定义镜像里 ENTRYPOINT 必须保留 <code>cube-entrypoint.sh</code>，它自动追加的参数是什么？为什么不能省？</summary>
+                        <p>自动追加的是 <code>-isnotfc</code>。它让 envd 跳过对 <code>169.254.169.254</code> 的 Firecracker MMDS 查询。CubeSandbox 不使用 Firecracker，MMDS 服务不存在；缺少此参数会让 envd 访问不存在的 MMDS，可能引发网络超时、<code>/init</code> 延迟、<code>env_vars</code> 注入失败等问题。</p>
+                    </details>
+                    <details>
+                        <summary>2. 模板已经 <code>READY</code>，但 <code>distribution</code> 显示 <code>0/N ready</code> 且长时间不变，你会怎么查？</summary>
+                        <p>多数情况是 artifact 正在分发到各节点，多节点集群稍等即可；若长时间未恢复，去目标节点查 Cubelet 日志：<code>journalctl -u cubelet -f</code>。同时可先重跑 <code>tpl info</code> 确认状态。</p>
+                    </details>
+                    <details>
+                        <summary>3. 为什么创建沙箱时用 <code>Sandbox.create(envs={...})</code> 注入的变量，<code>commands.run</code> 能看到，但默认 <code>run_code</code> 看不到？</summary>
+                        <p><code>commands.run</code> 经 envd 处理，会带上沙箱级 envs；而 <code>run_code</code> 走 lightweight code interpreter / Jupyter kernel，默认不会把 envd 中的沙箱环境变量注入 Jupyter kernel。若希望 <code>run_code()</code> 自动继承 <code>Sandbox.create(envs=...)</code>，需使用仓库的 <code>run-code-env-inheritance</code> 派生镜像。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

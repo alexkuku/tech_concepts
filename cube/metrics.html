@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标与性能基准 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>指标与性能基准</span>
+            </h1>
+            <p class="subtitle">把请求、资源、网络三类指标串成一条可观测链路，用 PromQL 定位性能与容量问题</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 14 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">指标与性能</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 14 章</span>
+                <h1>指标与性能基准</h1>
+                <p>本页把 CubeSandbox 的三类指标串成一张可观测地图：<strong>CubeProxy 请求指标</strong>回答「请求进出是否正常」，<strong>沙箱资源指标</strong>回答「沙箱吃了多少 CPU 与内存」，<strong>沙箱网络指标</strong>回答「流量是否被转发、Session 与 SNAT 端口是否吃紧」。读完你应能配置抓取任务、写出正确的 PromQL、并用这些指标把性能与容量问题定位到具体组件。</p>
+                <div class="page-meta">
+                    <span>📖 预计 40 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 3 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#overview">1. 指标全景：三类指标与采集视角</a></li>
+                    <li><a href="#cubeproxy">2. CubeProxy 请求指标</a></li>
+                    <li><a href="#resource">3. 沙箱资源指标：host_sandbox 与 guest_workload</a></li>
+                    <li><a href="#network">4. 沙箱网络指标：流量 / Session / SNAT</a></li>
+                    <li><a href="#comparison">5. 三类指标对比速查</a></li>
+                    <li><a href="#performance">6. 用指标做性能基准与 SLO</a></li>
+                    <li><a href="#pitfalls">7. 易错点与最佳实践</a></li>
+                    <li><a href="#quiz">8. 记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <!-- ============ 1. 全景 ============ -->
+            <section class="concept-section" id="overview">
+                <h2><span class="section-num">1</span>指标全景：三类指标与采集视角</h2>
+                <p>CubeSandbox 的指标由<strong>三个互相独立、各自拥有端点</strong>的导出器提供。它们从不同视角描述同一条「请求 → 沙箱 → 网络 → 宿主机」的链路，因此<strong>不能彼此相加，也不能互相替代</strong>。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>指标族</th><th>导出组件</th><th>默认端点</th><th>回答的问题</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>请求指标</td><td>CubeProxy</td><td><code>http://127.0.0.1:18082/metrics</code></td><td>请求流量、并发、成功率、失败率、沙箱响应延迟</td></tr>
+                            <tr><td>资源指标</td><td>Cubelet</td><td><code>http://&lt;cubelet-node&gt;:9998/v1/metrics/resource</code></td><td>沙箱消耗多少 CPU、多少内存、是否触发限流/内存限制失败</td></tr>
+                            <tr><td>网络指标</td><td>Cubelet（读取 CubeVS 状态）</td><td><code>http://&lt;cubelet-node&gt;:9998/v1/metrics/network</code></td><td>沙箱 ingress/egress 流量、Session 数、SNAT 端口压力与分配失败</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>下图把三者的位置放进同一条链路：请求从 <strong>CubeProxy</strong> 进入，路由到<strong>沙箱</strong>；沙箱的资源由 <strong>Cubelet</strong> 从宿主机与 Guest 两侧采集；沙箱收发流量经过 <strong>CubeVS</strong> 数据面，由 Cubelet 读取 CubeVS 状态导出；最终全部汇总到 <strong>Prometheus</strong>。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">采集视角 · 请求 → 沙箱 → 网络 → 宿主机</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control wide">CubeProxy<small>请求指标 :18082/metrics</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 路由到沙箱 / 统计请求生命周期</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">Cubelet<small>资源导出器</small></div>
+                        <div class="arch-box obs">host_sandbox<small>宿主机 cgroup 记账</small></div>
+                        <div class="arch-box obs">guest_workload<small>Guest 内 cgroup</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 沙箱 TAP / veth 收发报文</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">CubeVS eBPF<small>每沙箱流量 Counter</small></div>
+                        <div class="arch-box network">session reaper<small>Session / SNAT 快照</small></div>
+                        <div class="arch-box obs">网络导出器<small>:9998/v1/metrics/network</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 三类来源统一抓取</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary wide">Prometheus<small>抓取 · 存储 · PromQL 查询</small></div>
+                    </div>
+                </div>
+
+                <div class="info">
+                    <strong>三个独立端点，不要混淆。</strong>CubeProxy 的 <code>/metrics</code> 在 <code>18082</code>；资源指标在 <code>9998/v1/metrics/resource</code>；网络指标在 <code>9998/v1/metrics/network</code>。三者都<strong>独立于</strong> Cubelet 通用指标端点 <code>/v1/metrics</code>，且都需要各自配置独立的 Prometheus 抓取任务。
+                </div>
+            </section>
+
+            <!-- ============ 2. CubeProxy ============ -->
+            <section class="concept-section" id="cubeproxy">
+                <h2><span class="section-num">2</span>CubeProxy 请求指标</h2>
+                <p>CubeProxy 为选定的沙箱数据面路由提供 Prometheus 格式的请求指标，用于观测请求流量、并发请求、成功率、失败率和请求延迟。指标保存在 Nginx 内存共享字典中，<strong>CubeProxy 重启后 Counter、Gauge、Histogram 全部重置</strong>。</p>
+
+                <h3>2.1 启用与禁用：默认关闭（opt-in）</h3>
+                <p>请求指标<strong>默认关闭</strong>，需将环境变量 <code>CUBE_PROXY_METRICS_ENABLE</code> 设为真值（<code>1</code>、<code>on</code>、<code>true</code> 或 <code>yes</code>）才启用：</p>
+                <pre><code><span class="c"># 启用请求指标</span>
+CUBE_PROXY_METRICS_ENABLE=1</code></pre>
+                <p>设为其他任意值、空值或不设置时指标保持关闭。禁用时 CubeProxy 不记录任何请求样本，数据面请求阶段完全跳过指标采集，<strong>不创建指标监听器、不监听任何端口</strong>——此时 <code>CUBE_PROXY_METRICS_LISTEN</code> 的取值会被忽略。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>部署方式</th><th>开关配置项（均默认关闭）</th><th>监听地址配置项（可选）</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>one-click（docker compose）</td><td>在 <code>.env</code> 设 <code>CUBE_PROXY_METRICS_ENABLE=1</code></td><td><code>CUBE_PROXY_METRICS_LISTEN</code></td></tr>
+                            <tr><td>Helm chart</td><td>在 values 设 <code>cubeProxy.metrics.enabled=true</code></td><td><code>cubeProxy.metrics.listen</code></td></tr>
+                            <tr><td>Terraform（TKE）</td><td>在 tfvars 设 <code>cube_proxy_metrics_enabled = true</code></td><td><code>cube_proxy_metrics_listen</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>2.2 指标监听器</h3>
+                <p>监听器由 <code>CUBE_PROXY_METRICS_LISTEN</code> 配置，默认值为 <code>127.0.0.1:18082</code>。若 Prometheus 从其他主机抓取，需改成 Prometheus 网络可访问的地址：</p>
+                <pre><code><span class="c"># 允许其他主机抓取</span>
+CUBE_PROXY_METRICS_LISTEN=0.0.0.0:18082</code></pre>
+                <p>监听器<strong>只提供精确的 <code>GET /metrics</code></strong> 端点，其他路径返回 HTTP 404。该端点既不使用 CubeProxy 的普通数据面路由，也不使用管理服务器。</p>
+
+                <div class="warning">
+                    <strong>网络访问风险：</strong>指标监听器本身不提供鉴权或 TLS。不要将其暴露在不可信网络中，应将监听地址绑定到可信管理地址，并通过防火墙或安全组限制访问来源。
+                </div>
+
+                <h3>2.3 Prometheus 抓取配置</h3>
+                <span class="code-label">prometheus · cube-proxy</span>
+                <pre><code>scrape_configs:
+  - job_name: cubesandbox-cube-proxy
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - &lt;cube-proxy-host&gt;:18082</code></pre>
+                <p>将目标地址替换为 Prometheus 可以访问的 CubeProxy 内部地址。若保持默认监听 <code>127.0.0.1:18082</code>，Prometheus 必须与 CubeProxy 在同一主机，或使用本地抓取代理。</p>
+
+                <h3>2.4 指标族</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>指标</th><th>类型</th><th>标签</th><th>含义</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cube_proxy_request_total</code></td><td>Counter</td><td><code>route</code>、<code>method</code>、<code>result</code></td><td>已完成且被统计的请求次数</td></tr>
+                            <tr><td><code>cube_proxy_inflight_requests</code></td><td>Gauge</td><td><code>route</code></td><td>已开始但尚未完成的被统计请求数</td></tr>
+                            <tr><td><code>cube_proxy_upstream_response_seconds</code></td><td>Histogram</td><td><code>route</code>、<code>method</code>、<code>result</code></td><td>沙箱开始响应所需时间（秒）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>关键语义：</p>
+                <ul>
+                    <li><strong>result 判定</strong>：HTTP 状态码 <code>200</code> 至 <code>399</code> 记 <code>success</code>，其他记 <code>fail</code>。它只反映 CubeProxy 看到的结果，<strong>不代表沙箱内最终是否成功</strong>。</li>
+                    <li><strong>流式调用</strong>：<code>process.Process/Start</code> 和 <code>Connect</code> 流一建立 CubeProxy 就收到 HTTP 200，此后流中的错误仍记为 <code>success</code>；用户命令以非 0 退出码结束也记为 <code>success</code>（调用本身已正常完成）。</li>
+                    <li><strong>Histogram 衡量服务延迟</strong>：从 CubeProxy 把请求转发给沙箱，到收到沙箱响应头为止，<strong>不是请求总耗时</strong>。bucket 当前从 <code>0.001</code> 秒到 <code>8.192</code> 秒，并包含 <code>+Inf</code>。</li>
+                </ul>
+
+                <div class="note">
+                    <strong>Histogram 边界语义：</strong>对 <code>process.Process/Start</code> 与 <code>Connect</code> 统计路由和启动/接入进程的时间，不含命令运行时长；文件下载统计沙箱开始发送文件之前的时间；文件上传因 CubeProxy 先收完整请求体再转发，<strong>不含</strong>客户端上传时间，但<strong>包含</strong>发送给沙箱及沙箱写盘时间。没有到达沙箱的请求（如 CubeProxy 自身返回的错误）计入 <code>cube_proxy_request_total</code>，但<strong>不会</strong>记录到该 Histogram。
+                </div>
+
+                <h3>2.5 当前采集范围</h3>
+                <p>当前实现只记录以下两类<strong>归一化路由</strong>，其他 URI 不计入这些指标。路由标签经过归一化，<strong>不会</strong>因为每个沙箱的 ID 和容器端口不同而创建独立时间序列。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>route 标签</th><th>URI 形式</th><th>典型用途</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>sandbox_exec</code></td><td><code>/process.Process/*</code>、<code>/sandbox/&lt;sandbox-id&gt;/&lt;container-port&gt;/process.Process/*</code></td><td>沙箱进程执行和连接请求</td></tr>
+                            <tr><td><code>sandbox_files</code></td><td><code>/files</code>、<code>/sandbox/&lt;sandbox-id&gt;/&lt;container-port&gt;/files</code></td><td>沙箱文件请求</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>2.6 请求生命周期</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>rewrite 阶段</b>：开始统计请求，将对应路由的 in-flight Gauge 加 1，并把归一化后的 route 写入请求变量。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>转发与等待响应</b>：CubeProxy 把请求转发给沙箱，并开始计时「沙箱开始响应」的耗时。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>请求结束</b>：读取 method、最终状态码，以及沙箱开始响应所需的时间。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>落账</b>：更新 Counter 与 Histogram，并将 in-flight Gauge 减 1。</div>
+                </div>
+                <ul>
+                    <li><strong>计入的请求</strong>：只要 CubeProxy 能确定目标沙箱就计入，包括因沙箱不存在（404）、无权访问（403）、已删除（410）、暂不可用（503）以及无可用后端（503）而直接返回的错误。每个请求只计一次。</li>
+                    <li><strong>不计入的请求</strong>：无法识别目标沙箱时（<code>Host</code> 与 <code>E2b-Sandbox-*</code> 头都没有路由信息，或 <code>/sandbox/&lt;sandbox-id&gt;/&lt;container-port&gt;</code> 路径格式不正确），CubeProxy 直接返回 HTTP 400，这类客户端错误<strong>不计入</strong>指标。</li>
+                </ul>
+
+                <h3>2.7 验证指标端点</h3>
+                <pre><code>curl -fsS http://127.0.0.1:18082/metrics</code></pre>
+                <p>CubeProxy 刚启动时可能只有 <code>HELP</code> 和 <code>TYPE</code> 元数据，或暂时没有请求样本。完成一次被统计的沙箱执行或文件请求后，再检查对应的 Counter 与 Histogram 样本。</p>
+
+                <h3>2.8 PromQL 示例</h3>
+                <span class="code-label">promql · 被统计请求速率</span>
+                <pre><code>sum by (route, method, result) (
+  rate(cube_proxy_request_total[5m])
+)</code></pre>
+                <span class="code-label">promql · 失败请求速率</span>
+                <pre><code>sum by (route, method) (
+  rate(cube_proxy_request_total{result="fail"}[5m])
+)</code></pre>
+                <span class="code-label">promql · 当前并发请求数</span>
+                <pre><code>sum by (route) (
+  cube_proxy_inflight_requests
+)</code></pre>
+                <span class="code-label">promql · 沙箱响应 P95 延迟</span>
+                <pre><code>histogram_quantile(
+  0.95,
+  sum by (le, route, method) (
+    rate(cube_proxy_upstream_response_seconds_bucket[5m])
+  )
+)</code></pre>
+
+                <h3>2.9 故障排查</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>现象</th><th>检查项</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>curl</code> 无法连接</td><td>确认 CubeProxy 正常运行，检查 <code>CUBE_PROXY_METRICS_LISTEN</code>，并确认监听地址与防火墙允许请求</td></tr>
+                            <tr><td>Prometheus 无法访问端点</td><td>默认只绑定回环地址；将 <code>CUBE_PROXY_METRICS_LISTEN</code> 设为 Prometheus 可访问的内部地址后重启 CubeProxy</td></tr>
+                            <tr><td>metrics listener 返回 HTTP 404</td><td>必须使用精确路径 <code>/metrics</code>，其他路径按设计返回 404</td></tr>
+                            <tr><td>HTTP 200 但没有请求样本</td><td>完成一次被统计的 <code>sandbox_exec</code> 或 <code>sandbox_files</code> 请求后再抓取；首次抓取前可能只有元数据</td></tr>
+                            <tr><td>期望的路由没有指标</td><td>当前只统计 <code>sandbox_exec</code> 与 <code>sandbox_files</code> 两类路由，其他路由不在采集范围</td></tr>
+                            <tr><td>重启后 Counter 清零</td><td>指标保存在内存中，CubeProxy 重启会创建新的共享字典；Prometheus 应视为普通 Counter/Gauge reset</td></tr>
+                            <tr><td>Prometheus 报鉴权错误</td><td>监听器没有内置鉴权，应检查外围防火墙、安全组、代理或网络策略</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============ 3. 资源指标 ============ -->
+            <section class="concept-section" id="resource">
+                <h2><span class="section-num">3</span>沙箱资源指标：host_sandbox 与 guest_workload</h2>
+                <p>Cubelet 为运行中的 Cube 沙箱提供 CPU 与内存指标。一键安装默认启用，端点为 <code>http://&lt;cubelet-node&gt;:9998/v1/metrics/resource</code>。Cubelet 在后台定期采集所选统计视角的数据并缓存在内存中，Prometheus 抓取时只读缓存——<strong>抓取不会同步访问所有沙箱，也不会触发与沙箱数量成比例的运行时 RPC</strong>；但响应体大小与序列化开销仍随时间序列数量增长。</p>
+
+                <h3>3.1 使用前提</h3>
+                <ul>
+                    <li>仅面向<strong>运行中</strong>的 Cube 沙箱。暂停、终止或删除后，对应指标停止导出。</li>
+                    <li>当前面向<strong>单容器沙箱</strong>，主工作负载使用 <code>container_id == sandbox_id</code>，暂不提供多容器级别拆分。</li>
+                    <li><code>guest_workload</code> 要求沙箱内 <code>cube-agent</code> 支持资源指标能力版本 <code>1</code>，并使用 cgroup v2 统一层级。</li>
+                    <li><code>host_sandbox</code> 只依赖宿主机上的沙箱 cgroup，兼容范围更广，是<strong>默认采集与导出</strong>的视角。</li>
+                </ul>
+
+                <h3>3.2 两种统计视角</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>统计视角</th><th>统计范围</th><th>适用场景</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>host_sandbox</code></td><td>宿主机内核统计的沙箱 cgroup，包含 CubeShim、VMM 及其他宿主机侧资源占用</td><td>宿主机侧沙箱资源记账和基础运维观测</td></tr>
+                            <tr><td><code>guest_workload</code></td><td>沙箱内核统计的工作负载容器 cgroup，不含 <code>cube-agent</code> 等管理进程</td><td>用户代码的 CPU、内存使用率与内存限制观测</td></tr>
+                            <tr><td><code>all</code></td><td>同时导出以上两组指标</td><td>同时分析工作负载使用量与运行时开销</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="danger">
+                    <strong>两组指标不应直接相加。</strong>它们来自不同的资源记账范围。尤其 <code>host_sandbox</code> 的内存值是宿主机 cgroup 记账值，受共享快照页与写时复制（COW）影响，并不等于沙箱内看到的逻辑工作集或按比例分摊的物理内存。由于 VMM 开销、共享页与私有 COW 页等因素，两者的内存值通常<strong>不会相等</strong>。
+                </div>
+                <div class="tip">
+                    <strong>如何选择：</strong>只需节点侧基础观测时用默认的 <code>host_sandbox</code>；要判断沙箱内工作负载的资源使用率或内存压力时用 <code>guest_workload</code>；需要对比工作负载与运行时开销时用 <code>all</code>。
+                </div>
+
+                <h3>3.3 工作原理</h3>
+                <p>所有采集都由宿主机上的 Cubelet 主动发起，沙箱<strong>不会主动推送</strong>指标。两条路径的差异如下图所示：</p>
+                <div class="arch-diagram">
+                    <div class="arch-label">资源采集 · 两条独立路径</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute wide">Cubelet<small>resource-metrics 插件 · :9998/v1/metrics/resource</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 两种视角分别采集</div>
+                    <div class="arch-layer between">
+                        <div class="arch-box obs wide">host_sandbox<small>直接读宿主机 sandbox cgroup</small></div>
+                        <div class="arch-box compute wide">containerd Task.Stats<small>→ CubeShim</small></div>
+                    </div>
+                    <div class="arch-connector">guest_workload 继续下沉 ↓</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data wide">cube-agent StatsContainer<small>读取工作负载容器 cgroup</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 缓存最新样本</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary wide">Prometheus<small>抓取缓存，不进入 RPC 同步路径</small></div>
+                    </div>
+                </div>
+                <ul>
+                    <li><strong>host_sandbox</strong>：Cubelet 直接读宿主机沙箱 cgroup。不依赖模板中 <code>cube-agent</code> 版本，也不涉及沙箱内统计周期；沿用节点自身的 cgroup 层级，保留现有 cgroup v1/v2 兼容逻辑。</li>
+                    <li><strong>guest_workload</strong>：Cubelet → containerd <code>Task.Stats</code> → CubeShim → 沙箱内 <code>cube-agent StatsContainer</code> → 读取工作负载容器 cgroup。依赖：cgroup v2 统一层级、<code>cube-agent</code> 声明能力版本 <code>1</code>、CubeShim 能通过 <code>Task.Stats</code> 返回完整统计、Cubelet 能按沙箱生命周期维护统计周期与计数器基线。</li>
+                    <li>CubeShim 在启动沙箱时通过 <code>agent.unified_cgroup_hierarchy=true</code> 为 <code>cube-agent</code> 启用 cgroup v2 统一层级。旧模板的 <code>cube-agent</code> 可能不支持，这类沙箱不导出 <code>guest_workload</code>，但仍可导出 <code>host_sandbox</code>。</li>
+                </ul>
+
+                <h3>3.4 Cubelet 配置</h3>
+                <p>一键安装部署后配置文件位于 <code>/usr/local/services/cubetoolbox/Cubelet/config/config.toml</code>，资源指标插件默认配置如下：</p>
+                <span class="code-label">toml · cubelet resource-metrics</span>
+                <pre><code>[plugins."io.cubelet.internal.v1.resource-metrics"]
+  enabled = true
+  collection_interval = "5s"
+  request_timeout = "2s"
+  max_concurrent_requests = 8
+  stale_after = "15s"
+  export_scopes = ["host_sandbox"]</code></pre>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>配置项</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>enabled</code></td><td>是否启动资源指标采集，默认启用。设为 <code>false</code> 后端点仍返回 HTTP 200，但不导出沙箱资源指标</td></tr>
+                            <tr><td><code>collection_interval</code></td><td>Cubelet 更新内存缓存的目标间隔；决定 <code>Task.Stats</code> RPC 与宿主机 cgroup 的读取频率，与 Prometheus 抓取间隔<strong>相互独立</strong></td></tr>
+                            <tr><td><code>request_timeout</code></td><td>单次 <code>Task.Stats</code> 请求或宿主机 cgroup 读取的超时时间</td></tr>
+                            <tr><td><code>max_concurrent_requests</code></td><td>单个采集器的最大并发请求数；<code>guest_workload</code> 与 <code>host_sandbox</code> 各自独立</td></tr>
+                            <tr><td><code>stale_after</code></td><td>最近一次成功样本超过该时长后停止导出对应视角；<strong>不得小于</strong> <code>collection_interval</code>，并应为调度与短暂采集失败预留余量</td></tr>
+                            <tr><td><code>export_scopes</code></td><td>控制采集与导出视角，可设 <code>["host_sandbox"]</code>、<code>["guest_workload"]</code> 或 <code>["all"]</code>，默认 <code>["host_sandbox"]</code>；未选中的采集器不会启动</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>发生短暂采集失败时，Cubelet 会继续导出最近一次成功样本；只有样本年龄超过 <code>stale_after</code> 后，对应视角才停止导出。<strong>配置校验失败会导致 Cubelet 启动失败</strong>（例如 <code>stale_after</code> 小于 <code>collection_interval</code>，或 <code>export_scopes</code> 含不支持的值）。修改配置后重启：</p>
+                <pre><code>sudo systemctl restart cube-sandbox-cubelet.service</code></pre>
+
+                <h3>3.5 Prometheus 抓取配置</h3>
+                <p>建议为资源指标配置独立抓取任务，以便单独调整间隔、超时与 relabel，而不影响 Cubelet 通用指标：</p>
+                <span class="code-label">prometheus · resource</span>
+                <pre><code>scrape_configs:
+  - job_name: cubesandbox-resource
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metrics_path: /v1/metrics/resource
+    static_configs:
+      - targets:
+          - &lt;compute-node-ip&gt;:9998</code></pre>
+                <p>也可用 one-click 安装器的 <code>scrape-job</code> 模式生成该任务（只输出文件，不安装任何组件）：</p>
+                <pre><code><span class="c"># 当前节点，取自 CUBE_SANDBOX_NODE_IP 或默认路由</span>
+CUBE_OBSERVABILITY_CLUSTER_ID=cubesandbox \
+  ./deploy/one-click/observability/install.sh prometheus scrape-job
+
+<span class="c"># 或每行一个目标地址，'#' 开头为注释</span>
+CUBE_METRICS_NODE_LIST=./nodes.txt \
+CUBE_METRICS_PROM_CONFIG=./cubesandbox-prometheus-scrape.yml \
+  ./deploy/one-click/observability/install.sh prometheus scrape-job</code></pre>
+                <div class="note">
+                    资源指标端点<strong>最多同时处理两个抓取请求</strong>，超过上限返回 HTTP 503，以避免多个大响应同时占用 Cubelet 的 CPU 与内存。正常的单个 Prometheus 任务不会触发；若出现 503，应检查是否有多个 Prometheus 实例或手工请求并发抓取同一节点。
+                </div>
+
+                <h3>3.6 验证指标端点</h3>
+                <pre><code>sudo systemctl is-active cube-sandbox-cubelet.service
+/usr/local/services/cubetoolbox/Cubelet/bin/cubecli cubebox ls -a --no-trunc
+
+<span class="c"># 等待至少一个采集周期后执行</span>
+curl -fsS http://127.0.0.1:9998/v1/metrics/resource | \
+  grep '^cubesandbox_'</code></pre>
+                <p>默认配置会导出 <code>cubesandbox_host_sandbox_*</code> 指标。需要 <code>guest_workload</code> 时：将 <code>export_scopes</code> 设为 <code>["guest_workload"]</code> 或 <code>["all"]</code>；重启 Cubelet；确认沙箱内 <code>cube-agent</code> 兼容能力版本 <code>1</code>。端点返回 HTTP 200 但无逐沙箱序列<strong>不一定表示故障</strong>——节点上没有可采样的运行中沙箱、插件已禁用、或 Cubelet 尚未完成首次采样，都可能只剩节点聚合 Gauge 或空结果。</p>
+
+                <h3>3.7 基础指标族</h3>
+                <p>Cubelet <strong>仅导出 Counter 与 Gauge</strong> 基础指标；CPU 使用核数以及 CPU、内存使用率等派生值由 Prometheus 查询计算。CPU 与内存上限只在 cgroup 配置了有限值时导出——未配置上限时<strong>不会用 <code>0</code> 或极大值代替</strong>；当前内存用量不受此限制，只要视角可用就导出。</p>
+
+                <h4>节点聚合指标（启用 host_sandbox 时始终导出，含值为 0）</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>指标</th><th>类型</th><th>单位与说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cubesandbox_node_sandbox_count</code></td><td>Gauge</td><td>HostSandbox 采样器当前清单中的沙箱总数</td></tr>
+                            <tr><td><code>cubesandbox_node_sandbox_available_count</code></td><td>Gauge</td><td>状态为 <code>HostSandboxAvailable</code>、资源样本可用的沙箱数</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>采集系统可在抓取时附加 <code>cluster</code>、<code>node</code> 标签用于聚合。<code>available_count</code> 是资源采样可用性口径，<strong>不是</strong>完整业务状态的 <code>running</code> 实例数（受暂停、采集错误、<code>stale_after</code> 影响）；两者都不含沙箱 ID 列表，不能替代控制面或 CubeBox Store inventory。</p>
+
+                <h4>host_sandbox 指标（仅含 sandbox_id 标签）</h4>
+                <p>累计指标只包含当前沙箱占用宿主机 cgroup 期间的使用量，不包含可复用 cgroup 槽位中上一个沙箱的历史。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>指标</th><th>类型</th><th>单位与说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cubesandbox_host_sandbox_cpu_usage_seconds_total</code></td><td>Counter</td><td>沙箱在宿主机上累计使用的 CPU 秒数</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_cpu_user_seconds_total</code></td><td>Counter</td><td>累计用户态 CPU 秒数</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_cpu_system_seconds_total</code></td><td>Counter</td><td>累计内核态 CPU 秒数</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_cpu_throttled_seconds_total</code></td><td>Counter</td><td>累计受到 CPU 限流的秒数</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_cpu_periods_total</code></td><td>Counter</td><td>累计 CPU 调度周期数</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_cpu_throttled_periods_total</code></td><td>Counter</td><td>累计发生限流的 CPU 调度周期数</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_cpu_limit_cores</code></td><td>Gauge</td><td>宿主机沙箱 cgroup 的有限 CPU 上限（核数）</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_memory_current_bytes</code></td><td>Gauge</td><td>当前计入宿主机沙箱 cgroup 的内存字节数</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_memory_limit_bytes</code></td><td>Gauge</td><td>宿主机沙箱 cgroup 的有限内存上限（字节）</td></tr>
+                            <tr><td><code>cubesandbox_host_sandbox_memory_failures_total</code></td><td>Counter</td><td>当前沙箱占用该 cgroup 期间发生的内存限制失败次数</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4>guest_workload 指标（标签 sandbox_id、container_id）</h4>
+                <p>累计指标以当前统计周期（metrics epoch）为窗口，不包含模板、克隆或回滚继承的历史。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>指标</th><th>类型</th><th>单位与说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cubesandbox_guest_workload_cpu_usage_seconds_total</code></td><td>Counter</td><td>累计使用的 CPU 秒数</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_cpu_user_seconds_total</code></td><td>Counter</td><td>累计用户态 CPU 秒数</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_cpu_system_seconds_total</code></td><td>Counter</td><td>累计内核态 CPU 秒数</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_cpu_throttled_seconds_total</code></td><td>Counter</td><td>累计受到 CPU 限流的秒数</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_cpu_periods_total</code></td><td>Counter</td><td>累计 CPU 调度周期数</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_cpu_throttled_periods_total</code></td><td>Counter</td><td>累计发生限流的 CPU 调度周期数</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_cpu_limit_cores</code></td><td>Gauge</td><td>配置的有限 CPU 上限（核数）</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_memory_current_bytes</code></td><td>Gauge</td><td>当前计入工作负载 cgroup 的内存字节数</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_memory_limit_bytes</code></td><td>Gauge</td><td>配置的有限内存上限（字节）</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_memory_failures_total</code></td><td>Counter</td><td>当前统计周期内的内存限制失败次数</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_metrics_epoch</code></td><td>Gauge</td><td>当前统计周期序号；恢复运行后可能重复，应使用开始时间作为窗口身份</td></tr>
+                            <tr><td><code>cubesandbox_guest_workload_metrics_epoch_start_time_seconds</code></td><td>Gauge</td><td>当前统计周期开始时间（Unix 时间戳秒）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>3.8 PromQL 示例</h3>
+                <span class="code-label">promql · 宿主机侧 CPU 使用核数 / 使用率</span>
+                <pre><code>rate(cubesandbox_host_sandbox_cpu_usage_seconds_total[5m])
+
+100 *
+rate(cubesandbox_host_sandbox_cpu_usage_seconds_total[5m])
+/
+cubesandbox_host_sandbox_cpu_limit_cores</code></pre>
+                <span class="code-label">promql · 宿主机侧内存记账值 / 使用率</span>
+                <pre><code>cubesandbox_host_sandbox_memory_current_bytes
+
+100 *
+cubesandbox_host_sandbox_memory_current_bytes
+/
+cubesandbox_host_sandbox_memory_limit_bytes</code></pre>
+                <span class="code-label">promql · 工作负载 CPU 使用核数 / 使用率</span>
+                <pre><code>rate(cubesandbox_guest_workload_cpu_usage_seconds_total[5m])
+
+100 *
+rate(cubesandbox_guest_workload_cpu_usage_seconds_total[5m])
+/
+cubesandbox_guest_workload_cpu_limit_cores</code></pre>
+                <span class="code-label">promql · 工作负载内存使用率 / 内存限制失败次数</span>
+                <pre><code>100 *
+cubesandbox_guest_workload_memory_current_bytes
+/
+cubesandbox_guest_workload_memory_limit_bytes
+
+increase(cubesandbox_guest_workload_memory_failures_total[5m])</code></pre>
+                <span class="code-label">promql · 识别统计周期变化（回滚 / 暂停恢复等窗口切换）</span>
+                <pre><code>changes(cubesandbox_guest_workload_metrics_epoch_start_time_seconds[5m])</code></pre>
+                <div class="info">
+                    <strong>分母缺失即无法算使用率：</strong>如果 cgroup 未配置有限 CPU/内存上限，对应的 <code>*_limit_cores</code> / <code>*_limit_bytes</code> 不会导出，此时仍可查「实际使用核数/当前内存」，但<strong>无法</strong>计算具有明确分母的使用率。<code>rate(...)=0.5</code> 表示窗口内平均约用了半个 CPU 核。
+                </div>
+
+                <h3>3.9 生命周期语义</h3>
+                <h4>为什么需要统计周期（epoch）</h4>
+                <p>CPU 使用时间与内存限制失败次数来自 cgroup 累计计数器。制作模板/快照时这些计数器会随沙箱状态一起保存；从模板或快照创建新沙箱会继承已有计数；执行回滚时原始计数器还可能<strong>退回到快照时的值</strong>。若直接按 <code>sandbox_id</code> 导出原始计数，会出现：</p>
+                <ul>
+                    <li>模板制作阶段产生的 CPU 与内存限制失败历史被计入新沙箱；</li>
+                    <li>回滚后同一指标出现无法区分原因的数值倒退。</li>
+                </ul>
+                <p>为此，Cubelet 为每个新的 <code>guest_workload</code> 状态建立统计周期，并把<strong>首次成功采样作为基线</strong>：</p>
+                <pre><code>导出的累计值 = 当前原始值 - 当前统计周期基线</code></pre>
+                <p>这样可排除继承历史，并将回滚后的数据表示为新的统计窗口。<strong>当前内存用量是瞬时值，不做基线扣减。</strong></p>
+
+                <h4>guest_workload 生命周期</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>生命周期事件</th><th>指标行为</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>新建沙箱、从模板/快照创建、克隆、重建工作负载</td><td>创建新统计周期，首次成功采样排除继承的累计历史</td></tr>
+                            <tr><td>创建快照或提交模板</td><td>保持当前统计周期</td></tr>
+                            <tr><td>回滚</td><td>回滚期间停止导出；完成后创建新周期，累计指标从 <code>0</code> 开始。若运行时恢复请求发出后失败，新周期保持准备状态，<code>guest_workload</code> 继续不可用，直到后续回滚成功或删除并重建沙箱</td></tr>
+                            <tr><td>暂停</td><td>保持当前统计周期，但停止导出指标，而不是导出 <code>0</code></td></tr>
+                            <tr><td>恢复运行</td><td>创建新周期，累计指标从 <code>0</code> 开始；在首次成功采样建立新基线前保持不可用</td></tr>
+                            <tr><td>删除</td><td>删除缓存与对应指标序列</td></tr>
+                            <tr><td>Cubelet 重启</td><td>从持久化状态恢复统计周期与基线，不重新计算已有窗口</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="warning">
+                    <strong>累计指标只在一个统计周期内有效。</strong>从暂停恢复时即使还原了沙箱内存，也会创建新周期，因此这些计数<strong>不是沙箱生命周期总量</strong>。统计周期序号在恢复后可能回退（如从 2 回退到 1），应使用 <code>cubesandbox_guest_workload_metrics_epoch_start_time_seconds</code> 识别窗口，<strong>不要按序号排序</strong>。Prometheus 不理解 epoch 语义，只有累计值实际下降时 <code>rate()</code>/<code>increase()</code> 才按计数器重置处理，查询应覆盖所需时间范围并用 epoch 指标标注重置点。当前版本不导出按统计周期精确计算的内存峰值。
+                </div>
+
+                <h4>host_sandbox 生命周期</h4>
+                <p><code>host_sandbox</code> 不使用统计周期，而是按宿主机 cgroup 的分配关系统计：</p>
+                <ul>
+                    <li>新沙箱被分配到可复用的宿主机 cgroup 池槽位时，Cubelet 在<strong>挂载沙箱进程前</strong>读取并持久化本次分配的基线。升级 Cubelet 时已存在的沙箱可能没有该持久化字段，会在升级后首次成功采样中建立兼容基线。</li>
+                    <li>Cubelet 会在挂载进程前重试瞬时的分配计数器读取失败；若多次仍失败，沙箱仍正常创建，但该沙箱的 <code>host_sandbox</code> 保持不可用（不导出缺失初始使用量的累计窗口）。修复持续存在的 cgroup 读取问题后，<strong>需要重新创建沙箱</strong>。</li>
+                    <li>新沙箱不会继承同一槽位中上一个沙箱的 CPU 或内存限制失败历史。</li>
+                    <li>创建快照与执行回滚<strong>不会</strong>重置基线（不更换宿主机沙箱进程，也不改变 cgroup 分配关系）。</li>
+                    <li>暂停时停止导出，恢复运行后<strong>继续此前的累计值</strong>；删除沙箱后移除对应指标序列。</li>
+                </ul>
+                <div class="tip">
+                    <strong>采集与抓取调优：</strong><code>collection_interval</code> 控制 <code>Task.Stats</code> RPC 与宿主机 cgroup 读取频率，Prometheus 的 <code>scrape_interval</code> 控制 HTTP 抓取与样本写入频率。节点沙箱较多或抓取间隔较长时，可同时增大 <code>collection_interval</code> 与 <code>stale_after</code>。端点只保存最新样本、不保存历史，两次抓取间的短时内存峰值不会被保留；CPU 速率查询窗口内应包含多个成功写入的样本。两个间隔都<strong>不会</strong>减少活跃时间序列数（<code>export_scopes = ["all"]</code> 时单容器沙箱最多 22 条序列，节点另固定 2 条聚合 Gauge）。
+                </div>
+
+                <h3>3.10 升级旧模板与快照</h3>
+                <p>快照模板会捕获沙箱内的进程与内存状态。仅升级节点上的 Cubelet、CubeShim 或沙箱虚拟机镜像文件，<strong>不会替换旧模板内存快照中的 <code>cube-agent</code></strong>。旧模板的 <code>cube-agent</code> 可能不具备 cgroup v2 统计语义，也不会声明能力版本 <code>1</code>，这类沙箱不导出 <code>guest_workload</code>，但仍可导出 <code>host_sandbox</code>。</p>
+                <ul>
+                    <li><strong>镜像构建的模板</strong>：执行模板 <code>redo</code>，它用节点当前的沙箱虚拟机镜像与 <code>cube-agent</code> 为同一模板 ID 重做副本，完成后新建沙箱即可导出 <code>guest_workload</code>。节点升级后，Dashboard 标「需重建」的模板要先点「重建模板」再建沙箱；其它模板可直接创建。</li>
+                    <li><strong>用户快照与已有沙箱</strong>：从运行中沙箱创建的用户快照，应先用兼容的新模板创建沙箱再重做快照；已运行或暂停的旧沙箱保留内存中的旧 <code>cube-agent</code>，需删除并重建才能完成升级。</li>
+                    <li>运行时 CubeShim 还会校验 <code>StatsContainer</code> 返回的能力版本，避免把旧版本 <code>guest_workload</code> 数据识别为有效指标。</li>
+                </ul>
+
+                <h3>3.11 故障排查</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>现象</th><th>常见原因与处理方式</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>无法连接 <code>9998</code></td><td>确认 <code>cube-sandbox-cubelet.service</code> 正常运行，并检查监听地址、防火墙与安全组</td></tr>
+                            <tr><td>HTTP 200 但无逐沙箱 <code>cubesandbox_*</code></td><td>确认插件 <code>enabled = true</code>、存在状态为 <code>Up</code> 的沙箱，并等待至少一个 <code>collection_interval</code>；暂停沙箱不导出逐沙箱序列，启用 <code>host_sandbox</code> 时应仍可见两个节点聚合 Gauge</td></tr>
+                            <tr><td>配置了 <code>guest_workload</code> 但无对应指标</td><td>确认 <code>export_scopes</code> 为 <code>["guest_workload"]</code> 或 <code>["all"]</code>；若配置正确，通常是 <code>cube-agent</code> 未声明能力版本 <code>1</code>，镜像模板可执行 <code>redo</code>；否则检查 Cubelet 业务日志中的 <code>Task.Stats</code> 错误</td></tr>
+                            <tr><td>原有指标突然消失</td><td>沙箱可能已暂停或删除；或连续采集失败后样本年龄超过 <code>stale_after</code></td></tr>
+                            <tr><td>新沙箱没有 <code>host_sandbox</code> 指标</td><td>Cubelet 可能在创建阶段已耗尽宿主机 cgroup 分配基线的读取尝试；检查日志中的 <code>capture host metrics baseline</code>，修复后重新创建沙箱</td></tr>
+                            <tr><td>抓取返回 HTTP 503</td><td>同一节点已有两个资源指标抓取在处理，检查是否有重复抓取任务或并发手工请求</td></tr>
+                            <tr><td>CPU 或内存上限指标缺失</td><td>对应 cgroup 未配置有限上限，属预期行为；CPU 累计使用量与当前内存用量仍可正常导出</td></tr>
+                            <tr><td>指标更新频率不符合预期</td><td><code>collection_interval</code> 控制 Cubelet 采集频率，<code>scrape_interval</code> 控制样本持久化频率，应分别检查两处配置</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code><span class="c"># Cubelet 启动失败先看 systemd；服务运行但采集异常看业务日志</span>
+sudo journalctl -u cube-sandbox-cubelet.service -n 200 --no-pager
+sudo tail -200 /data/log/Cubelet/Cubelet-req.log</code></pre>
+            </section>
+
+            <!-- ============ 4. 网络指标 ============ -->
+            <section class="concept-section" id="network">
+                <h2><span class="section-num">4</span>沙箱网络指标：流量 / Session / SNAT</h2>
+
+                <h3>4.1 背景与设计目标</h3>
+                <p>沙箱网络由节点上的 CubeVS 数据面统一转发。CPU、内存等资源指标能说明沙箱消耗了多少计算资源，却<strong>无法</strong>回答这些网络问题：</p>
+                <ul>
+                    <li>某沙箱是否实际产生了 ingress/egress 流量，当前吞吐和报文量是多少；</li>
+                    <li>流量是在 CubeVS 中正常转发，还是因策略、NAT、报文改写被丢弃；</li>
+                    <li>每个沙箱的各类 session 数量；SNAT IP 的 <code>30000-65535</code> 源端口范围是否正在承受压力；</li>
+                    <li>是否已出现真实的 SNAT 源端口分配失败。</li>
+                </ul>
+                <p>因此网络指标的直接目标有三个：按 <code>sandbox_ip</code> 提供 ingress/egress 报文、字节、丢包与 SNAT 分配失败的 Counter；按 <code>sandbox_ip</code> 与 <code>packet_class</code> 提供存活 session 数；按 <code>snat_ip</code> 提供物理源端口占用量与容量 Gauge。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>设计目标</th><th>做法</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>无需 guest 配合归属流量</td><td>eBPF 数据面把转发与丢包归属到具体沙箱，不依赖 guest VM</td></tr>
+                            <tr><td>指标身份稳定</td><td>用户态维护 map entry 所有权，使指标身份与 TAP、IP 所有权严格一致</td></tr>
+                            <tr><td>抓取零侵入</td><td>Prometheus 抓取不进入报文处理路径，也不触发 guest RPC</td></tr>
+                            <tr><td>受控基数</td><td>只用沙箱 IP、固定 packet class 集合与 SNAT IP 控制标签基数，不引入目的地址、端口、协议、单 session、策略规则等高基数维度</td></tr>
+                            <tr><td>复用扫描</td><td>复用已有 session reaper 结果计算 session 数与 SNAT 占用，不增加第二次完整 session map 扫描</td></tr>
+                            <tr><td>局部失败可观测</td><td>任一来源暂不可用时，仍保留另一来源的可观测性</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>4.2 指标范围：纳入与不纳入</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>来源</th><th>标识维度</th><th>数据</th><th>更新方式</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>沙箱流量</td><td><code>sandbox_ip</code></td><td>转发和丢弃的报文/帧计数，以及 SNAT 分配失败次数</td><td>eBPF 报文路径中更新</td></tr>
+                            <tr><td>Session 使用量</td><td><code>sandbox_ip</code>、<code>packet_class</code></td><td>按沙箱与类型统计的存活 egress session</td><td>用户态 session reaper 定期刷新</td></tr>
+                            <tr><td>SNAT 分配</td><td><code>snat_ip</code></td><td>不同物理源端口占用量</td><td>用户态 session reaper 定期刷新</td></tr>
+                            <tr><td>Exporter 健康</td><td><code>source</code></td><td>上述三个来源是否可读</td><td>每次抓取时分别判断</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><strong>纳入统计</strong>的三个 CubeVS 边界上的 IPv4 流量（方向以沙箱为参照）：</p>
+                <ul>
+                    <li><code>from_cube</code>（TAP ingress）：沙箱通过普通 SNAT、端口映射、DNS 处理、ICMP 或重定向到 CubeEgress 的出站流量；</li>
+                    <li><code>from_world</code>（节点主网卡 ingress 或 cube-router egress）：反向 NAT 与端口映射后送往沙箱的流量；</li>
+                    <li><code>from_envoy</code>（<code>cube-dev</code> egress）：宿主机或 CubeEgress 送往沙箱的流量。该程序名为兼容历史命名保留，当前 CubeEgress 基于 OpenResty，并非 Envoy。</li>
+                </ul>
+                <div class="warning">
+                    <strong>明确不纳入：</strong>应用 payload 字节、HTTP 请求数/Method/状态码/L7 判决；按目的地址、协议、端口、session 或策略规则拆分；ARP 与非 IPv4 流量；到达 CubeVS hook 前已丢失的报文；egress redirect 之后的丢包（宿主机路由、NIC、underlay、远端）；CubeEgress 应用层拒绝（重定向即记为 egress forward）；无法归属到已注册沙箱的流量；每沙箱 SNAT Gauge（SNAT Gauge 按 SNAT IP 聚合）。字节计数用计数位置上的 <code>skb-&gt;len</code>（TC 程序看到的帧长度，非 TCP/UDP payload），重传报文会被再次计数。
+                </div>
+
+                <h3>4.3 架构设计</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">网络指标 · eBPF 数据面 + 用户态快照 + 抓取</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">沙箱 TAP<small>from_cube</small></div>
+                        <div class="arch-box network">主网卡 / cube-router<small>from_world</small></div>
+                        <div class="arch-box network">cube-dev<small>from_envoy</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 原子累加计数器</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data wide">sandbox_metrics map<small>key: 沙箱 IPv4 · 9 个 uint64 计数器</small></div>
+                    </div>
+                    <div class="arch-connector">↑ ensure / reset / delete（TAP 生命周期）　　↓ 每 5 秒扫描</div>
+                    <div class="arch-layer between">
+                        <div class="arch-box compute wide">用户态 entry 生命周期</div>
+                        <div class="arch-box compute wide">session reaper<small>发布 SNAT 使用量快照</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 抓取时读取 map 与快照</div>
+                    <div class="arch-layer">
+                        <div class="arch-box obs wide">Collector → /v1/metrics/network<small>Cubelet 独立 registry</small></div>
+                    </div>
+                    <div class="arch-connector">↓</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary">Prometheus</div>
+                    </div>
+                </div>
+
+                <h4>数据面计数器</h4>
+                <ul>
+                    <li><code>sandbox_metrics</code> 是 pinned <code>BPF_MAP_TYPE_HASH</code>：key 为网络字节序的沙箱 IPv4 地址，value 为 9 个 <code>uint64</code> 计数器；最大 entry 数 <code>8192</code>；分配方式 <code>BPF_F_NO_PREALLOC</code>。</li>
+                    <li>eBPF helper <strong>只做 lookup</strong>；key 不存在时立即返回，<strong>不会</strong>在内核态创建 entry。已存在的 value 通过原子 <code>__sync_fetch_and_add</code> 更新，避免不同 CPU 并发处理同一沙箱报文时丢失增量。</li>
+                    <li>entry 所有权有意放在用户态：若允许残留报文在数据面自动创建 entry，已删除沙箱的序列可能被重新创建，还可能与 IP 复用竞争并长期保留不属于活跃沙箱的 key。报文侧成本被限制为一次有界 map lookup 加若干原子累加。</li>
+                </ul>
+
+                <h4>用户态 entry 生命周期</h4>
+                <p>entry 的所有者是 Cubelet 内置 network runtime 与 CubeVS Go 控制面；guest 不会创建、删除或发布 entry，eBPF 数据面也不会在 key 缺失时自动创建。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>场景</th><th>用户态动作</th><th>Counter 结果</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>新建沙箱或分配 IP</td><td><code>UpsertTAPDeviceMetadata</code> 在写 metadata 前尝试重置 entry</td><td>更新成功时从零开始；失败只记告警、不阻塞注册，可能保留旧 entry</td></tr>
+                            <tr><td>Metadata 修复、幂等 upsert、legacy TAP 替换</td><td>同样的重置</td><td>成功时 Counter 清零；失败时保持原有 map 状态</td></tr>
+                            <tr><td>网络策略更新</td><td>只更新策略 map，不操作 <code>sandbox_metrics</code></td><td>Counter 连续累加</td></tr>
+                            <tr><td>同一 TAP/IP 的沙箱回滚</td><td>只更新 TAP/session 代际</td><td>Counter 不随快照回滚或清零</td></tr>
+                            <tr><td>CubeVS 初始化</td><td>复用已有 pinned map，<code>Init</code> 不删除、不重建</td><td>map 里已有 Counter 在进程重启后仍保留</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>新 TAP 注册顺序：① <code>UpsertTAPDeviceMetadata</code> 调用 <code>EnsureSandboxTrafficMetrics</code>，以 <code>UpdateAny</code> 写全零 entry；② 写入 <code>ifindex_to_mvmmeta</code> 与 <code>mvmip_to_ifindex</code>；③ 应用该沙箱网络策略；④ ensure 失败时记告警并继续，metadata 或策略写入失败时返回错误（策略失败还会触发已写状态清理）。在发布 metadata 前写全零 value，通常可避免新沙箱继承同一 IP 上一个使用者的累计值。</p>
+                <div class="info">
+                    <strong>Counter 在 CubeVS 初始化后仍保留。</strong><code>Init</code> 不重建 <code>sandbox_metrics</code>，pinned map 里的 Counter 跨进程重启保留。启动恢复随后为每个被恢复的 TAP ensure entry：成功则把该沙箱清零，失败则继续使用原 Counter。仍然没有时间序列表示这个 key 不存在，<strong>不能解释为 Counter 为零或沙箱没有网络流量</strong>。<code>cubesandbox_network_exporter_up{source="sandbox"} == 1</code> 只表示本次抓取成功打开并遍历了 map，不保证每个活跃沙箱都存在 entry；判断覆盖完整性需把活跃 TAP/IP 列表与 Prometheus 的 <code>sandbox_ip</code> label 集合对比。
+                </div>
+
+                <h4>删除时机</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>场景</th><th>用户态动作</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>删除沙箱、释放 TAP、清理 stale TAP</td><td>先清理策略，再调用 <code>DeleteTAPDeviceMetadata</code>，同时删除身份 metadata 与该 IP 的 metrics entry</td></tr>
+                            <tr><td>删除不存在的 entry</td><td>按幂等成功处理</td></tr>
+                            <tr><td>metrics entry 删除失败</td><td>记录告警，但不阻塞 TAP、IP 与端口回收</td></tr>
+                            <tr><td>IP 被后续沙箱复用</td><td>发布新 metadata 前，<code>EnsureSandboxTrafficMetrics</code> 用全零 value 覆盖 entry</td></tr>
+                            <tr><td>CubeVS 初始化</td><td>pinned map 保持原样，恢复过程不删除未访问到的 entry</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>4.4 Session 与 SNAT 快照</h3>
+                <p>Session 与 SNAT Gauge 复用已有 session reaper 的扫描结果，不会在每次抓取时重扫 session map：</p>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>①</b> reaper 每 5 秒扫描一次 <code>egress_sessions</code>，用安全延迟删除遍历移除过期 session。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>②</b> 所有存活 session 按 <code>(sandbox_ip, packet_class)</code> 统计；只有普通 SNAT 与 hairpin session 纳入物理 SNAT 端口占用。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>③</b> 使用 <code>(snat_ip, source_port)</code> 对源端口去重。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>④</b> 完成整个扫描后，原子发布一份不可变快照供抓取读取。</div>
+                </div>
+                <div class="warning">
+                    <strong>快照会失效。</strong>任意一次 5 秒扫描失败时，上一份快照立即失效：下一次抓取不再导出 Session 与 SNAT Gauge，并返回 <code>exporter_up{source="session"} == 0</code> 与 <code>exporter_up{source="snat"} == 0</code>，而不是展示陈旧状态；超过 10 秒的快照也会被判过期并拒绝导出。后续扫描成功后指标恢复。源端口范围 <code>30000</code> 到 <code>65535</code>（含两端，共 <code>35536</code> 个）；同一源端口可在不同目的地址/协议 tuple 间复用，所以 session 数与不同物理源端口数是两个不同指标。
+                </div>
+
+                <h3>4.5 抓取路径与局部失败</h3>
+                <p>Cubelet handler 使用独立 Prometheus registry。每次抓取 collector 依次：① 遍历并排序 <code>sandbox_metrics</code>；② 读取最新 session/SNAT 快照与已配置的 <code>snat_iplist</code>；③ 对同一 SNAT IP 的重复 allocator shard 去重；④ 生成 Prometheus 常量样本；⑤ 分别导出三个来源的健康状态。</p>
+                <div class="success">
+                    <strong>三个来源相互独立。</strong>即使 sandbox map 读取失败，只要 session/SNAT 快照健康，对应指标仍会正常导出，仅 <code>exporter_up{source="sandbox"}</code> 变为 <code>0</code>。抓取不会扫描运行中沙箱、不会调用 CubeShim 或 guest、也不会向数据面增加报文；sandbox map 遍历成本与活跃 entry 数成正比，session map 扫描由后台 reaper 承担。
+                </div>
+
+                <h3>4.6 生命周期语义</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>生命周期事件</th><th>沙箱流量计数器</th><th>Session / SNAT Gauge</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>新建沙箱 / 新 IP 分配</td><td>ensure 成功时 Counter 清零；失败不阻塞注册并保持原有 map 状态</td><td>建立 session 后由下一次 reaper 快照反映</td></tr>
+                            <tr><td>metadata upsert 或修复</td><td>ensure 成功时清零；失败时保持原有 map 状态</td><td>下一次快照前保持不变</td></tr>
+                            <tr><td>网络策略更新</td><td>计数继续；被新策略拒绝的报文进入 drop 计数</td><td>被淘汰的 session 在后续快照中消失</td></tr>
+                            <tr><td>保持同一网络分配的沙箱回滚</td><td>计数继续，不跟随快照回滚</td><td>陈旧 session 被删除，后续快照收敛</td></tr>
+                            <tr><td>删除沙箱</td><td>TAP 清理后移除时间序列</td><td>session 删除或回收后消失</td></tr>
+                            <tr><td>沙箱 IP 复用</td><td>注册前用全零 value 覆盖 entry；失败时残留 Counter 可能进入新生命周期</td><td>session 使用独立生命周期</td></tr>
+                            <tr><td>CubeVS/Cubelet 网络初始化</td><td>pinned map 与 Counter 在 <code>Init</code> 后保留；恢复 ensure 成功时清零，失败时留下原 Counter</td><td>进程内 cache 初始为空，再由 reaper 发布</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>这些 Counter 的范围是 pinned <code>sandbox_metrics</code> 与当前沙箱 IP 分配，<strong>CubeVS 进程重启本身不会清零</strong>。Prometheus 应把一次成功的恢复 ensure、metadata upsert 或 IP 重新分配视为 Counter reset 边界。label 使用 <code>sandbox_ip</code> 而非 <code>sandbox_id</code>，因为数据面稳定且随时可用的所有权 key 是沙箱 IPv4；需要沙箱 ID 时，应在该端点之外与控制面 inventory 做关联。</p>
+
+                <h3>4.7 指标列表</h3>
+                <h4>沙箱流量 Counter（每个活跃 sandbox_ip entry 导出 9 条序列）</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>指标</th><th>类型</th><th>单位与含义</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cubesandbox_network_sandbox_ingress_packets_total</code></td><td>Counter</td><td>CubeVS 向沙箱转发的 IPv4 报文数</td></tr>
+                            <tr><td><code>cubesandbox_network_sandbox_ingress_bytes_total</code></td><td>Counter</td><td>上述 ingress 转发报文的 <code>skb-&gt;len</code> 字节数</td></tr>
+                            <tr><td><code>cubesandbox_network_sandbox_ingress_drop_packets_total</code></td><td>Counter</td><td>可归属到沙箱但被 CubeVS 拒绝或改写失败的 ingress 报文数</td></tr>
+                            <tr><td><code>cubesandbox_network_sandbox_ingress_drop_bytes_total</code></td><td>Counter</td><td>上述 ingress 丢弃报文的 <code>skb-&gt;len</code> 字节数</td></tr>
+                            <tr><td><code>cubesandbox_network_sandbox_egress_packets_total</code></td><td>Counter</td><td>CubeVS 从沙箱转发的 IPv4 报文数</td></tr>
+                            <tr><td><code>cubesandbox_network_sandbox_egress_bytes_total</code></td><td>Counter</td><td>上述 egress 转发报文的 <code>skb-&gt;len</code> 字节数</td></tr>
+                            <tr><td><code>cubesandbox_network_sandbox_egress_drop_packets_total</code></td><td>Counter</td><td>被 CubeVS 拒绝或处理失败的沙箱 egress 报文数</td></tr>
+                            <tr><td><code>cubesandbox_network_sandbox_egress_drop_bytes_total</code></td><td>Counter</td><td>上述 egress 丢弃报文的 <code>skb-&gt;len</code> 字节数</td></tr>
+                            <tr><td><code>cubesandbox_network_sandbox_snat_alloc_failures_total</code></td><td>Counter</td><td>该沙箱普通 SNAT 源端口分配失败次数</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>SNAT 分配失败会同时导致一次 egress drop，它是 egress drop 中按原因细分的<strong>子集</strong>，<strong>不能</strong>与 drop Counter 相加。</p>
+
+                <h4>Session Gauge（每活跃 (sandbox_ip, packet_class) 一条）</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>指标</th><th>类型</th><th>单位与含义</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cubesandbox_network_sessions_in_use{sandbox_ip,packet_class}</code></td><td>Gauge</td><td>该沙箱对应类型（<code>snat</code>、<code>l7_proxy</code>、<code>port_mapping</code>、<code>hairpin</code>）的存活 session 数</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4>SNAT Gauge（每个逻辑 snat_ip 导出 2 条）与 Exporter 健康</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>指标 / 时间序列</th><th>类型</th><th>单位与含义</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cubesandbox_network_snat_ports_capacity</code></td><td>Gauge</td><td>每个目的地址/协议 tuple 可用的源端口范围大小，固定为 <code>35536</code></td></tr>
+                            <tr><td><code>cubesandbox_network_snat_ports_unused</code></td><td>Gauge</td><td>该 SNAT IP 上未被任何存活普通 SNAT 或 hairpin session 使用过的源端口号数量</td></tr>
+                            <tr><td><code>cubesandbox_network_exporter_up{source="sandbox"}</code></td><td>Gauge</td><td>本次抓取是否成功读取 pinned sandbox Counter map</td></tr>
+                            <tr><td><code>cubesandbox_network_exporter_up{source="session"}</code></td><td>Gauge</td><td>本次抓取是否成功读取新鲜的每沙箱 session 快照</td></tr>
+                            <tr><td><code>cubesandbox_network_exporter_up{source="snat"}</code></td><td>Gauge</td><td>本次抓取是否成功读取新鲜的 SNAT 快照与 SNAT IP 配置</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><code>snat_ports_unused</code> 是整个节点 SNAT IP 的占用视角，<strong>不是</strong>某个目的地址的精确分配余量（同一源端口号可在不同目的地址/协议 tuple 间复用）。判断真实端口耗尽应优先观察 <code>cubesandbox_network_sandbox_snat_alloc_failures_total</code> 是否出现正增长。</p>
+
+                <h3>4.8 基数与性能</h3>
+                <p>每个 sandbox map entry 导出 9 条流量序列与最多 4 条 session 序列。map 硬上限 <code>8192</code>，因此单节点最多 <code>106496</code> 条；最多 4 个逻辑 SNAT IP 额外产生 8 条 Gauge，再加 3 条 exporter 健康指标。实际部署沙箱上限通常更低，但 Prometheus 仍需处理所有导出的指标族；若不需要同时保留 packet、byte 与 drop，可用 <code>metric_relabel_configs</code> 丢弃。该端点<strong>最多同时处理两个抓取请求</strong>，更多并发返回 HTTP 503，以避免多个大响应同时消耗过多 Cubelet CPU 与内存。</p>
+
+                <h3>4.9 Prometheus 配置</h3>
+                <span class="code-label">prometheus · network</span>
+                <pre><code>scrape_configs:
+  - job_name: cubesandbox-network
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metrics_path: /v1/metrics/network
+    static_configs:
+      - targets:
+          - &lt;compute-node-ip&gt;:9998</code></pre>
+                <p>该端点独立于 <code>/v1/metrics</code> 与 <code>/v1/metrics/resource</code>；网络指标不依赖 guest agent，也不发起 guest RPC，全部来自节点本地 CubeVS 状态。将 target 替换为各 Cubelet 节点的可信管理网络地址，仅在可信管理网络开放 <code>9998</code>。验证：</p>
+                <pre><code>curl -fsS http://127.0.0.1:9998/v1/metrics/network | \
+  grep '^cubesandbox_network_'</code></pre>
+
+                <h3>4.10 PromQL 示例</h3>
+                <span class="code-label">promql · 沙箱 egress 吞吐量（bit/s）</span>
+                <pre><code>8 * rate(cubesandbox_network_sandbox_egress_bytes_total[5m])</code></pre>
+                <span class="code-label">promql · 沙箱 egress 丢包比例</span>
+                <pre><code>rate(cubesandbox_network_sandbox_egress_drop_packets_total[5m])
+/
+clamp_min(
+  rate(cubesandbox_network_sandbox_egress_packets_total[5m])
+  +
+  rate(cubesandbox_network_sandbox_egress_drop_packets_total[5m]),
+  1e-9
+)</code></pre>
+                <span class="code-label">promql · 真实发生的 SNAT 分配失败</span>
+                <pre><code>sum by (instance, sandbox_ip) (
+  rate(cubesandbox_network_sandbox_snat_alloc_failures_total[5m])
+) &gt; 0</code></pre>
+                <span class="code-label">promql · SNAT 源端口占用率</span>
+                <pre><code>1 -
+cubesandbox_network_snat_ports_unused
+/
+cubesandbox_network_snat_ports_capacity</code></pre>
+                <p>该比例表示节点 SNAT IP 上物理端口号的整体占用情况，<strong>不是</strong>特定目的地址的精确分配余量。</p>
+
+                <h3>4.11 故障排查</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>现象</th><th>常见原因与处理方式</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>无法连接 <code>9998</code></td><td>检查 <code>cube-sandbox-cubelet.service</code>、监听地址、防火墙与安全组</td></tr>
+                            <tr><td>HTTP 503</td><td>已有两个网络指标抓取正在执行，检查重复的 Prometheus job 或并发手工请求</td></tr>
+                            <tr><td><code>exporter_up{source="sandbox"}</code> 为 <code>0</code></td><td>检查 Cubelet 日志中 pinned <code>sandbox_metrics</code> map 打开或遍历错误</td></tr>
+                            <tr><td><code>exporter_up{source="snat"}</code> 为 <code>0</code></td><td>确认 CubeVS session reaper 正常运行；不存在或超过 10 秒的快照会被拒绝</td></tr>
+                            <tr><td>两个健康指标均为 <code>1</code> 但无 sandbox 序列</td><td>map 可读但为空，常见于 CubeVS 重启后未补建 entry 或 ensure 失败；空表示数据缺失，<strong>不表示零流量</strong></td></tr>
+                            <tr><td>运行中沙箱存在全零序列</td><td>确认流量确实经过 CubeVS 并检查 pinned map；ARP、无关宿主机流量与 CubeVS 外部丢包不会累加</td></tr>
+                            <tr><td>运行中沙箱没有流量序列</td><td>该沙箱网络指标不可用，检查 metrics ensure 告警；eBPF 数据面有意不创建缺失 entry</td></tr>
+                            <tr><td>已删除沙箱仍然存在</td><td>检查 Cubelet 清理告警；metrics 删除采用 best-effort，后续成功删除或 CubeVS 重启会移除，后续 ensure 会为新 owner 清零</td></tr>
+                            <tr><td>SNAT 占用率较高但没有分配失败</td><td>可能正常（源端口可跨 tuple 复用），应对分配失败告警</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code>sudo bpftool map dump pinned /sys/fs/bpf/sandbox_metrics
+sudo tail -200 /data/log/Cubelet/Cubelet-req.log</code></pre>
+            </section>
+
+            <!-- ============ 5. 对比 ============ -->
+            <section class="concept-section" id="comparison">
+                <h2><span class="section-num">5</span>三类指标对比速查</h2>
+                <p>同一张表横向对比三类指标：类型、标签、语义、典型 PromQL 与常见问题。<strong>它们回答不同问题，不能互相替代或相加。</strong></p>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>维度</th><th>请求指标（CubeProxy）</th><th>资源指标（Cubelet）</th><th>网络指标（Cubelet / CubeVS）</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>代表指标</td>
+                                <td><code>cube_proxy_request_total</code>、<code>cube_proxy_inflight_requests</code>、<code>cube_proxy_upstream_response_seconds</code></td>
+                                <td><code>cubesandbox_host_sandbox_*</code>、<code>cubesandbox_guest_workload_*</code></td>
+                                <td><code>cubesandbox_network_sandbox_*</code>、<code>cubesandbox_network_sessions_in_use</code>、<code>cubesandbox_network_snat_ports_*</code></td>
+                            </tr>
+                            <tr><td>类型</td><td>Counter / Gauge / Histogram</td><td>Counter / Gauge（仅基础量）</td><td>Counter / Gauge</td></tr>
+                            <tr>
+                                <td>标签</td>
+                                <td><code>route</code>、<code>method</code>、<code>result</code></td>
+                                <td><code>sandbox_id</code>（host）／<code>sandbox_id</code>、<code>container_id</code>（guest）</td>
+                                <td><code>sandbox_ip</code>、<code>packet_class</code>、<code>snat_ip</code>、<code>source</code></td>
+                            </tr>
+                            <tr>
+                                <td>语义</td>
+                                <td>已完成请求数、并发、沙箱开始响应延迟（服务延迟，非总耗时）</td>
+                                <td>沙箱消耗的 CPU 秒、内存字节、限流与内存限制失败；guest 以统计周期为窗口</td>
+                                <td>CubeVS 转发/丢弃的报文与字节、存活 session、SNAT 物理端口占用与分配失败</td>
+                            </tr>
+                            <tr>
+                                <td>典型 PromQL</td>
+                                <td><code>sum by (route,method,result)(rate(cube_proxy_request_total[5m]))</code></td>
+                                <td><code>rate(cubesandbox_guest_workload_cpu_usage_seconds_total[5m])</code></td>
+                                <td><code>8 * rate(cubesandbox_network_sandbox_egress_bytes_total[5m])</code></td>
+                            </tr>
+                            <tr>
+                                <td>常见问题</td>
+                                <td>默认关闭；只有两类 route 计入；重启即清零；无鉴权</td>
+                                <td>两种视角不可相加；上限缺失即无分母；guest 依赖能力版本 1；并发抓取上限 2</td>
+                                <td>无序列 ≠ 零流量；SNAT 占用率非精确余量；抓取并发上限 2；删除 best-effort</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============ 6. 性能基准 ============ -->
+            <section class="concept-section" id="performance">
+                <h2><span class="section-num">6</span>用指标做性能基准与 SLO</h2>
+                <p>这三份官方页面<strong>只定义指标语义，不提供具体基准数字</strong>。要做性能基准，应先用上面的指标把「请求面 → 资源面 → 网络面」串成可复现的观测口径，再据此定义 SLO。官方性能基准数据见「可观测性」章节中的性能基准页面。</p>
+
+                <h3>6.1 建立最小可复现基准的三个口径</h3>
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="icon">⏱️</span>
+                        <h3>请求面口径</h3>
+                        <p>用 <code>cube_proxy_upstream_response_seconds</code> 的 P95/P99 衡量「沙箱开始响应」的服务延迟，用 <code>cube_proxy_inflight_requests</code> 衡量并发水位。注意它不含命令运行时长与文件传输时长，比较时必须固定同一 route。</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🧮</span>
+                        <h3>资源面口径</h3>
+                        <p>用 <code>rate(...cpu_usage_seconds_total[5m])</code> 衡量实际使用核数，用 <code>memory_current_bytes / memory_limit_bytes</code> 衡量内存压力。<code>host_sandbox</code> 含 VMM 开销，<code>guest_workload</code> 更贴近用户代码，两者需分别报告。</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🌐</span>
+                        <h3>网络面口径</h3>
+                        <p>用 <code>8 * rate(egress_bytes_total[5m])</code> 衡量吞吐（bit/s），用丢包比例与 <code>snat_alloc_failures_total</code> 增长衡量数据面健康，用 SNAT 占用率观察物理端口整体趋势。</p>
+                    </div>
+                </div>
+
+                <h3>6.2 关键 SLO 表达式模板</h3>
+                <p>下表给出可直接落地的 SLO「表达式骨架」。<strong>阈值（<code>&lt;目标值&gt;</code>）需按你的业务目标设定，源文档未给出具体数值，此处不编造。</strong></p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>SLI</th><th>含义</th><th>PromQL 表达式</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>请求成功率</td>
+                                <td>成功请求占全部被统计请求的比例</td>
+                                <td><code>sum(rate(cube_proxy_request_total{result="success"}[5m])) / sum(rate(cube_proxy_request_total[5m]))</code></td>
+                            </tr>
+                            <tr>
+                                <td>服务延迟 P95</td>
+                                <td>沙箱开始响应的 P95 延迟</td>
+                                <td><code>histogram_quantile(0.95, sum by (le, route) (rate(cube_proxy_upstream_response_seconds_bucket[5m])))</code></td>
+                            </tr>
+                            <tr>
+                                <td>并发水位</td>
+                                <td>按路由的 in-flight 峰值</td>
+                                <td><code>max by (route) (cube_proxy_inflight_requests)</code></td>
+                            </tr>
+                            <tr>
+                                <td>工作负载 CPU 使用率</td>
+                                <td>相对有限 CPU 上限的使用率</td>
+                                <td><code>100 * rate(cubesandbox_guest_workload_cpu_usage_seconds_total[5m]) / cubesandbox_guest_workload_cpu_limit_cores</code></td>
+                            </tr>
+                            <tr>
+                                <td>内存限制失败</td>
+                                <td>窗口内是否发生 OOM 类失败</td>
+                                <td><code>increase(cubesandbox_guest_workload_memory_failures_total[5m]) &gt; 0</code></td>
+                            </tr>
+                            <tr>
+                                <td>网络丢包比例</td>
+                                <td>egress 丢弃占（转发+丢弃）比例</td>
+                                <td>见 4.10 节「egress 丢包比例」</td>
+                            </tr>
+                            <tr>
+                                <td>SNAT 分配失败</td>
+                                <td>是否出现真实源端口耗尽</td>
+                                <td><code>sum(rate(cubesandbox_network_sandbox_snat_alloc_failures_total[5m])) &gt; 0</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="warning">
+                    <strong>基准比较的前提：</strong>固定同一 <code>route</code>、同一时间窗口、同一 <code>export_scopes</code> 与同一 <code>collection_interval</code>/<code>scrape_interval</code>。资源端点的 CPU 速率窗口内应包含多个成功写入 Prometheus 的样本，否则 <code>rate()</code> 结果不可信；两次抓取之间的短时内存峰值不会被保留。比较 <code>host_sandbox</code> 与 <code>guest_workload</code> 时按视角分别报告，不要合并成一个「沙箱内存」总量。
+                </div>
+            </section>
+
+            <!-- ============ 7. 易错点 ============ -->
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">7</span>易错点与最佳实践</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>易错点</th><th>正确做法</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>把 <code>host_sandbox</code> 与 <code>guest_workload</code> 内存相加当「沙箱内存」</td><td>两者来自不同记账范围，分别报告；前者含 VMM/CubeShim 与 COW 影响，通常不相等</td></tr>
+                            <tr><td>按 <code>sandbox_id</code> 直接导出 guest cgroup 原始计数</td><td>使用统计周期基线扣减后的值，用 <code>metrics_epoch_start_time_seconds</code> 标识窗口，<strong>不要按 epoch 序号排序</strong></td></tr>
+                            <tr><td>把「没有网络指标序列」当成「零流量」</td><td>无序列表示 key 不存在（数据缺失），必须结合 ensure 告警与活跃 TAP/IP 列表判断</td></tr>
+                            <tr><td>用 <code>端口容量 - session 数</code> 推导剩余端口</td><td>源端口可跨目的地址/协议 tuple 复用；判断真实耗尽看 <code>snat_alloc_failures_total</code> 正增长</td></tr>
+                            <tr><td>把 <code>cube_proxy_upstream_response_seconds</code> 当请求总耗时</td><td>它是「沙箱开始响应」的服务延迟，不含命令运行与文件传输时长</td></tr>
+                            <tr><td>未配置有限上限却期待使用率指标</td><td>无上限时 <code>*_limit_*</code> 不导出，只能查实际使用量，无法算有明确分母的使用率</td></tr>
+                            <tr><td>混用 <code>collection_interval</code> 与 <code>scrape_interval</code></td><td>前者控制 Cubelet 采集频率，后者控制样本写入频率，调优需分别检查</td></tr>
+                            <tr><td>CubeProxy 重启后期望 Counter 连续</td><td>指标存在内存共享字典，重启即重置，应视为普通 reset</td></tr>
+                            <tr><td>将三个端点暴露到不可信网络</td><td>CubeProxy 与 Cubelet 端点均无内置鉴权/TLS，只在可信管理网络开放并做来源限制</td></tr>
+                            <tr><td>忘记端点并发上限</td><td>资源与网络端点均最多同时处理 2 个抓取，重复 job 或手工并发会触发 503</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip">
+                    <strong>最佳实践：</strong>为请求、资源、网络分别建独立抓取 job（<code>cube-proxy</code> / <code>resource</code> / <code>network</code>），这样能独立调整间隔与 <code>metric_relabel_configs</code>；对三类指标分别设置可用性、延迟、容量告警，而不是只看单一 CPU 或单一计数器。
+                </div>
+            </section>
+
+            <!-- ============ 8. 记忆卡片与自测 ============ -->
+            <section class="concept-section" id="quiz">
+                <h2><span class="section-num">8</span>记忆卡片与自测</h2>
+
+                <div class="memory-grid">
+                    <div class="memory-card"><b>CubeProxy 三指标</b>request_total（Count）＋ inflight（Gauge）＋ upstream_response（Histogram），只看两类 route：<code>sandbox_exec</code>、<code>sandbox_files</code>。</div>
+                    <div class="memory-card"><b>两个资源视角</b><code>host_sandbox</code> 宿主机记账（含 VMM）；<code>guest_workload</code> 工作负载 cgroup（需能力版本 1）；<strong>不可相加</strong>。</div>
+                    <div class="memory-card"><b>网络归属键</b>标签用 <code>sandbox_ip</code> 而非 <code>sandbox_id</code>；无序列 = 数据缺失，≠ 零流量。</div>
+                    <div class="memory-card"><b>重置边界</b>CubeProxy 重启、ensure 成功、metadata upsert、IP 重分配都会让 Counter 从零开始。</div>
+                </div>
+
+                <div class="quiz">
+                    <h4>自测（点击展开答案）</h4>
+                    <details>
+                        <summary>1. 为什么 guest_workload 需要统计周期（epoch）？直接按 sandbox_id 导出原始 cgroup 累计值会有什么问题？</summary>
+                        <p>CPU 使用时间与内存限制失败次数来自 cgroup 累计计数器，制作模板/快照时会被保存，从模板或快照创建新沙箱会继承已有计数，回滚还可能让计数退回快照值。直接导出会导致：模板制作阶段的历史被计入新沙箱；回滚后出现无法区分原因的数值倒退。Cubelet 为每个新的 guest_workload 状态建立统计周期，以首次成功采样为基线，导出「当前原始值 − 基线」，从而排除继承历史并把回滚表示成新窗口。当前内存用量是瞬时值，不做基线扣减。</p>
+                    </details>
+                    <details>
+                        <summary>2. 为什么不能把 host_sandbox 与 guest_workload 的内存值相加得到「沙箱内存」？</summary>
+                        <p>两者来自不同的资源记账范围。<code>host_sandbox</code> 是宿主机 cgroup 的记账值，包含 VMM、CubeShim 等宿主机侧开销，并受共享快照页与写时复制（COW）影响；<code>guest_workload</code> 是沙箱内工作负载容器 cgroup 的值，不含 cube-agent 等管理进程。由于 VMM 开销、共享页与私有 COW 页等因素，两者通常不相等，直接相加会重复计算或错配口径，应分别报告。</p>
+                    </details>
+                    <details>
+                        <summary>3. 某沙箱在 Prometheus 中完全没有 sandbox_ip 时间序列，是否等于「该沙箱没有网络流量」？为什么？</summary>
+                        <p>不等于。eBPF 数据面只做 lookup，key 不存在时立即返回，<strong>不会</strong>自动创建 entry；entry 由用户态在 TAP 生命周期中 ensure 创建。如果 ensure 失败（如 map 打开失败、map 已满、UpdateAny 失败），该沙箱会缺少时间序列，但网络转发可能仍然正常。因此「无序列」表示 map 中不存在这个 key（数据缺失），必须结合 Cubelet 的 metrics ensure 告警以及活跃 TAP/IP 列表与 Prometheus 的 sandbox_ip 集合对比来判断覆盖情况。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

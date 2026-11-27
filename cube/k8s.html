@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes 部署 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>Kubernetes 部署</span>
+            </h1>
+            <p class="subtitle">在已有集群上用 Helm 安装控制面与计算面，理解四个 DaemonSet 的分工、升级代价与排障路径</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 03 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">Kubernetes 部署</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 03 章</span>
+                <h1>Kubernetes 部署</h1>
+                <p>这一页把「概览、Helm 安装、架构说明、升级、常见问题」五个官方页面压缩成一条可操作主线：先建立控制面 / 计算面 / 数据面入口的分层模型，再按六步完成安装，最后用升级代价与排障表定位问题。读完后你应当能独立完成一次 K8s 部署，并判断某次变更会不会重建 Big Pod。</p>
+                <div class="page-meta">
+                    <span>📖 预计 35 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 5 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#overview">1. 全景：分层与四个 DaemonSet</a></li>
+                    <li><a href="#nodes">2. 节点角色、标签与污点</a></li>
+                    <li><a href="#install">3. Helm 安装六步</a></li>
+                    <li><a href="#values">4. 关键 values 开关速查</a></li>
+                    <li><a href="#upgrade">5. 升级：网络模式与 Big Pod</a></li>
+                    <li><a href="#ha">6. 高可用与生命周期</a></li>
+                    <li><a href="#faq">7. FAQ 速查</a></li>
+                    <li><a href="#uninstall">8. 卸载与所有权边界</a></li>
+                    <li><a href="#pitfalls">9. 易错点与自测</a></li>
+                </ul>
+            </div>
+
+            <!-- ============================ 1 ============================ -->
+            <section class="concept-section" id="overview">
+                <h2><span class="section-num">1</span>全景：分层与四个 DaemonSet</h2>
+
+                <p>K8s 部署是 <strong>K8s 原生路径</strong>：组件跑在集群里，由 Helm 管理。控制面是无状态 Deployment（CubeAPI / CubeMaster / CubeOps / WebUI / CubeProxy / lifecycle-manager / cubemastercli），依赖 MySQL / Redis / MinIO 继续用原生 StatefulSet；计算面是四个原生 <code>apps/v1</code> DaemonSet，负责把沙箱运行时落到每一台计算节点上。安装只需要标准 Kubernetes 与 Helm，不依赖任何自定义 Operator。</p>
+
+                <div class="warning">
+                    <strong>Preview 版本警告（官方源文档原文要点）</strong>
+                    <p>① 计算节点资源紧张时，Pod 可能被 K8s 控制面错误驱逐，导致沙箱中断；② 计算节点升级会重建 <code>cube-node</code>，Pod 网络下会中断该节点存量沙箱网络（默认宿主机网络下 netns 不随重建销毁）；③ 默认 <code>hostNetwork</code> 可能与 CNI / Pod Security Admission 冲突。请在部署前先读升级文档，并先在非生产集群验证。</p>
+                </div>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">控制面 · placement.controlPlane</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">CubeAPI<small>E2B 兼容 API</small></div>
+                        <div class="arch-box control">CubeMaster<small>注册 / 调度 / 元数据</small></div>
+                        <div class="arch-box control">CubeOps<small>:3010 运维 API</small></div>
+                        <div class="arch-box control">WebUI<small>静态控制台</small></div>
+                        <div class="arch-box obs">cubemastercli<small>CLI 容器</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 读写</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">MySQL<small>业务数据</small></div>
+                        <div class="arch-box data">Redis<small>Proxy / 生命周期状态</small></div>
+                        <div class="arch-box storage">MinIO / S3<small>Volume 后端</small></div>
+                    </div>
+                    <div class="arch-connector">↓</div>
+                    <div class="arch-label">数据面入口 · 控制面节点</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">CubeProxy<small>sandbox HTTP/HTTPS</small></div>
+                        <div class="arch-box network">集群 DNS 改写<small>*.cube.app</small></div>
+                        <div class="arch-box network">lifecycle-manager<small>pause / resume</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 注册 / 心跳 / 转发</div>
+                    <div class="arch-label">计算面 · placement.compute / placement.pvm</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">cube-node-pvm<small>PVM 宿主机换核</small></div>
+                        <div class="arch-box compute">cube-node-bootstrap<small>节点预检</small></div>
+                        <div class="arch-box compute">cube-node-installer<small>产物安装</small></div>
+                    </div>
+                    <div class="arch-connector">↓</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary wide">cube-node · Big Pod<small>cubelet + 内嵌网络运行时 + cube-egress + 可选 cube-s3lvol</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 可选 CoW</div>
+                    <div class="arch-layer">
+                        <div class="arch-box storage">CubeJuiceFS<small>挂载 DS + 元数据 Redis</small></div>
+                        <div class="arch-box storage">CubeS3lvol<small>SPDK NVMe/TCP</small></div>
+                    </div>
+                </div>
+                <p class="table-caption">图 1：K8s 交付形态总览。控制面与数据面入口为 Deployment，计算面为四个 DaemonSet，存储依赖内置 StatefulSet 或第三方。</p>
+
+                <h3>1.1 控制面组件职责</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>层级</th><th>组件</th><th>Kubernetes 形态</th><th>主要职责</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>控制面</td><td><code>cube-master</code>（CubeMaster）</td><td>Deployment + Service + Secret + PVC/hostPath</td><td>节点注册、模板 / rootfs artifact、内置 DB migration、调度与元数据</td></tr>
+                            <tr><td>控制面 API</td><td><code>cube-api</code>（CubeAPI）</td><td>Deployment + Service</td><td>对外 E2B 兼容 HTTP API；读写 MySQL；访问 CubeMaster</td></tr>
+                            <tr><td>运维后端</td><td><code>cube-ops</code>（CubeOps）</td><td>Deployment + Service</td><td>JWT 运维 API + WebUI SDK；监听 <code>0.0.0.0:3010</code>；读写 MySQL；访问 CubeMaster</td></tr>
+                            <tr><td>管理入口</td><td><code>cube-webui</code>（WebUI）</td><td>Deployment + Service + ConfigMap</td><td>静态控制台；<code>/opsapi/</code>、<code>/cubeapi/v1/</code> 反代到 CubeOps（依赖 <code>cubeOps.enabled</code>）</td></tr>
+                            <tr><td>运维入口</td><td><code>cubemastercli</code></td><td>Deployment</td><td>供 <code>kubectl exec</code> 使用的 CLI；自动注入本 Release 的 CubeMaster endpoint</td></tr>
+                            <tr><td>依赖存储</td><td>MySQL / Redis / MinIO</td><td>内置 StatefulSet 或第三方</td><td>业务数据 / Proxy 与 lifecycle 状态 / S3 Volume 后端</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>1.2 计算面四个 DaemonSet</h3>
+                <p>四个 DaemonSet 拆开的理由很实际：<strong>产物安装</strong>（Installer）与<strong>可 reboot 的 PVM 引导</strong>（PVM）分离；非 PVM 计算节点不会去拉 PVM 大镜像；只升 Installer / Bootstrap / PVM 时可以不碰 Big Pod 的 Pod template。</p>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>DaemonSet</th><th>调度 placement</th><th>核心内容</th><th>会 recreate Big Pod 吗</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>cube-node</code>（Big Pod）</td><td><code>placement.compute</code></td><td><code>wait-node-prep</code> init + 内嵌 network runtime 的 <code>cubelet</code> + <code>cube-egress</code> / <code>cube-egress-net</code> + 可选 <code>cube-s3lvol</code></td><td><strong>是</strong>（镜像 / 资源 / Pod template 变更即重建）</td></tr>
+                            <tr><td><code>cube-node-installer</code></td><td><code>placement.compute</code></td><td><code>cube-shim-install</code> / <code>cube-kernel-install</code> / <code>cube-guest-install</code>，把 shim / kernel / guest 整目录换到宿主机 toolbox</td><td>否（可独立 RollingUpdate）</td></tr>
+                            <tr><td><code>cube-node-bootstrap</code></td><td><code>placement.compute</code></td><td><code>wait-pvm-host</code> → <code>cube-node-init</code>；写 <code>node-prep-ready</code>；<code>hostPID: true</code></td><td>否</td></tr>
+                            <tr><td><code>cube-node-pvm</code></td><td><code>placement.pvm</code></td><td><code>pvm-host-bootstrap</code>；PVM host kernel 安装（可能 reboot）；管理 L0 污点并写指纹；保持 Pod 网络</td><td>否（但节点可能 reboot）</td></tr>
+                            <tr><td><code>cube-juicefs</code>（可选）</td><td>相同计算节点 placement</td><td><code>OnDelete</code> 挂载 DaemonSet；格式化 Job 初始化共享卷，经 <code>/data/cubelet</code> 传播</td><td>否（日常 Helm 升级不自动卸载）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info">
+                    <strong>NodeID 与 Endpoint 的解析规则</strong>
+                    <p>Big Pod 的 <code>NodeID</code> 取 <code>spec.nodeName</code>（<code>CUBE_SANDBOX_NODE_ID</code>），<code>Endpoint</code> 取 <code>status.podIP</code>（<code>CUBE_SANDBOX_ENDPOINT_IP</code>，宿主机网络下即节点 IP）。同一节点上 NodeID 不变，所以 Pod IP 变化后，控制面（CubeOps / CubeMaster）与数据面（CubeProxy）都会按 NodeID 动态解析最新 Endpoint。</p>
+                </div>
+
+                <h3>1.3 运行期入口链路</h3>
+                <p>沙箱域名走 <code>cubeProxy.domain</code>（默认 <code>cube.app</code>）。Chart 不部署自有 CoreDNS；启用 Proxy 且 <code>configureClusterDNS=true</code>（默认）时，由 Helm hook 把 <code>domain</code> / <code>*.domain</code> 改写为 <code>&lt;release&gt;-proxy.&lt;ns&gt;.svc.cluster.local</code>。</p>
+                <div class="h-diagram">
+                    <div class="arch-box">Client / Guest</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box data">CoreDNS<small>*.cube.app</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box network">CubeProxy<small>HTTP / HTTPS</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box control">CubeMaster<small>查 owner 元数据</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box compute">目标 cube-node<small>沙箱</small></div>
+                </div>
+
+                <div class="h-diagram">
+                    <div class="arch-box compute">沙箱</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box network">cube-dev</div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box network">cube-egress-net<small>TPROXY 规则</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box security">cube-egress<small>MITM / CA</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box">外部网络</div>
+                </div>
+                <p class="table-caption">图 2：沙箱入站（上）与出站（下）两条运行期链路。Master / API / Node 共享 <code>cube-egress-ca</code>，保证模板构建与运行期信任一致。</p>
+
+                <h3>1.4 计算节点启动：指纹门闩流水线</h3>
+                <p>计算面四个 DaemonSet 不是并行无序启动的，而是靠宿主机上的指纹文件串成一条门闩流水线。任一环未就绪，后面的容器就不会启动，这也是「首次安装很久」的正常原因。</p>
+                <div class="arch-diagram">
+                    <div class="arch-label">计算节点启动 · 指纹门闩</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">cube-node-pvm<small>pvm-host-bootstrap 可 reboot</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 写 pvm-host-ready 指纹</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">cube-node-bootstrap<small>wait-pvm-host → cube-node-init</small></div>
+                        <div class="arch-box compute">cube-node-installer<small>stage shim / kernel / guest</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 写 node-prep-ready</div>
+                    <div class="arch-layer">
+                        <div class="arch-box dashed">wait-node-prep（init）<small>指纹匹配后 exit 0</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 主容器启动</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary">cubelet<small>self-stage + 按节点选 guest 内核</small></div>
+                        <div class="arch-box network">cube-egress<small>TPROXY</small></div>
+                        <div class="arch-box storage">cube-s3lvol<small>可选</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 注册 + 心跳</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">CubeMaster / CubeOps<small>node list healthy</small></div>
+                    </div>
+                </div>
+                <p class="table-caption">图 3：计算节点启动流水线。PVM → Bootstrap → Installer → <code>wait-node-prep</code> → <code>cubelet</code>，最后向控制面注册并持续心跳。</p>
+            </section>
+
+            <!-- ============================ 2 ============================ -->
+            <section class="concept-section" id="nodes">
+                <h2><span class="section-num">2</span>节点角色、标签与污点</h2>
+
+                <p>CubeSandbox 用<strong>标签</strong>区分两类节点，再用<strong>污点</strong>阻止无关负载落进来。Chart 用显式 label 授权而不是「通配」部署，原因是 PVM 引导会换 host kernel 并可能 reboot，计算面又大量使用 privileged / hostPath，误调度的代价很高。</p>
+
+                <div class="table-wrap">
+                    <table class="cmd-table">
+                        <thead>
+                            <tr><th>角色</th><th>必打标签</th><th>污点</th><th>建议规格</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>控制面节点</td><td><code>cube.tencent.com/cube-control=true</code></td><td>可选：<code>cube.tencent.com/control=true:NoSchedule</code></td><td>≥ 1 台；生产建议 3+；≥ 4C8G</td><td>跑 Cube 控制面组件</td></tr>
+                            <tr><td>计算节点</td><td><code>cube.tencent.com/cube-node=true</code></td><td><strong>必打</strong>：<code>cube.tencent.com/compute=true:NoSchedule</code></td><td>≥ 1 台；建议 16C32G+</td><td>跑沙箱；建议使用独立机器</td></tr>
+                            <tr><td>PVM 计算节点</td><td>额外 <code>cube.tencent.com/allow-pvm-bootstrap=true</code></td><td>沿用计算节点的 <code>compute</code> 污点</td><td>—</td><td>非裸金属服务器时打此 label，即可自动安装 PVM</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>2.1 多节点：控制面 / 计算面分离（推荐）</h3>
+                <pre><code><span class="c"># 控制面节点</span>
+kubectl label nodes &lt;control-node&gt; cube.tencent.com/cube-control=true --overwrite
+
+<span class="c"># 计算节点（跑沙箱）</span>
+kubectl label nodes &lt;compute-node&gt; cube.tencent.com/cube-node=true --overwrite
+
+<span class="c"># 若计算节点不是裸金属服务器，则还需要打这个 label，即可自动安装 PVM</span>
+kubectl label nodes &lt;pvm-compute-node&gt; cube.tencent.com/allow-pvm-bootstrap=true --overwrite</code></pre>
+
+                <pre><code><span class="c"># 角色污点（避免无关负载落到这些节点上）</span>
+<span class="c"># 可选</span>
+<span class="c"># kubectl taint nodes &lt;control-node&gt; cube.tencent.com/control=true:NoSchedule --overwrite</span>
+
+<span class="c"># 计算节点必打</span>
+kubectl taint nodes &lt;compute-node&gt; cube.tencent.com/compute=true:NoSchedule --overwrite</code></pre>
+
+                <div class="warning">
+                    <strong>placement 与标签必须对得上</strong>
+                    <p>Chart 默认值：<code>placement.controlPlane.nodeSelector</code> 为 <code>cube-control=true</code>，<code>placement.compute.nodeSelector</code> 为 <code>cube-node=true</code>，<code>placement.pvm.nodeSelector</code> 包含 <code>allow-pvm-bootstrap=true</code>。PVM 的 label <strong>不得</strong>写进 <code>placement.compute</code>，否则所有计算节点都会去拉 PVM 大镜像，Chart 在渲染阶段会直接报错。</p>
+                </div>
+
+                <h3>2.2 单节点：一台机器兼做控制面与计算面（不推荐）</h3>
+                <p>只有一台机器时，官方更推荐走「快速开始」的一键脚本，而不是 K8s。若坚持单节点，可按下面方式同时打两枚独立角色 label 与两把污点：</p>
+                <pre><code>export NODE=&lt;你的节点名&gt;
+
+kubectl label nodes "$NODE" \
+  cube.tencent.com/cube-control=true \
+  cube.tencent.com/cube-node=true \
+  cube.tencent.com/allow-pvm-bootstrap=true \
+  --overwrite
+
+kubectl taint nodes "$NODE" cube.tencent.com/control=true:NoSchedule --overwrite
+kubectl taint nodes "$NODE" cube.tencent.com/compute=true:NoSchedule --overwrite</code></pre>
+
+                <div class="tip">
+                    <strong>混部的关键是「独立 key」</strong>
+                    <p>控制面与计算面要打两枚<strong>不同 key</strong> 的 label（<code>cube-control</code> 与 <code>cube-node</code>），不要用同一个 key 覆盖写；再叠加 <code>values-single-node.yaml</code>，让两侧都容忍两把角色污点。扩容<strong>纯计算节点</strong>时只打 <code>cube-node</code> + <code>compute</code> 污点，不要再打 <code>cube-control</code>。</p>
+                </div>
+
+                <div class="info">
+                    <strong>PVM 是什么</strong>
+                    <p>PVM（Pagetable-based Virtual Machine）是一种基于页表的嵌套虚拟化框架，构建于 KVM 之上；它不依赖宿主 hypervisor 向 guest 暴露 VT-x / AMD-V，而是在 guest 内核层通过共享内存区域和影子页表完成特权级切换与内存虚拟化，对宿主 hypervisor 完全透明。相关工作已开源至 OpenCloudOS 内核，并在腾讯云生产环境大量部署。</p>
+                </div>
+            </section>
+
+            <!-- ============================ 3 ============================ -->
+            <section class="concept-section" id="install">
+                <h2><span class="section-num">3</span>Helm 安装六步</h2>
+
+                <p>官方推荐主路径是「多节点、控制面与计算面分离」。整套流程可以压缩成六步：</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>① 前置条件</b>：K8s ≥ v1.24+、Helm v3.10+、可用 StorageClass、节点能联网拉镜像</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>② 集群就绪检查</b>：<code>kubectl get nodes</code>、<code>kubectl get storageclass</code>、<code>helm version</code></div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>③ 打标签与污点</b>：control / compute 必打，非裸金属计算节点再加 allow-pvm-bootstrap</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>④ 准备 values</b>：复制 <code>runtime-values.example.yaml</code>，至少填写 Proxy、MySQL、Redis</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>⑤ helm upgrade --install</b>：<code>cube-system</code> 命名空间，<code>--wait --timeout 90m</code></div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>⑥ 验证</b>：Pod Ready、节点注册、<code>helm test</code>、WebUI 端口转发</div>
+                </div>
+                <p class="table-caption">图 4：Helm 安装六步流程。控制面为原生 Deployment，计算面为原生 DaemonSet，安装只需标准 Kubernetes / Helm。</p>
+
+                <h3>3.1 前置条件</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>项目</th><th>要求</th></tr></thead>
+                        <tbody>
+                            <tr><td>Kubernetes</td><td><strong>≥ v1.24+</strong></td></tr>
+                            <tr><td>工具</td><td><code>kubectl</code>、Helm v3.10+</td></tr>
+                            <tr><td>存储</td><td>集群有可用 StorageClass</td></tr>
+                            <tr><td>镜像拉取</td><td>节点能联网拉取镜像</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>3.2 确认集群就绪</h3>
+                <pre><code>kubectl get nodes -o wide
+kubectl get storageclass <span class="c"># 非空</span>
+helm version --short <span class="c"># ≥ v3.10</span></code></pre>
+                <p>记下稍后要用的节点名，并确认至少有一台节点用于跑控制面、另一台跑计算面。</p>
+
+                <h3>3.3 给节点打标签、角色</h3>
+                <p>完整命令见上一节「节点角色、标签与污点」。多节点场景下，控制面节点打 <code>cube-control=true</code>，计算节点打 <code>cube-node=true</code>，非裸金属计算节点再补 <code>allow-pvm-bootstrap=true</code>，并为计算节点打 <code>compute=true:NoSchedule</code> 污点。</p>
+
+                <h3>3.4 准备配置文件</h3>
+                <pre><code>cp deploy/kubernetes/chart/runtime-values.example.yaml runtime-values.yaml</code></pre>
+                <p>至少填写以下内容：</p>
+                <pre><code>cubeProxy:
+  advertiseIP: "10.0.1.10"
+  domain: "cube.app"
+  tls:
+    mode: selfSigned         <span class="c"># 试用；生产建议 existingSecret / certManager</span>
+
+<span class="c"># 必填</span>
+mysql:
+  host: ""                   <span class="c"># 空 = 使用内置 MySQL</span>
+  password: "replace-me-mysql-password"
+  rootPassword: "replace-me-mysql-root-password"
+redis:
+  host: ""
+  password: "replace-me-redis-password"</code></pre>
+                <div class="note">
+                    <strong>三个「部署前必须决定」的开关</strong>
+                    <p>① 控制面 PVC：默认走集群 default StorageClass，可用 <code>persistence.storageClassName</code> 指定；② 计算节点数据盘：<code>/data/cubelet</code> 必须是 XFS，默认自动创建 25G loopback 镜像；③ <code>cubeNode.hostNetwork</code>：默认宿主机网络，改 Pod 网络会改变重建代价。三者的细节见第 4 节。</p>
+                </div>
+
+                <h3>3.5 执行 Helm 安装</h3>
+                <p>标准多节点部署：</p>
+                <pre><code>helm upgrade --install cube ./deploy/kubernetes/chart \
+  -n cube-system \
+  --create-namespace \
+  -f runtime-values.yaml \
+  --wait \
+  --timeout 90m</code></pre>
+                <p>腾讯云 TKE：</p>
+                <pre><code>helm upgrade --install cube ./deploy/kubernetes/chart \
+  -n cube-system \
+  --create-namespace \
+  -f deploy/kubernetes/chart/values-tke.yaml \
+  -f runtime-values.yaml \
+  --wait \
+  --timeout 90m</code></pre>
+                <p>单节点试用：</p>
+                <pre><code>helm upgrade --install cube ./deploy/kubernetes/chart \
+  -n cube-system \
+  --create-namespace \
+  -f deploy/kubernetes/chart/values-single-node.yaml \
+  -f runtime-values.yaml \
+  --wait \
+  --timeout 90m</code></pre>
+                <div class="tip">
+                    <strong>中国大陆用户</strong>
+                    <p>在以上任一安装命令中额外加上 <code>-f deploy/kubernetes/chart/values-cn.yaml</code>，即可从国内镜像源拉取镜像。该过程会下载较多资源并执行初始化动作，耗时取决于机器性能与网络状况。</p>
+                </div>
+
+                <h3>3.6 验证部署</h3>
+                <pre><code><span class="c"># 1) Pod 是否 Ready</span>
+kubectl get pods -n cube-system -o wide
+
+<span class="c"># 2) 计算节点是否已注册到 CubeOps</span>
+kubectl exec -n cube-system deploy/cube-cubemastercli -- \
+  sh -lc 'cubeopscli --address "$CUBEOPSCLI_ADDRESS" --port "$CUBEOPSCLI_PORT" node list'
+
+<span class="c"># 3) 内置端到端测试（约数分钟）</span>
+helm test cube -n cube-system --timeout 20m --logs</code></pre>
+                <p>期望结果：</p>
+                <ul>
+                    <li><code>cube-node</code> Ready 数量 = 打了 <code>cube-node=true</code> 的节点数；</li>
+                    <li>命名空间 <code>cube-system</code> 下的各个服务均为 Ready；</li>
+                    <li><code>helm test</code> 通过。</li>
+                </ul>
+                <p>访问 WebUI：</p>
+                <pre><code>kubectl -n cube-system port-forward svc/cube-webui 12088:12088
+<span class="c"># 浏览器打开 http://127.0.0.1:12088</span></code></pre>
+
+                <h3>3.7 已测试环境</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>环境</th><th>网络插件</th></tr></thead>
+                        <tbody>
+                            <tr><td>腾讯云 TKE</td><td>VPC-CNI</td></tr>
+                            <tr><td>Kubernetes</td><td>Flannel</td></tr>
+                            <tr><td>K3s</td><td>Flannel</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================ 4 ============================ -->
+            <section class="concept-section" id="values">
+                <h2><span class="section-num">4</span>关键 values 开关速查</h2>
+
+                <p>下表把架构文档「关键 values 开关」与安装文档「高级配置」合并。默认值以官方 Chart 为准；生产改值前先确认影响面，尤其是会改动 Pod template 的项。</p>
+
+                <div class="table-wrap">
+                    <table class="cmd-table">
+                        <thead>
+                            <tr><th>分类</th><th>values 路径</th><th>默认</th><th>影响</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>时区</td><td><code>global.timezone</code></td><td><code>Asia/Shanghai</code></td><td>注入 Chart 管理容器的 <code>TZ</code></td></tr>
+                            <tr><td>控制面 PVC</td><td><code>persistence.storageClassName</code></td><td><code>""</code></td><td>有状态 PVC（含可选 JuiceFS Redis）共用此 SC；空串走集群 default</td></tr>
+                            <tr><td>控制面 PVC</td><td><code>storageClass.create</code> / <code>name</code> / <code>provisioner</code></td><td><code>create=false</code></td><td>是否由 chart 创建 StorageClass；默认不创建（TKE 用 <code>values-tke.yaml</code>）</td></tr>
+                            <tr><td>控制面开关</td><td><code>controlPlane.enabled</code></td><td><code>true</code></td><td>是否安装内置控制面</td></tr>
+                            <tr><td>控制面开关</td><td><code>externalControlPlane.enabled</code></td><td><code>false</code></td><td>使用外部 CubeMaster（compute-only 场景）</td></tr>
+                            <tr><td>调度</td><td><code>placement.controlPlane.nodeSelector</code></td><td><code>cube-control=true</code></td><td>控制面组件调度</td></tr>
+                            <tr><td>调度</td><td><code>placement.compute.nodeSelector</code></td><td><code>cube-node=true</code></td><td>计算面（<strong>不含</strong> <code>allow-pvm-bootstrap</code>）</td></tr>
+                            <tr><td>调度</td><td><code>placement.pvm.nodeSelector</code></td><td>另含 <code>allow-pvm-bootstrap=true</code></td><td>仅 PVM 宿主机 DaemonSet</td></tr>
+                            <tr><td>网络模式</td><td><code>cubeNode.hostNetwork</code></td><td><code>true</code></td><td>宿主机网络；改 Pod 网络后 Pod 重建会中断该节点所有沙箱网络</td></tr>
+                            <tr><td>网络模式</td><td><code>cubeNode.hostNetworkChangeAck</code></td><td><code>false</code></td><td>网络模式 preflight Hook 的一次性确认键</td></tr>
+                            <tr><td>网络模式</td><td><code>cubeNode.network.cidr</code></td><td><code>172.16.0.0/18</code></td><td>cubevs CIDR；与集群 Service CIDR / ClusterIP 重叠时，preflight Hook（weight <code>-110</code>）fail-fast</td></tr>
+                            <tr><td>网络模式</td><td><code>cubeNode.network.mtu</code></td><td><code>auto</code></td><td>Pod 网络下按探测到的网卡下调 guest MTU，以容纳 CNI 封装</td></tr>
+                            <tr><td>数据盘</td><td><code>bootstrap.nodeInit.dataCubelet.loopback.enabled</code></td><td><code>true</code></td><td>为 <code>true</code> 时 bootstrap 在节点上创建并挂载 loopback XFS</td></tr>
+                            <tr><td>数据盘</td><td><code>bootstrap.nodeInit.dataCubelet.loopback.imagePath</code></td><td><code>/data/cubelet-xfs.img</code></td><td>镜像文件路径</td></tr>
+                            <tr><td>数据盘</td><td><code>bootstrap.nodeInit.dataCubelet.loopback.size</code></td><td><code>25G</code></td><td><strong>首次创建</strong>镜像时的大小（<code>truncate -s</code>）</td></tr>
+                            <tr><td>PVM 引导</td><td><code>bootstrap.pvmHostKernel.enabled</code></td><td><code>true</code></td><td>host kernel bootstrap（可能重启节点）</td></tr>
+                            <tr><td>PVM 引导</td><td><code>bootstrap.pvmHostKernel.startupGate.enabled</code></td><td><code>true</code></td><td>PVM 未就绪时使用 Node NoSchedule 污点硬门闩</td></tr>
+                            <tr><td>PVM 引导</td><td><code>bootstrap.pvmHostKernel.bootArgs</code></td><td><code>nopti pti=off</code></td><td>当前 <code>kvm_pvm</code> 不支持 host KPTI</td></tr>
+                            <tr><td>Guest 选核</td><td><code>cubeNode.pvmGuestKernel.enabled</code></td><td><code>true</code></td><td>首次安装默认是否倾向 PVM guest</td></tr>
+                            <tr><td>外部依赖</td><td><code>mysql.host</code> / <code>redis.host</code></td><td><code>""</code></td><td>非空则使用第三方，不装内置 StatefulSet</td></tr>
+                            <tr><td>S3 Volume</td><td><code>volumeS3.endpoint</code> / <code>existingSecret</code></td><td><code>""</code></td><td>与内置 MinIO 二选一（互斥）</td></tr>
+                            <tr><td>数据面</td><td><code>cubeProxy.enabled</code> / <code>ingress.enabled</code></td><td><code>true</code></td><td>Proxy / Ingress 开关</td></tr>
+                            <tr><td>数据面</td><td><code>cubeProxy.domain</code></td><td><code>cube.app</code></td><td>sandbox 域名</td></tr>
+                            <tr><td>数据面</td><td><code>cubeProxy.configureClusterDNS</code></td><td><code>true</code></td><td>是否写入集群 CoreDNS</td></tr>
+                            <tr><td>DNS</td><td><code>cubeNode.dns.sandbox.followNodeDns</code></td><td><code>true</code></td><td>guest 跟随节点 / 集群 DNS</td></tr>
+                            <tr><td>副本数</td><td><code>lifecycleManager.replicas</code></td><td><code>2</code></td><td>lifecycle-manager 主备副本数；&gt;1 必须开 <code>leaderElection.enabled</code></td></tr>
+                            <tr><td>副本数</td><td><code>leaderElection.enabled</code></td><td><code>true</code></td><td>Redis 租约选主；关闭且副本 &gt;1 会在 Helm 校验阶段失败</td></tr>
+                            <tr><td>可选存储</td><td><code>cubeS3lvol.enabled</code></td><td><code>false</code></td><td>Big Pod s3lvol sidecar（会重建 Pod；约 2 核 / 23 GiB / 512 GiB 稀疏 WAL）</td></tr>
+                            <tr><td>可选存储</td><td><code>cubeJuiceFS.enabled</code></td><td><code>false</code></td><td>共享 JuiceFS CoW 后端；增加独立元数据 Redis、格式化 Job 与逐节点 FUSE 挂载 DaemonSet</td></tr>
+                            <tr><td>可选存储</td><td><code>cubeJuiceFS.lifecycleChangeAck</code></td><td><code>false</code></td><td>启用 / 关闭 / 修改存储配置前先 drain，再为该次升级临时置 <code>true</code></td></tr>
+                            <tr><td>运维</td><td><code>cubeOps.enabled</code></td><td><code>true</code></td><td>CubeOps（JWT 运维 API，WebUI 上游）</td></tr>
+                            <tr><td>运维</td><td><code>webui.enabled</code></td><td><code>true</code></td><td>WebUI（要求 <code>cubeOps.enabled=true</code>）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>4.1 计算节点数据盘</h3>
+                <p>Cube 会在宿主机 <code>/data/cubelet</code> 下写入数据，且该路径必须是 <strong>XFS</strong> 文件系统。生产建议每台计算节点单独挂一块格式化好的 XFS 数据盘到 <code>/data/cubelet</code>，然后在 values 里关掉 loopback：</p>
+                <pre><code>bootstrap:
+  nodeInit:
+    dataCubelet:
+      loopback:
+        enabled: false</code></pre>
+                <p>没有独立数据盘时，默认会在首次初始化时创建一块 25G loop 设备。要调整容量：</p>
+                <pre><code>bootstrap:
+  nodeInit:
+    dataCubelet:
+      loopback:
+        enabled: true
+        size: 200G   <span class="c"># 按容量规划调整；需小于存放 image 的文件系统剩余空间</span></code></pre>
+                <div class="warning">
+                    <strong>只影响「第一次」创建</strong>
+                    <p>默认仅在 <code>/data/cubelet-xfs.img</code> 不存在时自动创建镜像文件，后续修改 <code>size</code> <strong>不会</strong>自动扩容。要换更大盘需在维护窗口内手工处理。</p>
+                </div>
+
+                <h3>4.2 链路追踪</h3>
+                <p>链路追踪默认关闭，Chart 也不安装接收端。如需导出沙箱生命周期 span，在<strong>安装前</strong>给各组件的 <code>env</code> 数组加 <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>，指向外部 OTLP/<strong>gRPC</strong> 接收端（如 OpenTelemetry Collector 或 Tempo），格式为 <code>http://&lt;receiver-host&gt;:&lt;OTLP-gRPC-port&gt;</code>：</p>
+                <pre><code>controlPlane:
+  api:
+    env:
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://10.0.0.5:4317
+  master:
+    env:
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://10.0.0.5:4317
+  templateCenter:
+    env:
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://10.0.0.5:4317
+cubeNode:
+  env:
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: http://10.0.0.5:4317</code></pre>
+                <div class="note">
+                    <strong>env 数组是「整体替换」</strong>
+                    <p>组件的 <code>env</code> 数组会整体替换 chart 默认值，务必保留 chart 已为该组件设置的条目，不要直接覆盖整个列表。要关闭时，把端点设为显式空字符串 <code>value: ""</code> 再重新应用即可。各服务以各自名字上报（<code>cube-api</code>、<code>cubemaster</code>、<code>cubetemplatecenter</code>、<code>cubelet</code>、<code>cube-shim</code>），<strong>不要</strong>设置全局共享的 <code>OTEL_SERVICE_NAME</code>；CubeOps 与 lifecycle manager 目前不上报 span。</p>
+                </div>
+            </section>
+
+            <!-- ============================ 5 ============================ -->
+            <section class="concept-section" id="upgrade">
+                <h2><span class="section-num">5</span>升级：网络模式与 Big Pod</h2>
+
+                <div class="danger">
+                    <strong>一句话结论</strong>
+                    <p>控制面可以有序滚动升级；计算面升级会 recreate <code>cube-node</code> Big Pod——默认的宿主机网络下这对沙箱网络是安全的，Pod 网络下则会中断沙箱。部署当前版本后若计划升级，应先评估改动、做测试再实施。</p>
+                </div>
+
+                <h3>5.1 为什么网络模式决定重建代价</h3>
+                <p>CubeSandbox 的网络（cubevs）钩子挂在 Pod 的网卡上，沙箱的 TAP 设备也与 Pod 处于同一 netns。Pod 重建时：</p>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>项目</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td>触发条件</td><td>任何导致 Pod 重建的操作：DaemonSet template 变更、镜像升级、手工 <code>kubectl delete pod</code> 等</td></tr>
+                            <tr><td><code>hostNetwork: true</code>（默认）</td><td>netns 即宿主机 netns，不随 Pod 重建变化，TAP 设备得以保留。cubelet 重启后沙箱存活尚未实机验证——在此之前仍应 drain</td></tr>
+                            <tr><td><code>hostNetwork: false</code>（Pod 网络）</td><td>Pod netns 被销毁：该节点上<strong>所有沙箱</strong>网络全部中断（入站、出站均中断）且<strong>不能自愈</strong>，只能销毁并重建受影响的沙箱</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="icon">BIG</span>
+                        <h3>什么是 Big Pod</h3>
+                        <p>即 <code>cube-node</code> DaemonSet 的 Pod：<code>hostNetwork: true</code>，<code>wait-node-prep</code> 作为 initContainer（指纹匹配后 exit 0，不作为常驻 sidecar），主容器是内嵌 network runtime 的 <code>cubelet</code>，并带 egress 与可选 s3lvol sidecar。它的 Pod template 一旦变化就会重建。</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon">UID</span>
+                        <h3>重建的可见信号</h3>
+                        <p>Pod UID 会变；宿主机网络下 PodIP 即节点 IP，不会变。所以「Pod 重建但负载 IP 没变」是正常现象，不能用 IP 变没变来判断是否重建。</p>
+                    </div>
+                </div>
+
+                <h3>5.2 升什么，动哪条工作负载？</h3>
+                <p>计算面拆成四条线。<strong>日常升级只改对应组件的镜像 tag</strong>，避免顺手改 Big Pod 的 env / volumeMount / 容器列表——这些同样会 recreate。</p>
+                <div class="decision">
+                    <div class="decision-card">
+                        <span class="badge badge-danger">会 recreate</span>
+                        <h4>升运行时组件</h4>
+                        <p>改 <code>images.cubelet</code> / <code>images.waitNodePrep</code> 等 → 动 <strong>Big Pod</strong>（<code>cube-node</code>）。镜像 / 资源 / Pod template 变更都会删除重建。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-success">不碰 Big Pod</span>
+                        <h4>升 toolbox 产物</h4>
+                        <p>改 <code>images.cubeShim</code> / <code>images.cubeKernel</code> / <code>images.cubeGuest</code> → 动 <strong>Installer</strong>（<code>cube-node-installer</code>），可独立 RollingUpdate。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-success">不碰 Big Pod</span>
+                        <h4>升节点预检</h4>
+                        <p>改 <code>images.nodeInit</code> → 动 <strong>Bootstrap</strong>（<code>cube-node-bootstrap</code>），<code>hostPID: true</code>，低频变更。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-warning">可能 reboot</span>
+                        <h4>升 PVM 换核</h4>
+                        <p>改 <code>images.pvmHostBootstrap</code> → 动 <strong><code>cube-node-pvm</code></strong>，不 recreate Big Pod，但节点可能重启以换 host kernel。</p>
+                    </div>
+                </div>
+                <p class="table-caption">图 5：升级决策图。「改什么 → 动哪条工作负载 → 是否 recreate Big Pod」。</p>
+
+                <div class="table-wrap">
+                    <table class="cmd-table">
+                        <thead>
+                            <tr><th>你想升级的东西</th><th>动哪条工作负载</th><th>values 里改谁</th><th>是否会 recreate Big Pod</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>cubelet / wait-node-prep / 槽位镜像或 resources</td><td><strong>Big Pod</strong>（<code>cube-node</code>）</td><td><code>images.cubelet</code> 等</td><td><strong>是</strong></td></tr>
+                            <tr><td>shim / kernel / guest 产物</td><td><strong>Installer</strong></td><td><code>images.cubeShim</code> 等</td><td>否（Big Pod template 不变）</td></tr>
+                            <tr><td>node-init / 节点预检逻辑</td><td><strong>Bootstrap</strong></td><td><code>images.nodeInit</code></td><td>否（Big Pod template 不变）</td></tr>
+                            <tr><td>PVM 宿主机换核脚本</td><td><strong><code>cube-node-pvm</code></strong></td><td><code>images.pvmHostBootstrap</code></td><td>否（但节点可能 reboot）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>5.3 日常升级（推荐路径）</h3>
+                <p>在本地 <code>runtime-values.yaml</code>（与首次安装相同的 values 文件）里只更新要升的镜像 tag：</p>
+                <pre><code>images:
+  cubelet:
+    tag: v0.8.0
+  <span class="c"># 需要一起升再写上，例如：</span>
+  <span class="c"># cubeShim:</span>
+  <span class="c">#   tag: v0.8.0</span></code></pre>
+                <p>用与安装时相同的 <code>-f</code> 组合执行升级：</p>
+                <pre><code>helm upgrade cube ./deploy/kubernetes/chart -n cube-system \
+  -f runtime-values.yaml
+<span class="c"># TKE / 单节点等场景继续叠加首次安装时用过的 values-tke.yaml / values-single-node.yaml</span></code></pre>
+                <div class="warning">
+                    <strong>生产请逐个节点、逐个组件灰度升级</strong>
+                    <p>全量操作非常危险。升 Big Pod 运行时镜像会 recreate Big Pod，请先 drain；Pod 网络下必须 drain。</p>
+                </div>
+                <p>确认升级成功：</p>
+                <pre><code><span class="c"># Big Pod 会被重建：UID 会变（宿主机网络下 PodIP 即节点 IP，不会变）</span>
+kubectl get pods -n cube-system -l app.kubernetes.io/component=cube-node -o wide
+kubectl get daemonset -n cube-system cube-node
+
+<span class="c"># 控制面 Deployment 可按常规滚动验收</span>
+kubectl get deploy -n cube-system
+kubectl rollout status deploy/cube-master -n cube-system</code></pre>
+
+                <h3>5.4 升级顺序</h3>
+                <div class="timeline">
+                    <div class="timeline-item done">
+                        <h4>1. 先起 CubeOps</h4>
+                        <p>新 cubelet 把 <code>meta_server_endpoint</code> 指向 cube-ops，地址不可达会 fail-fast，所以必须先把 CubeOps 起好。</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>2. 再起 CubeMaster</h4>
+                        <p>CubeMaster 启动时如果配置了 <code>cube_ops_addr</code> 且 CubeOps 不通，会 fail-fast。</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>3. 切流期不要新老 cubelet 混跑</h4>
+                        <p>旧 cubelet 向 cube-master <code>:8089</code> 上报，新 cubelet 向 cube-ops <code>:3010</code> 上报；混跑会导致节点状态不一致。逐节点滚动，或先停整个计算面再升。</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>4. 最后滚动控制面与计算节点</h4>
+                        <p>以上就绪后，再按需滚动 <code>cube-master</code>、<code>cube-api</code> 与计算节点。</p>
+                    </div>
+                </div>
+
+                <h3>5.5 红线：这些操作也会 recreate Big Pod</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>不要随便做</th><th>为什么</th></tr></thead>
+                        <tbody>
+                            <tr><td>改 <code>cubeNode.hostNetwork</code></td><td>会让沙箱数据面跨 netns 迁移；由 pre-install / pre-upgrade / pre-rollback Hook 拦截</td></tr>
+                            <tr><td>增删 Big Pod 容器（含改槽位数量）</td><td>改 Pod template，DaemonSet 会重建 Pod</td></tr>
+                            <tr><td>改 volumeMount / securityContext / 容器名 / 直接改 env</td><td>同上，template 变更即重建</td></tr>
+                            <tr><td>改 <code>wait-node-prep</code> 的 env / mount（只 bump 镜像也会 recreate）</td><td>wait 为 initContainer；template 变更即重建</td></tr>
+                            <tr><td>手动删 Big Pod</td><td>等于重建数据面</td></tr>
+                            <tr><td>把产物安装塞进 Big Pod</td><td>破坏分工；产物应走 Installer</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>另外，<code>cubeNode.env</code>、<code>cubeNode.podAnnotations</code>、网络相关 env、<code>global.timezone</code> 也会改 Pod template——<strong>不是日常无感升级项</strong>。</p>
+
+                <h3>5.6 特殊场景</h3>
+                <h4>A. 改 PVM kernel pattern / boot args（会 reboot）</h4>
+                <p>日常只换 <code>images.pvmHostBootstrap</code> 镜像、且指纹仍匹配时，一般不会再打 <code>pvm-not-ready</code> 门闩。若你要<strong>主动改</strong> <code>bootArgs</code> / kernel pattern（期望指纹变化），建议在 <code>helm upgrade</code> <strong>之前</strong>打运维门闩（<code>value=maintenance</code>，与 Hook 自动打的 <code>true</code> 不同——旧 hold 默认不会清 maintenance）：</p>
+                <pre><code><span class="c"># 1. 确认 CNI、kube-proxy 能容忍该 NoSchedule 污点</span>
+kubectl taint node &lt;pvm-node&gt; \
+  cube.tencent.com/pvm-not-ready=maintenance:NoSchedule --overwrite
+
+<span class="c"># 2. 在 runtime-values.yaml 里改好 bootArgs / kernel 相关配置后升级</span>
+helm upgrade cube ./deploy/kubernetes/chart -n cube-system \
+  -f runtime-values.yaml</code></pre>
+                <pre><code>bootstrap:
+  pvmHostKernel:
+    bootArgs: "nopti pti=off &lt;new-arg&gt;"</code></pre>
+                <p>节点恢复后，只有新的 PVM init 在 live 指纹匹配时才会清掉 maintenance。任一步失败都不应 reboot。要关某节点的 PVM，去掉该节点的 <code>allow-pvm-bootstrap</code> label 即可；<strong>不要</strong>指望只改 <code>cubeNode.pvmGuestKernel.enabled=false</code> 把已在跑 PVM 的节点悄悄切回 bm。</p>
+
+                <h4>B. 卸干净重装（最后手段）</h4>
+                <pre><code>helm uninstall cube -n cube-system
+sudo ./deploy/kubernetes/chart/scripts/cleanup-node-host.sh
+helm upgrade --install cube ./deploy/kubernetes/chart \
+  -n cube-system -f runtime-values.yaml</code></pre>
+                <p>这会清掉 Chart 管理的对象；宿主机 hostPath / 内核改动需脚本与平台 runbook 另行处理。</p>
+
+                <h3>5.7 附录：镜像键速查</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>values 键</th><th>工作负载</th><th>容器</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>images.cubelet</code></td><td>Big Pod</td><td><code>cubelet</code>（含内嵌网络运行时）</td></tr>
+                            <tr><td><code>images.waitNodePrep</code></td><td>Big Pod / Bootstrap</td><td>Big Pod 的 <code>wait-node-prep</code> init；Bootstrap 的 write-ready 也用它</td></tr>
+                            <tr><td><code>images.cubeShim</code></td><td>Installer</td><td><code>cube-shim-install</code></td></tr>
+                            <tr><td><code>images.cubeKernel</code></td><td>Installer</td><td><code>cube-kernel-install</code></td></tr>
+                            <tr><td><code>images.cubeGuest</code></td><td>Installer</td><td><code>cube-guest-install</code></td></tr>
+                            <tr><td><code>images.nodeInit</code></td><td>Bootstrap</td><td><code>wait-pvm-host</code> / <code>cube-node-init</code></td></tr>
+                            <tr><td><code>images.pvmHostBootstrap</code></td><td><code>cube-node-pvm</code></td><td><code>pvm-host-bootstrap</code> / hold reconcile</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>改完 <code>bootArgs</code> / <code>prepGeneration</code> 等策略后，若担心误伤 Big Pod template，可跑守卫脚本：</p>
+                <pre><code>sh deploy/kubernetes/chart/scripts/test-big-pod-inplace-guard.sh</code></pre>
+            </section>
+
+            <!-- ============================ 6 ============================ -->
+            <section class="concept-section" id="ha">
+                <h2><span class="section-num">6</span>高可用与生命周期</h2>
+
+                <p>Chart 默认 <code>lifecycleManager.replicas=2</code> 且 <code>leaderElection.enabled=true</code>，以主备方式运行：每个副本都消费生命周期事件、处理恢复回调，由 Redis 租约选出的 leader 执行空闲扫描 / 销毁和过期注册清理；共享的沙箱状态只有 leader 会写。<code>replicas</code> 大于 1 却关闭选主会在 Helm 校验阶段失败。</p>
+
+                <div class="state-machine">
+                    <span class="state running">running</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state paused">paused</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state running">running（auto-resume）</span>
+                    <span class="diagram-arrow">→</span>
+                    <span class="state dead">dead</span>
+                </div>
+                <p class="table-caption">图 6：pause / resume 语义。leader 故障切换后，记录不一致的沙箱按安全的一侧记为 <code>paused</code>，下次请求照常 auto-resume。</p>
+
+                <h3>6.1 故障切换后的用户可见影响</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>现象</th><th>是否预期</th><th>机制</th></tr></thead>
+                        <tbody>
+                            <tr><td>沙箱多一次 pause / resume</td><td>预期，且只发生一次，不是循环</td><td>新 leader 接管时重新核对每个沙箱状态，记录不一致时按安全的一侧记为 <code>paused</code></td></tr>
+                            <tr><td>是否向 VM 发 pause？</td><td>不会</td><td>这只是记录层面的修正，下次请求会照常 auto-resume</td></tr>
+                            <tr><td>为什么不记成 running？</td><td>安全优先</td><td>把实际已停止的沙箱记成 <code>running</code>，会让流量打到已停机的 VM</td></tr>
+                            <tr><td>代价</td><td>最多一次额外的 auto-resume</td><td>用户可见影响见 FAQ；Terraform 一键部署默认同样是双副本主备</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>6.2 MySQL / Redis 的影响面</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>依赖</th><th>部署形态</th><th>影响</th></tr></thead>
+                        <tbody>
+                            <tr><td>MySQL</td><td><code>mysql.host=""</code> → 内置 StatefulSet + Headless Service；非空 → 第三方</td><td>业务数据；CubeMaster 启动时跑内嵌 goose migration，migration 未完成时 CubeAPI <code>/health</code> 可能失败</td></tr>
+                            <tr><td>Redis</td><td><code>redis.host=""</code> 且控制面或 Proxy 需要时安装；非空 → 第三方</td><td>Proxy 与 lifecycle 状态；leader 选主使用 Redis 租约，Redis 不可用会影响选主与副本发现</td></tr>
+                            <tr><td>MinIO / S3</td><td><code>minio.enabled=true</code> 时 StatefulSet；或外部 S3</td><td>Volume 后端；与 <code>volumeS3.*</code> 二选一</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="note">
+                    <strong>内置依赖的 HA 拓扑</strong>
+                    <p>源文档只说明内置 MySQL / Redis / MinIO 以 StatefulSet 交付，未给出其副本数、主从或故障切换细节。生产环境建议使用托管或自建高可用实例，并通过 <code>mysql.host</code> / <code>redis.host</code> 接入；具体拓扑以官方文档为准。</p>
+                </div>
+            </section>
+
+            <!-- ============================ 7 ============================ -->
+            <section class="concept-section" id="faq">
+                <h2><span class="section-num">7</span>FAQ 速查</h2>
+
+                <p>按主题整理高频问题。默认 Release 名为 <code>cube</code>、命名空间为 <code>cube-system</code>；若 Release 名不同，请把资源名前缀换成 <code>&lt;release&gt;</code>，或改用 <code>app.kubernetes.io/component=…</code> 标签选择器。</p>
+
+                <h3>7.1 安装与校验</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>症状</th><th>排查命令</th><th>根因 / 处理</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>helm install</code> 报错要配置 <code>placement.*.nodeSelector</code></td><td><code>kubectl get nodes --show-labels</code></td><td>Chart 用 <code>templates/validate.yaml</code> 禁止通配部署；补上明确的 nodeSelector</td></tr>
+                            <tr><td>报 <code>cube-node requires placement.compute.nodeSelector</code></td><td>检查 values 的 <code>placement.compute</code></td><td>计算节点必须显式指定；不要写进 <code>placement.pvm</code></td></tr>
+                            <tr><td>报 <code>placement.compute… must not include …allow-pvm-bootstrap</code></td><td>检查 <code>placement.compute.nodeSelector</code></td><td>写进 compute 会让所有计算节点拉 PVM 大镜像</td></tr>
+                            <tr><td>报 <code>cubeProxy.enabled=true requires placement.controlPlane.nodeSelector</code></td><td>检查 <code>placement.controlPlane</code></td><td>Proxy 跑在控制面节点上</td></tr>
+                            <tr><td>计算面 DaemonSet Ready 数不够</td><td><code>kubectl -n cube-system get daemonset -l 'app.kubernetes.io/component in (cube-node,cube-node-installer,cube-node-bootstrap,cube-node-pvm)'</code></td><td><code>DESIRED=0</code> 缺 <code>cube-node=true</code>；<code>CURRENT&lt;DESIRED</code> 污点挡住了；<code>READY&lt;CURRENT</code> 看 <code>wait-node-prep</code> 与 bootstrap</td></tr>
+                            <tr><td><code>helm test</code> 里 CubeAPI <code>/health</code> 失败</td><td><code>kubectl -n cube-system logs -l app.kubernetes.io/component=api --tail=200</code><br><code>kubectl -n cube-system logs -l app.kubernetes.io/component=master -c cube-master --tail=200</code></td><td>API 未 Ready，或 MySQL / migration 未完成；首次 migration 可能要几分钟，安装用 <code>--timeout 90m</code></td></tr>
+                            <tr><td><code>helm test</code> 卡住、既不超时也没结果</td><td><code>helm test cube -n cube-system --logs --timeout 20m</code></td><td>Helm <strong>3.13+</strong> 才让 <code>--timeout</code> 对 test hook 生效</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>7.2 节点与调度</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>症状</th><th>排查命令</th><th>根因 / 处理</th></tr></thead>
+                        <tbody>
+                            <tr><td>能不能少打几枚 label？</td><td>—</td><td>不建议；PVM 会换 host kernel 并可能 reboot，计算面有 privileged / hostPath，误调度代价大。生产用 GitOps / Terraform 统一管理</td></tr>
+                            <tr><td>控制面节点能否兼做计算节点？</td><td>—</td><td>技术上可以（单节点试用），生产不建议；混部时打两枚独立 label 并叠加 <code>values-single-node.yaml</code></td></tr>
+                            <tr><td>PVC / PV 一直 Pending</td><td><code>kubectl get sc</code><br><code>kubectl get pvc -n cube-system</code><br><code>kubectl describe pvc -n cube-system &lt;pvc-name&gt;</code></td><td>没有 default StorageClass → 设 <code>persistence.storageClassName</code> 或改 hostPath；SC / CSI 不存在 → 先装 provisioner；<code>WaitForFirstConsumer</code> 但 Pod 调度不上 → 先让 Pod 可调度</td></tr>
+                            <tr><td>TKE + <code>values-tke.yaml</code> 下 PVC Pending</td><td><code>kubectl -n cube-system describe pod &lt;pod-name&gt;</code></td><td>CBS 盘在 Pod 落点后再创建；常见是节点资源不足，或 nodeSelector 与 CBS 可用区不一致</td></tr>
+                            <tr><td>临时摘掉一台 compute 做维护</td><td><code>kubectl drain &lt;node&gt; --ignore-daemonsets --delete-emptydir-data=false</code><br><code>kubectl uncordon &lt;node&gt;</code></td><td>先销毁节点上的沙箱再 drain；<code>cube-node</code> 会在节点重新可调度后自动起来并重新注册</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>7.3 控制面 / 数据库</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>症状</th><th>排查命令</th><th>根因 / 处理</th></tr></thead>
+                        <tbody>
+                            <tr><td>CLM 故障切换后沙箱多一次 pause/resume</td><td>—</td><td>预期行为且只发生一次；新 leader 记录不一致时按安全侧记为 <code>paused</code>，不会向 VM 发 pause</td></tr>
+                            <tr><td>cube-master 报连不上 MySQL</td><td><code>kubectl -n cube-system get pods -l app.kubernetes.io/component=mysql</code><br><code>kubectl -n cube-system exec cube-mysql-0 -- mysql -uroot -p"$(kubectl -n cube-system get secret cube-secret -o jsonpath='{.data.mysql-root-password}' | base64 -d)" -e 'show databases'</code></td><td>内置 MySQL 未 Running / Secret 密码被误改 / 容器内不通；外部 MySQL 在 CubeAPI Pod 上用 <code>CUBE_SANDBOX_MYSQL_*</code> 探测（不是 <code>CUBE_MYSQL_HOST</code>）</td></tr>
+                            <tr><td>升级后表结构没迁完 / migration 卡住</td><td><code>kubectl -n cube-system logs -l app.kubernetes.io/component=master -c cube-master | grep -i migrat</code></td><td>CubeMaster 启动跑内嵌 goose migration；上次异常退出导致 lock 卡住时需按库内状态手工处理</td></tr>
+                            <tr><td>外部 MySQL 8 <code>caching_sha2_password</code> 认证失败</td><td><code>ALTER USER 'cube_user'@'%' IDENTIFIED WITH caching_sha2_password BY '&lt;new-password&gt;';</code><br><code>FLUSH PRIVILEGES;</code></td><td>Chart 已不再强制 <code>mysql_native_password</code>；驱动支持 <code>caching_sha2_password</code></td></tr>
+                            <tr><td>怎么用 cubemastercli？</td><td><code>kubectl -n cube-system exec -it -l app.kubernetes.io/component=cubemastercli -- bash</code><br><code>cubeopscli node list</code><br><code>cubemastercli sandbox list</code></td><td>镜像内 bashrc 会自动补 <code>--address</code> / <code>--port</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>7.4 计算面 / PVM / 沙箱</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>症状</th><th>排查命令</th><th>根因 / 处理</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>pvm-host-bootstrap</code> 反复重启 / 节点 reboot</td><td><code>kubectl -n cube-system logs -l app.kubernetes.io/component=cube-node-pvm -c pvm-host-bootstrap --tail=100</code></td><td>多数是换核后的正常 reboot；若迟迟不重启，多半是无 reboot 权限或 GRUB 未更新，登录节点人工 <code>reboot</code></td></tr>
+                            <tr><td>换核后核对内核</td><td><code>uname -r</code><br><code>cat /proc/cmdline | grep -o pti=off</code></td><td>应含 <code>cubesandbox.pvm.host</code>（与 Chart 默认 <code>DESIRED_KERNEL_PATTERN</code> 一致）</td></tr>
+                            <tr><td><code>cube-node-init</code> 报 <code>/dev/kvm</code> 不可用</td><td><code>kubectl debug node/&lt;node&gt; -it --image=busybox -- sh</code><br><code>ls -la /dev/kvm</code><br><code>lsmod | grep kvm</code></td><td>云主机需安装 PVM；物理机需开 VT-x / AMD-V</td></tr>
+                            <tr><td>cube-node Ready 了，但看不到沙箱 / 节点没注册</td><td><code>kubectl -n cube-system exec -l app.kubernetes.io/component=cubemastercli -- sh -lc 'cubeopscli --address "$CUBEOPSCLI_ADDRESS" --port "$CUBEOPSCLI_PORT" node list'</code><br><code>kubectl -n cube-system logs -l app.kubernetes.io/component=cube-node -c cubelet --tail=200 | grep -i register</code></td><td><code>healthy: true</code> 可创建沙箱；不在列表则看注册日志，常见是连不上 CubeMaster（网络 / DNS）</td></tr>
+                            <tr><td>某个节点上所有沙箱同时断网</td><td><code>kubectl get pods -n cube-system -l app.kubernetes.io/component=cube-node -o wide</code></td><td>该节点 <code>cube-node</code> Pod 被重建且运行在 Pod 网络；恢复靠销毁重建受影响沙箱，预防是保持 <code>hostNetwork: true</code></td></tr>
+                            <tr><td>如何在 K8s 中运行 <code>cubecli</code>？</td><td><code>kubectl exec -n cube-system &lt;cube-node-pod&gt; -- cubecli ls</code></td><td><code>cubecli</code> 访问节点本地 Cubelet / containerd socket；默认 exec 进入 <code>cubelet</code> 容器。Pod 网络下 TAP 诊断需在 Pod 内执行</td></tr>
+                            <tr><td>沙箱启动很慢（&gt;10s），节点却很空</td><td><code>iostat -x 1</code></td><td>查节点 CPU 负载、<code>/data/cubelet</code> 是否打满盘 / IOPS、是否有大量 Paused 沙箱占盘未清理</td></tr>
+                            <tr><td>单节点沙箱数量大概卡在哪？</td><td>—</td><td>内存（每沙箱数百 MB～数 GB）、磁盘（CoW rootfs，默认 loopback 仅 25G）、KVM 数量（单机通常最多数百级）</td></tr>
+                            <tr><td><code>/data/cubelet</code> 空间不够 / 想改数据盘大小</td><td>—</td><td>镜像文件不存在时可改 <code>size</code> 重装；已建好再改 values <strong>不会</strong>扩容，需维护窗口删旧 img</td></tr>
+                            <tr><td>怎么关掉某台节点的 PVM？</td><td><code>kubectl label node &lt;node&gt; cube.tencent.com/allow-pvm-bootstrap-</code><br><code>readlink /var/lib/cube-node-bootstrap/vmlinux-active</code></td><td>去掉 label 后重启服务器；自检当前 guest 内核</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>7.5 CubeProxy / TLS / DNS</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>症状</th><th>排查命令</th><th>根因 / 处理</th></tr></thead>
+                        <tbody>
+                            <tr><td>sandbox 域名解析不了</td><td><code>nslookup test.cube.app</code><br><code>kubectl -n cube-system logs job/cube-cluster-dns-apply</code><br><code>kubectl -n cube-system get svc cube-proxy -o wide</code></td><td>集群内看 CoreDNS 是否含 <code># BEGIN cube-sandbox-dns</code>；guest 看 <code>followNodeDns</code>；集群外需把 <code>cube.app</code> / <code>*.cube.app</code> 指到 Ingress / LB</td></tr>
+                            <tr><td>Ingress / 外部入口不通</td><td><code>kubectl get ingress -n cube-system</code></td><td>IngressClass / Ingress 不存在；passthrough 注解与 Controller 不匹配；TKE 默认关 Ingress 用 LoadBalancer（CLB）</td></tr>
+                            <tr><td>selfSigned 证书浏览器告警</td><td>—</td><td>试用预期行为；生产改 <code>cubeProxy.tls.mode: existingSecret</code> 或 <code>certManager</code></td></tr>
+                            <tr><td>改了 <code>cubeProxy.advertiseIP</code> 好像没生效</td><td><code>kubectl -n cube-system rollout restart deploy/cube-proxy</code></td><td>该字段只是「给人看的提示字段」，不会写入 Proxy / DNS / Service 模板；真正要改的是外部 DNS / LB 或 <code>cubeProxy.service</code> / Ingress 配置</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>7.6 Egress 网络</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>症状</th><th>排查命令</th><th>根因 / 处理</th></tr></thead>
+                        <tbody>
+                            <tr><td>沙箱上不了外网</td><td><code>kubectl exec -n cube-system &lt;cube-node-pod&gt; -- ping -c 2 8.8.8.8</code></td><td>登录 <code>cube-node</code> Pod 内检查能否连通外网；再排查沙箱网络策略</td></tr>
+                            <tr><td>出站 MITM 后 TLS 报错</td><td><code>kubectl -n cube-system get secret cube-egress-ca -o jsonpath='{.data.cube-root-ca\.crt}' | base64 -d &gt; cube-ca.crt</code></td><td>需信任 Chart 下发的 egress CA；Secret 名默认 <code>&lt;release&gt;-egress-ca</code>，key 默认 <code>cube-root-ca.crt</code>（不是 <code>ca.crt</code>）；或用 <code>cubeEgress.ca.mode: existingSecret</code></td></tr>
+                            <tr><td><code>cube-egress-net</code> CrashLoopBackOff</td><td><code>kubectl -n cube-system logs &lt;cube-node-pod&gt; -c cube-egress-net --tail=100</code></td><td>依赖主容器创建的 <code>cube-dev</code>；<code>interface cube-dev not present</code> 通常自愈，超过约 5 分钟查 cubelet；<code>rule reapply failed</code> 多为 iptables 过旧（需 nft）或与 CNI 规则冲突</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================ 8 ============================ -->
+            <section class="concept-section" id="uninstall">
+                <h2><span class="section-num">8</span>卸载与所有权边界</h2>
+
+                <p>卸载只删 Chart 管理的 K8s 对象，<strong>不会</strong>自动清理节点级改动。先把「谁管什么」分清，再决定是否执行清理脚本。</p>
+
+                <pre><code>helm uninstall cube -n cube-system
+kubectl delete namespace cube-system</code></pre>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead><tr><th>Chart 管理（随 release 卸载）</th><th>Chart 不管理（需平台 runbook）</th></tr></thead>
+                        <tbody>
+                            <tr><td>控制面与计算面工作负载</td><td>节点 label / taint</td></tr>
+                            <tr><td>内置 MySQL / Redis / MinIO</td><td>第三方 DB</td></tr>
+                            <tr><td>CubeProxy、CA / TLS / config Secret</td><td>外部 DNS / LB</td></tr>
+                            <tr><td>Helm test RBAC、diagnostics ConfigMap</td><td>hostPath 数据</td></tr>
+                            <tr><td>PVC（是否删除取决于 StorageClass 的 <code>reclaimPolicy</code>）</td><td>host kernel / GRUB / udev / fstab / XFS 等节点级持久修改</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="danger">
+                    <strong>卸载后计算节点常见残留（确认无数据再执行）</strong>
+                    <p>以下命令会删除 <code>/data/cubelet</code> 等目录，执行前务必确认不再需要这些沙箱数据：</p>
+                    <pre><code>sudo rm -rf /data/cubelet /data/cube-shim /data/cube-shared /data/snapshot_pack \
+  /data/log/Cubelet /data/log/CubeShim /data/log/CubeVmm \
+  /usr/local/services/cubetoolbox /var/lib/cube-node-bootstrap /tmp/cube \
+  /data/cubelet-xfs.img</code></pre>
+                </div>
+                <p>PVM 内核还需卸包、改 GRUB、reboot。也可使用 Chart 附带的 <code>deploy/kubernetes/chart/scripts/cleanup-node-host.sh</code>。PVC / PV 是否删除取决于实际 StorageClass 的 <code>reclaimPolicy</code>（TKE 的 <code>cube-cbs-wffc</code> 常见为 <code>Delete</code>；<code>Retain</code> 则会留下）。</p>
+
+                <div class="warning">
+                    <strong>helm rollback 不会回滚 host kernel</strong>
+                    <p>Helm 只管 K8s 对象。kernel / GRUB / fstab / XFS 等需单独的宿主机回滚 runbook。</p>
+                </div>
+            </section>
+
+            <!-- ============================ 9 ============================ -->
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">9</span>易错点与自测</h2>
+
+                <h3>9.1 易错点</h3>
+                <div class="danger">
+                    <strong>把 allow-pvm-bootstrap 写进 placement.compute</strong>
+                    <p>PVM 的 label 只能出现在 <code>placement.pvm</code>，写进 <code>placement.compute</code> 会让所有计算节点去拉 PVM 大镜像，Chart 渲染阶段直接失败。反过来，<code>placement.pvm</code> 必须包含 <code>allow-pvm-bootstrap=true</code>。</p>
+                </div>
+                <div class="warning">
+                    <strong>以为改 cubeProxy.advertiseIP 会改变入口</strong>
+                    <p>它只是 <code>values.yaml</code> 注释写明的 optional hint，不会写入 Proxy / DNS / Service 模板。改它再重启 Proxy 也不会改变集群行为，真正要改的是外部 DNS / LB 或 Service / Ingress。</p>
+                </div>
+                <div class="warning">
+                    <strong>在已有 release 上改 cubeNode.hostNetwork</strong>
+                    <p>这属于 Pod template 字段，会重建所有 Big Pod，且沙箱数据面会跨 netns 迁移。preflight Hook 会拦截：要么保持现状写回线上值，要么先逐节点 isolate、等待 ≥ 60s、销毁沙箱，再设 <code>cubeNode.hostNetworkChangeAck: true</code>。不要在 <code>helm rollback</code> 里切回模式——回滚重放的是目标 revision 的 stored values。</p>
+                </div>
+                <div class="warning">
+                    <strong>以为改 loopback size 能扩容</strong>
+                    <p>默认仅在 <code>/data/cubelet-xfs.img</code> 不存在时创建镜像文件，后续改 <code>size</code> 不会自动扩容。生产建议关掉 loopback，改用预挂载的大容量 XFS 盘。</p>
+                </div>
+                <div class="info">
+                    <strong>其它小坑</strong>
+                    <p><code>helm test</code> 的 <code>--timeout</code> 需要 Helm 3.13+ 才生效；<code>cubeNode.env</code> 是整体替换而不是合并；<code>kubectl exec</code> 不带 <code>-c</code> 时默认目标是 <code>cubelet</code>（本次变更从 <code>network-agent</code> 改过来）；升级 PostgreSQL 加列场景下，旧实例要先摘流停止再启动会自动迁移的新版本。保持默认 <code>hostNetwork</code> 时，cubelet（<code>9998</code> / <code>9999</code> / <code>9966</code>）与启用时的 CubeS3lvol 占用宿主机端口，已被占用时 <code>cube-node-init</code> 会 fail-fast；cubelet 端口无认证，防火墙应把 <code>9999</code> 按 kubelet <code>10250</code> 同级对待。</p>
+                </div>
+
+                <h3>9.2 记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>四个 DaemonSet</b>Big Pod（cube-node）、Installer、Bootstrap、PVM；加 JuiceFS 挂载 DS 是第五个 OnDelete。</div>
+                    <div class="memory-card"><b>三个标签</b>control 打 <code>cube-control</code>，compute 打 <code>cube-node</code>，非裸金属再打 <code>allow-pvm-bootstrap</code>；计算节点必打 <code>compute</code> 污点。</div>
+                    <div class="memory-card"><b>网络模式定代价</b>hostNetwork=true 时 netns 是宿主机的，重建保留设备；Pod 网络下重建即全断且不自愈。</div>
+                    <div class="memory-card"><b>升级只改 tag</b>升运行时改 <code>images.cubelet</code>，升产物改 Installer 的 image，升预检改 <code>images.nodeInit</code>，升换核改 <code>images.pvmHostBootstrap</code>。</div>
+                    <div class="memory-card"><b>卸载不管宿主机</b>label / taint、hostPath 数据、PVM 内核改动都要另行清理。</div>
+                    <div class="memory-card"><b>CLM 双副本</b>Redis 租约选主；故障切换最多一次额外 pause/resume，不会循环。</div>
+                </div>
+
+                <h3>9.3 自测</h3>
+                <div class="quiz">
+                    <h4>自测</h4>
+                    <details>
+                        <summary>1. 为什么 <code>allow-pvm-bootstrap</code> 只能写在 <code>placement.pvm</code>，不能写进 <code>placement.compute</code>？</summary>
+                        <p>因为 <code>placement.compute</code> 会被 <code>cube-node</code> / installer / bootstrap 三条 DaemonSet 使用。若把 <code>allow-pvm-bootstrap=true</code> 写进 compute，所有计算节点都会匹配 <code>cube-node-pvm</code>，从而拉取 PVM 大镜像并触发宿主机换核流程；Chart 在 <code>templates/validate.yaml</code> 中明确禁止这种写法。PVM 的引导只应发生在显式打了该 label 的 <code>placement.pvm</code> 节点上。</p>
+                    </details>
+                    <details>
+                        <summary>2. 在 Pod 网络模式（<code>cubeNode.hostNetwork: false</code>）下重建 <code>cube-node</code> Pod，会发生什么？如何恢复？</summary>
+                        <p>Pod 重建会销毁该 Pod 的 netns，而沙箱的 TAP 设备与 cubevs 钩子都在这个 netns 里，因此该节点上<strong>所有沙箱</strong>的网络会全部中断（入站、出站均中断），且不能自愈。恢复只能销毁并重建受影响的沙箱。预防是保持默认的宿主机网络；若因 NetworkPolicy 必须用 Pod 网络，则升级前必须 drain，并接受重建即中断的代价。</p>
+                    </details>
+                    <details>
+                        <summary>3. 只升级 shim / kernel / guest 产物，应该改哪个镜像键？会 recreate Big Pod 吗？</summary>
+                        <p>改 <code>images.cubeShim</code> / <code>images.cubeKernel</code> / <code>images.cubeGuest</code>，它们对应 Installer（<code>cube-node-installer</code>）里的 <code>cube-shim-install</code> / <code>cube-kernel-install</code> / <code>cube-guest-install</code> 容器。Installer 可独立 RollingUpdate，<strong>不会</strong> recreate Big Pod，因为 Big Pod 的 Pod template 不变。这也是把计算面拆成四条线的核心收益。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

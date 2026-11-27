@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云上、离线与开发环境 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>云上、离线与开发环境</span>
+            </h1>
+            <p class="subtitle">三条路线把 CubeSandbox 跑起来：腾讯云 Terraform 集群、纯离线安装、本地 QEMU 开发虚机</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 04 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">云上与离线</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 04 章</span>
+                <h1>云上、离线与开发环境</h1>
+                <p>第 02、03 章解决的是「单机 / 裸金属 / Kubernetes」怎么装；本章解决另外三类真实场景：想一键在云上拉起高可用集群、目标机器完全没有公网、或者你只有一台本地开发机。三者不是替代关系，而是<strong>环境约束不同</strong>。读完后你能针对手头条件选对路线，并独立跑通「腾讯云 Terraform 集群 / 离线部署 / 本地 QEMU 虚机」中的任意一条。</p>
+                <div class="page-meta">
+                    <span>📖 预计 45 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 4 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#routes">1. 三条路线怎么选</a></li>
+                    <li><a href="#tc-arch">2. 腾讯云集群：架构与默认资源</a></li>
+                    <li><a href="#tc-sg">3. 安全组与网络暴露</a></li>
+                    <li><a href="#tc-start">4. 前置条件与快速开始</a></li>
+                    <li><a href="#tc-vars">5. 变量、计费与成本</a></li>
+                    <li><a href="#tc-phases">6. 部署阶段、重试与验证</a></li>
+                    <li><a href="#tc-dns">7. E2B 与 cube.app 域名解析</a></li>
+                    <li><a href="#offline-flow">8. 离线部署：五步流程</a></li>
+                    <li><a href="#offline-images">9. 离线部署：镜像清单与运维</a></li>
+                    <li><a href="#dev-env">10. 开发环境：QEMU 虚机</a></li>
+                    <li><a href="#downloads">11. 下载与 Release</a></li>
+                    <li><a href="#pitfalls">12. 易错点与记忆卡片</a></li>
+                    <li><a href="#quiz">13. 自测题</a></li>
+                </ul>
+            </div>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="routes">
+                <h2><span class="section-num">1</span>三条路线怎么选</h2>
+                <p class="lead">先判断你的「环境约束」是什么，再决定用哪条路线。三条路线共享同一套 CubeSandbox 组件，差别只在于<strong>谁来提供 KVM/PVM 算力</strong>与<strong>依赖哪种网络</strong>。</p>
+
+                <div class="decision">
+                    <div class="decision-card">
+                        <span class="badge badge-primary">场景 A</span>
+                        <h4>腾讯云 Terraform 集群</h4>
+                        <p>需要一套高可用、可对外服务的沙箱集群，且接受按量计费。用发布包自带部署器一键拉起 TKE 控制面 + CVM PVM 计算节点。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-teal">场景 B</span>
+                        <h4>离线部署</h4>
+                        <p>目标机器在内网机房 / 隔离网段，<strong>没有公网</strong>，但能拿到安装包与容器镜像。按正常流程安装，只是产物靠人工搬运。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-violet">场景 C</span>
+                        <h4>本地 QEMU 开发环境</h4>
+                        <p>只有一台 Linux 笔记本 / 工作站 / WSL 2，想体验或直接改代码，又不愿污染宿主机。在一次性虚机里随便折腾。</p>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>维度</th>
+                                <th>腾讯云 Terraform 集群</th>
+                                <th>离线部署</th>
+                                <th>本地 QEMU 开发环境</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>一句话定位</td>
+                                <td>云上托管控制面 + PVM 计算节点</td>
+                                <td>无公网机器上的标准安装</td>
+                                <td>一次性虚机，用完即弃</td>
+                            </tr>
+                            <tr>
+                                <td>前置网络</td>
+                                <td>能访问腾讯云 API</td>
+                                <td>内网即可（最好有内网软件源）</td>
+                                <td>宿主机需能开启 KVM 与嵌套虚拟化</td>
+                            </tr>
+                            <tr>
+                                <td>资源形态</td>
+                                <td>TKE + CVM + 云 MySQL / Redis + CLB</td>
+                                <td>裸金属 / 单机 / 多机集群</td>
+                                <td>宿主机上的一台 OpenCloudOS 9 虚机</td>
+                            </tr>
+                            <tr>
+                                <td>是否生产可用</td>
+                                <td>默认 POC 配置，生产需扩规格</td>
+                                <td>是（与正常部署一致）</td>
+                                <td><span class="cross">否</span>，仅开发 / 体验</td>
+                            </tr>
+                            <tr>
+                                <td>典型入口</td>
+                                <td><code>./terraform/tencentcloud/create.sh</code></td>
+                                <td><code>./install.sh</code></td>
+                                <td><code>./run_vm.sh</code> + <code>./login.sh</code></td>
+                            </tr>
+                            <tr>
+                                <td>对应官方页面</td>
+                                <td>腾讯云集群部署（Terraform）</td>
+                                <td>离线部署</td>
+                                <td>开发环境（QEMU 虚拟机）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="note">
+                    <strong>和第 02 章的关系：</strong>如果你只是要在<strong>一台普通云服务器（无 <code>/dev/kvm</code>）</strong>上验证，直接走第 02 章的 PVM 部署更快、更贴近生产，不必再套一层 QEMU 虚机。本章的三条路线是为了应对「集群化 / 无公网 / 只有本地机器」这三种额外约束。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="tc-arch">
+                <h2><span class="section-num">2</span>腾讯云集群：架构与默认资源</h2>
+                <p class="lead">部署器位于发布包顶层，用一套 Terraform 在腾讯云上拉起「托管控制面 + PVM 计算节点」的集群版：TKE 托管集群运行 <code>cube-master</code> / <code>cube-api</code> / <code>cube-ops</code> / <code>cube-proxy</code> / <code>cube-lifecycle-manager</code> / <code>cube-webui</code>，CVM 计算节点运行 <code>Cubelet</code> 实际承载沙箱，后端使用云数据库 MySQL + Redis，默认内网模式。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">公网 / Internet</div>
+                    <div class="arch-layer">
+                        <div class="arch-box security">跳板机 CVM<small>公网 IP · SSH:443 · 构建与堡垒</small></div>
+                        <div class="arch-box network">CLB（内网/公网）<small>cube-api :3000 · cube-proxy :80/443</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 进入 VPC 10.0.0.0/16（默认内网模式）</div>
+                    <div class="arch-label">VPC 内网</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute tall">CVM 计算节点 ×N<small>Cubelet · network runtime · CubeEgress</small></div>
+                        <div class="arch-box control tall">TKE 托管集群<small>cube-master / cube-api / cube-ops</small><small>cube-proxy / cube-lifecycle-manager / cube-webui</small></div>
+                    </div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">云数据库 MySQL 8.0<small>仅内网 :3306</small></div>
+                        <div class="arch-box data">云数据库 Redis 7.0<small>仅内网 :6379</small></div>
+                        <div class="arch-box storage dashed">CFS（可选）<small>ReadWriteMany 共享存储</small></div>
+                        <div class="arch-box obs dashed">TCR（可选）<small>组件镜像仓库</small></div>
+                    </div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">NAT 网关 + EIP<small>整个 VPC 的公网出口</small></div>
+                    </div>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="stat"><div class="stat-value">2</div><div class="stat-label">PVM 计算节点（默认）</div></div>
+                    <div class="stat"><div class="stat-value">2</div><div class="stat-label">TKE worker（默认）</div></div>
+                    <div class="stat"><div class="stat-value">4</div><div class="stat-label">按角色拆分的安全组</div></div>
+                    <div class="stat"><div class="stat-value">200GB</div><div class="stat-label">每计算节点 CBS 数据盘</div></div>
+                    <div class="stat"><div class="stat-value">v1.34.1</div><div class="stat-label">TKE Kubernetes 版本</div></div>
+                </div>
+
+                <div class="warning">
+                    <strong>TKE worker 与 PVM 计算节点是两套资源。</strong><code>TENCENTCLOUD_TKE_NODE_COUNT</code> 是 TKE <strong>worker</strong> 数量，运行控制面 Pod；<code>TENCENTCLOUD_COMPUTE_NODE_COUNT</code> 是 <strong>PVM 计算节点</strong>数量，运行 Cubelet、执行 sandbox。两者独立配置，默认均为 <code>2</code>，但职责完全不同。
+                </div>
+
+                <h3>默认配置创建的资源明细</h3>
+                <p>下表列出<strong>默认配置</strong>（地域 <code>ap-guangzhou</code>、可用区 <code>ap-guangzhou-6</code>、计算节点 2、TKE worker 2、无 CFS/TCR）下创建的云资源。所有资源均为<strong>按量计费</strong>。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>资源类型</th><th>数量</th><th>规格 / 配置</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>VPC</td><td>1</td><td>CIDR <code>10.0.0.0/16</code></td></tr>
+                            <tr><td>子网</td><td>1</td><td><code>10.0.1.0/24</code>（主可用区）</td></tr>
+                            <tr><td>NAT 网关 + EIP</td><td>1 + 1</td><td>带宽 200 Mbps，按流量计费</td></tr>
+                            <tr><td>路由表条目</td><td>1</td><td><code>0.0.0.0/0</code> → NAT 网关</td></tr>
+                            <tr><td>安全组</td><td>4</td><td>跳板机 / 计算节点 / TKE Pod / CLB，最小权限</td></tr>
+                            <tr><td>SSH 密钥对</td><td>1</td><td>自动生成于 <code>terraform/tencentcloud/.ssh/</code></td></tr>
+                            <tr><td>跳板机 CVM</td><td>1</td><td><code>SA9.MEDIUM4</code>（2C4G），系统盘 50GB，公网带宽 200 Mbps，SSH 端口 443</td></tr>
+                            <tr><td>计算节点 CVM</td><td>2</td><td><code>SA9.MEDIUM8</code>（4C8G），系统盘 50GB + 200GB CBS 数据盘（XFS，<code>/data/cubelet</code>），<strong>无公网 IP</strong></td></tr>
+                            <tr><td>TKE 托管集群</td><td>1</td><td>托管集群 L5，Kubernetes <code>1.34.1</code>，Pod CIDR <code>10.200.0.0/16</code>，Service CIDR <code>192.168.0.0/20</code></td></tr>
+                            <tr><td>TKE worker 节点</td><td>2</td><td><code>SA9.LARGE8</code>（4C8G），由 <code>worker_config.count</code> 创建</td></tr>
+                            <tr><td>云数据库 MySQL</td><td>1</td><td>8.0 InnoDB 通用型，4GB 内存 / 200GB 存储，仅内网 3306</td></tr>
+                            <tr><td>云数据库 Redis</td><td>1</td><td>7.0 标准架构（主从），1GB 内存，端口 6379，仅内网</td></tr>
+                            <tr><td>CFS 文件系统</td><td>0（默认）</td><td><code>USE_CFS=true</code> 时创建 1 个通用标准型 NFS</td></tr>
+                            <tr><td>TCR 镜像仓库</td><td>0（默认）</td><td><code>USE_TCR=true</code> 时创建基础版 + 命名空间 + VPC 接入</td></tr>
+                            <tr><td>操作系统镜像</td><td>—</td><td>OpenCloudOS Server 9（公共镜像），可用 <code>TENCENTCLOUD_IMAGE_NAME</code> 覆盖</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info">
+                    默认是<strong>公网镜像 + 以单副本为主的控制面 + 无 CFS 的 POC 配置</strong>（<code>TENCENTCLOUD_USE_TCR=false</code>、<code>TENCENTCLOUD_USE_CFS=false</code>、<code>TENCENTCLOUD_ENABLE_PUBLIC_NETWORK=false</code>）。承载沙箱数量有限；生产或压测必须调整计算节点与 TKE worker 的规格和数量。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="tc-sg">
+                <h2><span class="section-num">3</span>安全组与网络暴露</h2>
+                <p class="lead">集群版的网络加固由<strong>腾讯云安全组</strong>完成：部署器按角色创建 4 个独立安全组，各自只放行该角色实际需要的入站端口。攻破任一角色都不会继承其他角色的入站面。计算节点与 TKE 节点<strong>无任何公网入站</strong>，计算节点不分配公网 IP。</p>
+
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>安全组</th><th>端口 / 范围</th><th>来源</th><th>用途</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td rowspan="2"><code>cubesandbox-sg-jumpserver</code></td><td>TCP 443</td><td><code>0.0.0.0/0</code></td><td>跳板机 SSH（cloud-init 已将 sshd 改到 443）</td></tr>
+                            <tr><td>ALL</td><td><code>10.0.0.0/16</code></td><td>VPC 内网互通</td></tr>
+                            <tr><td rowspan="2"><code>cubesandbox-sg-compute</code></td><td>ALL</td><td>TKE Pod CIDR</td><td>cube-proxy（Pod）访问计算节点（沙箱动态端口 20000-29999）</td></tr>
+                            <tr><td>ALL</td><td><code>10.0.0.0/16</code></td><td>VPC 内网（跳板机管理、cube-master 调度）</td></tr>
+                            <tr><td rowspan="2"><code>cubesandbox-sg-tke-pod</code></td><td>ALL</td><td>TKE Pod CIDR</td><td>Pod 间通信</td></tr>
+                            <tr><td>ALL</td><td><code>10.0.0.0/16</code></td><td>CLB 健康检查、跳板机管理、CFS NFS 挂载</td></tr>
+                            <tr><td rowspan="4"><code>cubesandbox-sg-clb</code></td><td>TCP 80</td><td><code>10.0.0.0/16</code> / <code>0.0.0.0/0</code></td><td>cube-proxy + cube-webui 的 CLB（HTTP）</td></tr>
+                            <tr><td>TCP 443</td><td><code>10.0.0.0/16</code> / <code>0.0.0.0/0</code></td><td>cube-proxy 的 CLB（HTTPS）</td></tr>
+                            <tr><td>TCP 3000</td><td><code>10.0.0.0/16</code> / <code>0.0.0.0/0</code></td><td>cube-api 的 CLB</td></tr>
+                            <tr><td>TCP 8089</td><td><code>10.0.0.0/16</code>（始终仅内网）</td><td>cube-master 的内网 CLB（不受公网开关影响）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>四个安全组出站均默认放行全部（<code>0.0.0.0/0</code> ALL）。数据库、TKE API Server 等均<strong>不开公网</strong>，仅限 VPC 内网访问。CLB 80 / 443 / 3000 的来源取决于 <code>TENCENTCLOUD_ENABLE_PUBLIC_NETWORK</code>：<strong>默认内网模式（<code>false</code>）</strong>来源为 VPC CIDR <code>10.0.0.0/16</code>；<strong>开启公网模式（<code>true</code>）</strong>来源为 <code>0.0.0.0/0</code>。</p>
+
+                <h3>公网服务加固建议</h3>
+                <div class="danger">
+                    <strong>仅在开启公网模式（<code>TENCENTCLOUD_ENABLE_PUBLIC_NETWORK=true</code>）时适用。</strong>默认内网模式下三个服务均不对公网暴露，可跳过本节。开启后三个公网入口的安全模型不同，必须按服务分别加固：
+                    <ul>
+                        <li><strong>WebUI（CLB 80）</strong>：控制台<strong>目前不带任何鉴权</strong>，任何能访问到它的人都能操作沙箱。强烈建议为 WebUI 的 CLB <strong>单独创建一个安全组</strong>，配置严格的源 IP 白名单（仅放行办公网 / 管理机出口 IP）。</li>
+                        <li><strong>cube-api（CLB 3000）</strong>：默认<strong>对所有请求放行、不做凭证校验</strong>。对外暴露前务必启用 <strong>Auth Callback</strong> 鉴权，把决策委托给你自己的鉴权服务。</li>
+                        <li><strong>cube-proxy（CLB 80 / 443）</strong>：沙箱流量的公网入口，设计上即面向公网。若要限制对沙箱的公开访问，需启用每沙箱独立的入站 token 等机制。</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="tc-start">
+                <h2><span class="section-num">4</span>前置条件与快速开始</h2>
+                <p class="lead">运行 <code>create.sh</code> 的机器<strong>无需预装 Terraform</strong>。先备好腾讯云 API 凭证与几个本地工具，再开通必要的云服务即可。</p>
+
+                <h3>前置条件清单</h3>
+                <ul>
+                    <li><strong>腾讯云 API 凭证</strong>：在访问管理控制台创建密钥对，导出 <code>TENCENTCLOUD_SECRET_ID</code> / <code>TENCENTCLOUD_SECRET_KEY</code>。</li>
+                    <li><strong>本地工具</strong>：<code>ssh</code>、<code>scp</code>、<code>nc</code>，以及访问腾讯云 API 的网络。<code>terraform</code> 与 <code>jq</code> 缺失时会自动安装。</li>
+                    <li><code>mkcert</code> / <code>openssl</code> <strong>无需</strong>本地安装——cube-proxy 证书在跳板机上生成。</li>
+                    <li><strong>执行机</strong>：推荐 Linux；<code>create.sh</code> / <code>destroy.sh</code> 也支持 macOS（含 Bash 3.2）。Windows 请使用 WSL2。</li>
+                </ul>
+
+                <h3>Terraform Provider Init 加速（推荐）</h3>
+                <p>国内网络下 <code>tencentcloudstack/tencentcloud</code> Provider 可能在下载时超时（典型报错 <code>failed to retrieve authentication checksums</code>、<code>Client.Timeout exceeded</code>）。在 Linux / macOS 上创建或更新当前用户的 <code>~/.terraformrc</code>：</p>
+<pre><code>provider_installation {
+  network_mirror {
+    url = "https://mirrors.tencent.com/terraform/"
+    include = ["registry.terraform.io/tencentcloudstack/*"]
+  }
+
+  direct {
+    exclude = ["registry.terraform.io/tencentcloudstack/*"]
+  }
+}</code></pre>
+
+                <h3>部署前云服务开通与授权</h3>
+                <ul>
+                    <li><strong>账号基础</strong>：注册腾讯云并完成<strong>实名认证</strong>；子账号需授予创建 VPC / CVM / TKE / CDB / Redis / CLB 等资源的权限（如关联 <code>QcloudTKEFullAccess</code>）。</li>
+                    <li><strong>TKE 服务角色授权（必须）</strong>：首次使用 TKE 前须完成服务角色授权，确认 <code>TKE_QCSRole</code> / <code>IPAMDofTKE_QCSRole</code> 等角色已授权，否则创建集群、CLB 型 Service 会失败。</li>
+                    <li><strong>Private DNS（按需）</strong>：<code>USE_TCR=true</code> 或 E2B SDK 访问 <code>*.cube.app</code> 时需开通；未开通时 API 可能返回 <code>ResourceNotFound.ServiceNotSubscribed</code>。</li>
+                    <li><strong>CFS（按需）</strong>：仅当 <code>USE_CFS=true</code> 且 cubemaster 多副本时需要，Terraform 会在 apply 阶段自动创建文件系统。</li>
+                </ul>
+
+                <h3>快速开始</h3>
+                <p>部署器位于解压后发布包的<strong>顶层目录</strong>，解压后即可直接运行：</p>
+<pre><code>tar -xzf cube-sandbox-one-click-&lt;version&gt;.tar.gz
+cd cube-sandbox-one-click-&lt;version&gt;
+
+<span class="c"># 复制环境变量模板，填入凭证并按需编辑其余项</span>
+cp terraform/tencentcloud/env.example terraform/tencentcloud/.env
+<span class="c"># $EDITOR terraform/tencentcloud/.env</span>
+
+./terraform/tencentcloud/create.sh</code></pre>
+
+                <p><code>create.sh</code> 会自动加载同目录下的 <code>.env</code>（仅填充未在当前 shell 中显式设置的变量）。凭证也可改用 <code>export</code> 注入，后者优先级更高、会覆盖 <code>.env</code> 中的同名值：</p>
+<pre><code>export TENCENTCLOUD_SECRET_ID="your-secret-id"
+export TENCENTCLOUD_SECRET_KEY="your-secret-key"</code></pre>
+
+                <div class="info">
+                    <strong><code>create.sh</code> 会自动完成：</strong>① 探测本地发布包作为离线源（设了 <code>TENCENTCLOUD_LOCAL_BUNDLE</code> 或探测到本地包则无需公网，否则回退在线安装）；② 生成 SSH 密钥对；③ 在跳板机用内置 <code>mkcert</code> 生成 cube-proxy 的 TLS 证书（<code>cube.app</code> / <code>*.cube.app</code>）；④ 默认模式拉取公网预置镜像；⑤ TCR 模式创建 TCR 并在跳板机构建、推送六个组件镜像。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="tc-vars">
+                <h2><span class="section-num">5</span>变量、计费与成本</h2>
+                <p class="lead">常用环境变量与 <code>create.sh</code> / <code>variables.tf</code> 默认值一致，列在 <code>terraform/tencentcloud/env.example</code> 中。交互式运行时会逐项引导确认大部分配置，无 TTY 的非交互运行则一律采用默认值。</p>
+
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>变量</th><th>默认值</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>TENCENTCLOUD_SECRET_ID</code> / <code>_SECRET_KEY</code></td><td>无</td><td><strong>必填。</strong>腾讯云 API 凭证</td></tr>
+                            <tr><td><code>TENCENTCLOUD_REGION</code></td><td><code>ap-guangzhou</code></td><td>地域</td></tr>
+                            <tr><td><code>TENCENTCLOUD_AVAILABILITY_ZONE</code></td><td><code>ap-guangzhou-6</code></td><td>主可用区（子网 / MySQL / Redis / TKE 控制面）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_JUMPSERVER_INSTANCE_TYPE</code></td><td><code>SA9.MEDIUM4</code></td><td>跳板机机型（2C4G）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_COMPUTE_INSTANCE_TYPE</code></td><td><code>SA9.MEDIUM8</code></td><td>计算节点首选机型（4C8G）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_TKE_WORKER_INSTANCE_TYPE</code></td><td><code>SA9.LARGE8</code></td><td>TKE worker 节点机型（4C8G）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_COMPUTE_NODE_COUNT</code></td><td><code>2</code></td><td><strong>PVM 计算节点</strong>数（运行 Cubelet / sandbox）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_COMPUTE_DATA_DISK_SIZE</code></td><td><code>200</code></td><td>每计算节点 CBS 数据盘（GB，XFS，挂载 <code>/data/cubelet</code>）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_TKE_NODE_COUNT</code></td><td><code>2</code></td><td><strong>TKE worker</strong> 数（运行控制面 Pod）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_USE_TCR</code></td><td><code>false</code></td><td><code>true</code> 时创建 TCR 并在跳板机构建 / 推送镜像；<code>false</code> 用公网预置镜像</td></tr>
+                            <tr><td><code>TENCENTCLOUD_USE_CFS</code></td><td><code>false</code></td><td><code>true</code> 且 cubemaster 多副本时创建 CFS NFS</td></tr>
+                            <tr><td><code>TENCENTCLOUD_TKE_CLUSTER_VERSION</code></td><td><code>1.34.1</code></td><td>TKE Kubernetes 版本</td></tr>
+                            <tr><td><code>TENCENTCLOUD_CUBEMASTER_REPLICAS</code></td><td><code>1</code></td><td>cube-master 副本数（多副本须配合 CFS）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_CUBE_PROXY_REPLICAS</code></td><td><code>1</code></td><td>cube-proxy 副本数，支持大于 1（各副本注册到 Redis）</td></tr>
+                            <tr><td><code>TENCENTCLOUD_CUBE_LIFECYCLE_MANAGER_REPLICAS</code></td><td><code>2</code></td><td>lifecycle-manager 双副本主备；降到 <code>1</code> 时须同时把选主开关设为 <code>false</code></td></tr>
+                            <tr><td><code>TENCENTCLOUD_ENABLE_PUBLIC_NETWORK</code></td><td><code>false</code></td><td>网络暴露模式，默认内网 CLB；<code>true</code> 关联公网 CLB 并放行 <code>0.0.0.0/0</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="warning">
+                    <strong>非交互 / CI 运行的密码变量是例外：</strong>非交互运行<strong>拒绝</strong>使用内置公开演示密码启动，必须显式设置 <code>TENCENTCLOUD_MYSQL_PASSWORD</code> / <code>TENCENTCLOUD_REDIS_PASSWORD</code> / <code>TENCENTCLOUD_CUBE_PASSWORD</code>——或设 <code>TENCENTCLOUD_ALLOW_INSECURE_DEFAULTS=1</code> 主动接受不安全默认值（仅限用完即弃的沙箱）。
+                </div>
+
+                <h3>计费模式</h3>
+                <p>所有云资源<strong>硬编码为按量计费</strong>，目前<strong>不能</strong>通过环境变量或 Terraform 变量切换为包年包月。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>资源</th><th>计费字段</th><th>取值</th><th>含义</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>跳板机 CVM</td><td><code>instance_charge_type</code></td><td><code>POSTPAID_BY_HOUR</code></td><td>按小时按量</td></tr>
+                            <tr><td>计算节点 CVM</td><td><code>instance_charge_type</code></td><td><code>POSTPAID_BY_HOUR</code></td><td>按小时按量</td></tr>
+                            <tr><td>云数据库 MySQL</td><td><code>charge_type</code></td><td><code>POSTPAID</code></td><td>按量计费</td></tr>
+                            <tr><td>云数据库 Redis</td><td><code>charge_type</code></td><td><code>POSTPAID</code></td><td>按量计费</td></tr>
+                            <tr><td>NAT 网关 EIP</td><td><code>internet_charge_type</code></td><td><code>TRAFFIC_POSTPAID_BY_HOUR</code></td><td>按流量按量</td></tr>
+                            <tr><td>CLB（cube-proxy）</td><td>注解</td><td><code>TRAFFIC_POSTPAID_BY_HOUR</code></td><td>按流量按量（仅公网模式下生效）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>成本估算</h3>
+                <div class="tip">
+                    <strong>官方文档不内置具体价格</strong>——刊例价会随地域、规格档位、活动和时间变动。请用腾讯云官方价格计算器，按上面「默认配置创建的资源明细」中的规格自行测算：CVM（跳板机 / 计算节点 / TKE worker）、TKE 托管集群管理费、云数据库 MySQL / Redis、NAT 网关 / CLB / 弹性公网 IP、CFS / TCR。评估完成后立即 <code>destroy.sh</code> 释放即可避免空转计费；长期使用可手动改 <code>main.tf</code> 的计费字段为包年包月（<code>PREPAID</code>）。
+                </div>
+                <div class="danger">
+                    <strong>包年包月注意事项：</strong>包年包月资源<strong>不会</strong>被 <code>destroy.sh</code>（<code>terraform destroy</code>）自动退费 / 释放，需要手动到期释放或在控制台退费；切换后执行 <code>destroy.sh</code> 可能报错或留下残留资源。建议仅在确认长期使用时才切换。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="tc-phases">
+                <h2><span class="section-num">6</span>部署阶段、重试与验证</h2>
+                <p class="lead">资源按固定顺序创建，<strong>任一阶段失败即停止</strong>（快速失败）。理解阶段划分，才能在部分失败时精准重试而不是全都销毁重来。</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>阶段 1 · 网络</b>：VPC / 子网 / NAT（<code>USE_TCR=true</code> 时附带 TCR）</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>阶段 2 · CVM</b>：跳板机 + 计算节点</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>阶段 3 · 镜像（仅 TCR 模式）</b>：跳板机构建并推送六个组件镜像</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>阶段 4 · 数据库</b>：云数据库 MySQL / Redis（<code>USE_CFS=true</code> 时附带 CFS 共享存储）</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>阶段 5 · 集群</b>：TKE 集群 + Kubernetes 插件</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>阶段 6 · 收尾</b>：健康检查 → 计算节点安装</div>
+                </div>
+
+                <div class="info">
+                    Kubernetes provider 只在 TKE API Server 就绪后才接入。拆除时，<strong>若创建了 CFS</strong>，共享存储会先于其子网销毁（其 NFS 挂载点是该子网内的一个 ENI）。Terraform 状态保存在本地 <code>terraform/tencentcloud/</code>（<code>*.tfstate</code>，已被 gitignore，无远端后端），请妥善保留该目录与生成的 <code>.env</code>。
+                </div>
+
+                <h3>部分失败后的重试</h3>
+                <p>若某阶段中途失败（如所选地域 / 可用区机型售罄、账号配额限制或瞬时 API 错误），<strong>无需</strong>全部销毁重来：</p>
+                <ul>
+                    <li>修复原因——多数情况是<strong>调整配置</strong>：换一个 <code>TENCENTCLOUD_AVAILABILITY_ZONE</code> / <code>TENCENTCLOUD_COMPUTE_INSTANCE_TYPE</code> / <code>TENCENTCLOUD_REGION</code>、提升配额、设置密码等，然后直接<strong>重跑</strong> <code>./terraform/tencentcloud/create.sh</code>。</li>
+                    <li>重跑时 <code>create.sh</code> 会重新加载 <code>.env</code> 中的选择，将状态与云上已存在的资源<strong>对账</strong>（刷新并导入有状态资源，而非重建），并<strong>从中断处继续</strong>；已有计算节点会保留（绝不缩容）。</li>
+                    <li>可用性因地域<strong>和</strong>可用区而异——某可用区提供的机型在另一可用区可能不可用。交互式菜单按你的地域实时查询，最终选择在 apply 时校验。</li>
+                    <li>仅在确实要拆除部署时才运行 <code>destroy.sh</code>；普通重试之间无需运行它。</li>
+                </ul>
+
+                <h3>验证与拆除</h3>
+                <p>部署完成后，<code>create.sh</code> 会执行健康检查并打印访问入口。你也可以通过跳板机进入 VPC 内网排查：</p>
+<pre><code><span class="c"># create.sh 会输出形如下面的命令</span>
+ssh -i terraform/tencentcloud/.ssh/id_rsa -p 443 -o StrictHostKeyChecking=no root@&lt;jumpserver_public_ip&gt;</code></pre>
+
+<pre><code>./terraform/tencentcloud/destroy.sh</code></pre>
+
+                <div class="danger">
+                    <strong>避免意外计费：</strong>如果 <code>destroy.sh</code> 无法删除全部资源（例如 MySQL / Redis 卡在回收站 / 隔离状态，或 Terraform 已无法感知的残留），请登录腾讯云控制台手动删除剩余资源——VPC / 网络、MySQL 回收站、Redis 回收站、CFS 文件系统（若曾启用 <code>USE_CFS=true</code>）。当某个拆除步骤失败时，<code>destroy.sh</code> 也会打印这些链接。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="tc-dns">
+                <h2><span class="section-num">7</span>E2B 与 cube.app 域名解析</h2>
+                <p class="lead">单机 one-click 安装会通过 CoreDNS + split DNS 在宿主机上解析 <code>*.cube.app</code>；<strong>Terraform 集群版默认不包含这套 DNS 配置</strong>。若要通过 E2B 官方 SDK 创建 / 访问 sandbox，需要额外配置域名解析。</p>
+
+                <p>背景：cube-proxy 为 <code>cube.app</code> / <code>*.cube.app</code> 终结 TLS（证书由 <code>create.sh</code> 在跳板机用 mkcert 生成，或通过 BYO 证书替换）；E2B SDK 访问 sandbox 时使用形如 <code>https://&lt;sandbox-id&gt;.cube.app</code> 的 URL；默认 <code>TENCENTCLOUD_ENABLE_PUBLIC_NETWORK=false</code> 时，cube-proxy CLB 是 <strong>VPC 内网 VIP</strong>，只有 VPC 内（或经跳板机 / VPN）才能访问。</p>
+
+                <p>部署完成后，在 <code>terraform/tencentcloud/</code> 目录获取 CLB 地址：</p>
+<pre><code>cd terraform/tencentcloud
+terraform output tke_cube_proxy_clb_ip    <span class="c"># cube-proxy</span>
+terraform output tke_cube_api_clb_ip      <span class="c"># cube-api（E2B_API_URL）</span>
+terraform output tke_cube_webui_clb_ip    <span class="c"># WebUI</span>
+terraform output tke_cubemaster_clb_ip    <span class="c"># cube-master（VPC 内网）</span>
+terraform output jumpserver_ssh_command   <span class="c"># 跳板机 SSH 命令</span></code></pre>
+
+                <h3>三种解析方案</h3>
+                <div class="decision">
+                    <div class="decision-card">
+                        <span class="badge badge-success">方案一 · 推荐</span>
+                        <h4>Private DNS</h4>
+                        <p>客户端在 VPC 内、或经跳板机 / VPN 接入 VPC。创建私有域 <code>cube.app</code>，加 <code>*</code> A 记录指向 cube-proxy 内网 VIP，并关联到部署所在 VPC。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-warning">方案二 · 仅测试</span>
+                        <h4>/etc/hosts</h4>
+                        <p>在运行 E2B SDK 的机器上手动绑定若干 sandbox 域名。泛域名无法完整覆盖所有 sandbox ID，<strong>不适合多 sandbox 并发测试</strong>。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-danger">方案三 · 公网</span>
+                        <h4>公网 CLB + 公网 DNS</h4>
+                        <p>设 <code>TENCENTCLOUD_ENABLE_PUBLIC_NETWORK=true</code> 重建 CLB，把 <code>cube.app</code> / <code>*.cube.app</code> 解析到公网 VIP，并换成公网 CA 证书。</p>
+                    </div>
+                </div>
+
+                <p><strong>方案一（Private DNS）步骤：</strong>① 登录 DNSPod 内网解析，创建私有域 <code>cube.app</code>；② 添加 A 记录，主机记录 <code>*</code>，记录值填 <code>terraform output tke_cube_proxy_clb_ip</code> 的内网 VIP（可选再给 <code>@</code> 加同一 VIP）；③ 将该私有域关联到部署所在 VPC；④ 在 VPC 内的跳板机或计算节点上验证：</p>
+<pre><code>dig +short test.cube.app
+curl -k https://test.cube.app/   <span class="c"># 自签名证书需 -k 或信任 mkcert CA</span></code></pre>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>能力</th><th>单机 one-click</th><th>Terraform 集群版</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>*.cube.app</code> 解析</td><td>自动（CoreDNS + split DNS）</td><td>需手动配置 Private DNS / hosts / 公网 DNS</td></tr>
+                            <tr><td>TLS 证书</td><td>宿主机 mkcert</td><td>跳板机 mkcert → K8s Secret 挂载</td></tr>
+                            <tr><td>cube-api 地址</td><td><code>http://&lt;host&gt;:3000</code></td><td>cube-api CLB 内网 / 公网 VIP</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>E2B SDK 环境变量</h3>
+<pre><code>export E2B_API_URL=http://&lt;cube-api-clb-vip&gt;:3000
+export E2B_API_KEY=e2b_000000</code></pre>
+                <div class="warning">
+                    E2B SDK 访问 sandbox 本身走 <code>*.cube.app</code> → cube-proxy，因此 <strong>cube.app 域名解析与 TLS 证书是必须项</strong>，仅配置 <code>E2B_API_URL</code> 不够。
+                </div>
+                <div class="tip">
+                    <strong>自带 TLS 证书：</strong>cube-proxy 的 nginx 配置硬编码了证书路径 <code>…/certs/cube.app+3.pem</code> 与 <code>…/certs/cube.app+3-key.pem</code>。运行 <code>create.sh</code> 前把 PEM 证书 + 私钥放入 <code>terraform/tencentcloud/cubeproxy-certs/</code>，文件名必须是这两个，并覆盖 <code>cube.app</code> 与 <code>*.cube.app</code> 两个 SAN。轮换时替换文件并重跑 <code>create.sh</code> 即可刷新 Secret 并重启 cube-proxy。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="offline-flow">
+                <h2><span class="section-num">8</span>离线部署：五步流程</h2>
+                <p class="lead">目标机器<strong>没有公网</strong>（内网机房、隔离网段、受限环境），但接入内网并配有内网软件源。<strong>离线部署完全可行</strong>：一键安装脚本原生支持离线——预载容器镜像直接生效，部署包自带全部版本锁定产物，真正需要公网的只有三件事：下载安装包、安装缺失软件包、拉取容器镜像。</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>步骤 1 · 下载安装产物</b>：在有公网的机器下载一键部署包（必要时加 PVM 宿主内核包），拷贝到目标节点</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>步骤 2 · 系统软件包</b>：有内网源可跳过；无源则提前装好 Docker、Compose 等</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>步骤 3 · 预载容器镜像（核心）</b>：<code>docker pull</code> → <code>docker save</code> → 目标节点 <code>docker load</code>，或推内网仓库</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>步骤 4 · 安装</b>：解压部署包，<code>./install.sh</code>，与正常部署相同</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>步骤 5（可选）· 模板源镜像入内网仓库</b>：安装完成后把模板源镜像推入内网仓库，创建模板时直接引用</div>
+                </div>
+
+                <div class="info">
+                    <strong>适用范围：</strong>覆盖<strong>一键部署</strong>（单机、裸金属、多机集群）。两种部署方式不适用——<strong>腾讯云 Terraform 部署器</strong>（需访问腾讯云 API 创建云资源）与 <strong>Kubernetes（Helm）部署</strong>（集群必须能访问存放组件镜像的仓库；若已有内网仓库如 Harbor，按 Kubernetes 部署指南把 chart 指向该仓库即可）。
+                </div>
+
+                <h3>开始之前：确认宿主机条件</h3>
+                <ul>
+                    <li>x86_64 或 aarch64 Linux，glibc ≥ 2.31，root 权限</li>
+                    <li>内存至少 8 GB（安装器硬性检查，不足会直接终止安装）</li>
+                    <li><code>/data/cubelet</code> 使用 XFS，至少 50 GB</li>
+                    <li>KVM 可用：裸金属原生支持；x86_64 云服务器可先安装 PVM 内核（见步骤 1，<strong>不支持 aarch64</strong>——ARM 机器必须本身已有 KVM）</li>
+                </ul>
+
+                <h3>步骤 1：下载安装产物</h3>
+                <p>在有公网的机器上下载下列产物，拷贝到目标节点（内网若已有制品中转站或 Release 镜像，直接走内网获取）：</p>
+                <ul>
+                    <li><strong>一键部署包</strong>：<code>cube-sandbox-one-click-&lt;version&gt;-&lt;arch&gt;.tar.gz</code>，<code>&lt;arch&gt;</code> 与目标节点架构一致（<code>amd64</code> / <code>arm64</code>）。</li>
+                    <li><strong>PVM 宿主内核包</strong>（rpm/deb）：仅当目标是无 <code>/dev/kvm</code> 的云服务器时需要，从最新的 <code>kernel-release-*</code> release 下载，安装并重启后再继续。</li>
+                </ul>
+
+                <h3>步骤 2：提前安装系统软件包（无内网源时）</h3>
+                <p><strong>已配置内网软件源？直接跳到步骤 3。</strong>没有内网源的机器才需要本步。跳过前先确认内网源里收录了 Docker 和 Compose——不少内网源不带它们。</p>
+                <ul>
+                    <li><strong>Docker Engine 和 Compose</strong>：只要 <code>docker</code> 和 <code>docker compose version</code>（或 <code>docker-compose</code>）都能运行，<code>install.sh</code> 就跳过联网安装。<span class="cross">不支持 snap Docker</span>（读不到 <code>/usr/local/services</code>），请用软件包方式安装 docker-ce / docker.io。</li>
+                    <li><strong>基础命令</strong>：<code>tar</code>、<code>ss</code>、<code>ip</code>（iproute2）、<code>bash</code>、<code>curl</code>、<code>grep</code>、<code>sed</code>、<code>pgrep</code>（procps）、<code>awk</code>、<code>date</code>、<code>openssl</code></li>
+                    <li><strong><code>e2fsprogs</code> + <code>util-linux</code></strong>：默认存储后端 <code>cubecow</code> 依赖 <code>mkfs.ext4</code>、<code>mount</code>、<code>umount</code>、<code>losetup</code></li>
+                    <li><strong>按需安装</strong>：<code>dnsmasq</code>（宿主机无 <code>systemd-resolved</code> / <code>resolvectl</code> 时必装）、<code>s3fs</code> + <code>jq</code>（S3 卷挂载，务必提前装好）、<code>python3</code> / <code>nvme-cli</code> / <code>libaio</code> / <code>libnuma</code> / <code>libuuid</code>（仅启用 CubeS3lvol 时）、<code>logrotate</code>（最小化系统镜像若未自带请补装）</li>
+                </ul>
+                <p>验证 Docker 就绪：</p>
+<pre><code>docker version &amp;&amp; docker compose version   <span class="c"># 或：docker-compose --version</span></code></pre>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="offline-images">
+                <h2><span class="section-num">9</span>离线部署：镜像清单与运维</h2>
+                <p class="lead">容器镜像是离线部署的<strong>核心</strong>。两种搬运方式任选其一：<strong>逐台搬运</strong>（有公网、同架构机器 <code>docker pull</code> → <code>docker save</code> → 目标节点 <code>docker load</code>），或<strong>走内网镜像仓库</strong>（多节点推荐，推到 Harbor 后用覆盖变量指向它）。</p>
+
+<pre><code><span class="c"># 有公网的机器：拉取清单中的每个镜像</span>
+docker pull &lt;镜像引用&gt;
+
+<span class="c"># 按节点角色分别打包（传输量更小）</span>
+docker save -o cube-images-control.tar &lt;镜像1&gt; &lt;镜像2&gt; ...
+
+<span class="c"># 目标节点</span>
+docker load -i cube-images-control.tar</code></pre>
+
+                <h3>每个节点需要哪些镜像</h3>
+                <p><strong>控制节点</strong>（默认 <code>install.sh</code> 的 all-in-one 单机部署，或集群中的每个控制节点）：</p>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>镜像</th><th>默认引用</th><th>覆盖变量</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>MySQL</td><td><code>cube-sandbox-image.tencentcloudcr.com/opensource/mysql:8.0</code></td><td><code>CUBE_SANDBOX_MYSQL_IMAGE</code></td></tr>
+                            <tr><td>Redis</td><td><code>cube-sandbox-image.tencentcloudcr.com/opensource/redis:7-alpine</code></td><td><code>CUBE_SANDBOX_REDIS_IMAGE</code></td></tr>
+                            <tr><td>MinIO（S3 后端，默认开启）</td><td><code>cube-sandbox-int.tencentcloudcr.com/cube-sandbox/minio:&lt;release&gt;</code></td><td><code>CUBE_SANDBOX_MINIO_IMAGE</code></td></tr>
+                            <tr><td>CoreDNS</td><td><code>cube-sandbox-image.tencentcloudcr.com/opensource/coredns/coredns:1.14.2</code></td><td><code>CUBE_PROXY_COREDNS_IMAGE</code></td></tr>
+                            <tr><td>WebUI（nginx）</td><td><code>cube-sandbox-image.tencentcloudcr.com/opensource/openresty:1.21.4.1-6-alpine-fat</code></td><td><code>WEB_UI_IMAGE</code></td></tr>
+                            <tr><td>cube-proxy</td><td><code>cube-sandbox-int.tencentcloudcr.com/cube-sandbox/cube-proxy:&lt;tag&gt;</code></td><td><code>CUBE_SANDBOX_CUBE_PROXY_IMAGE</code></td></tr>
+                            <tr><td>cube-lifecycle-manager</td><td><code>cube-sandbox-int.tencentcloudcr.com/cube-sandbox/cube-lifecycle-manager:&lt;tag&gt;</code></td><td><code>CUBE_SANDBOX_CUBE_LCM_IMAGE</code></td></tr>
+                            <tr><td>cube-egress</td><td><code>cube-sandbox-int.tencentcloudcr.com/cube-sandbox/cube-egress:&lt;tag&gt;</code></td><td><code>CUBE_SANDBOX_CUBE_EGRESS_IMAGE</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p><strong>计算节点</strong>（<code>install-compute.sh</code>）：</p>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>镜像</th><th>默认引用</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>cube-egress</td><td>同上</td><td>必需——出口 MITM 代理跑在每个节点上</td></tr>
+                            <tr><td>JuiceFS mount</td><td><code>cube-sandbox-int.tencentcloudcr.com/cube-sandbox/juicefs:ce-v1.4.1</code></td><td>仅当 <code>ONE_CLICK_ENABLE_JFS=1</code>；<code>MIRROR=cn</code> 时走 <code>-cn</code> 域名</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>cube-proxy / cube-lifecycle-manager / cube-egress / MinIO 四个镜像的 <code>&lt;tag&gt;</code> / <code>&lt;release&gt;</code> 占位符，在解压后的部署包根目录查询：</p>
+<pre><code>grep -rhE '_IMAGE.*_DEFAULT="' scripts/</code></pre>
+
+                <div class="warning">
+                    <strong>镜像引用必须完全一致：</strong>拉了 <code>-cn</code> 引用，就在 <code>.env</code> 里设 <code>MIRROR=cn</code>；拉了 <code>-int</code> 引用则不设。使用内网仓库或自定义镜像名时，通过上表的覆盖变量在 <code>.env</code> 中指定。验证：<code>docker images</code> 里清单中的每个引用都必须出现，名字和 tag 完全一致。
+                </div>
+
+                <h3>步骤 4：安装（与正常部署相同）</h3>
+                <p>所有命令<strong>必须以 root 身份执行</strong>，先切换到 root，解压部署包后安装：</p>
+<pre><code>sudo su root
+
+tar -xzf cube-sandbox-one-click-&lt;version&gt;-&lt;arch&gt;.tar.gz
+cd cube-sandbox-one-click-&lt;version&gt;-&lt;arch&gt;
+cp env.example .env
+<span class="c"># 按需编辑 .env（节点 IP、外部 MySQL/Redis、MIRROR、镜像覆盖变量……）</span>
+./install.sh</code></pre>
+                <p>安装完成后按正常流程验收：</p>
+<pre><code>./smoke.sh</code></pre>
+                <p>控制台地址是 <code>http://&lt;目标主机&gt;:12088</code>，E2B 兼容 API 在 <code>3000</code> 端口。</p>
+
+                <div class="tip">
+                    <strong>离线安装的日志长什么样？</strong>registry 不可达时，三个组件镜像各打一行 <code>WARN: pull failed but local image exists; using cached copy</code> 后改用预载镜像，其余服务静默使用预载镜像——<strong>都是预期行为，不是错误</strong>。只有出现 <code>pull failed … and no local copy is cached</code> 才说明某个镜像没 load，回步骤 3 检查。
+                </div>
+
+                <h3>步骤 5（安装后，可选）：把模板源镜像推入内网仓库</h3>
+                <p>想在离线环境创建模板，就把模板源镜像推送到<strong>内网镜像仓库</strong>，创建模板时直接引用内网仓库地址。原理：CubeMaster 构建模板时从 registry 拉取源镜像——内网仓库可达即可，不需要公网；多机集群无需额外处理，CubeMaster 通过内网分发构建产物，计算节点不拉源镜像。</p>
+<pre><code><span class="c"># 有公网的机器</span>
+docker pull cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-code:latest
+docker save -o sandbox-code.tar cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-code:latest
+
+<span class="c"># 能访问内网仓库的机器</span>
+docker load -i sandbox-code.tar
+docker tag cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  &lt;内网仓库&gt;/cube/sandbox-code:latest
+docker push &lt;内网仓库&gt;/cube/sandbox-code:latest</code></pre>
+<pre><code>cubemastercli tpl create-from-image \
+  --image &lt;内网仓库&gt;/cube/sandbox-code:latest \
+  --writable-layer-size 1G \
+  --expose-port 49999 \
+  --expose-port 49983 \
+  --probe 49999</code></pre>
+                <ul>
+                    <li>内网仓库需要认证时，加 <code>--registry-username</code> / <code>--registry-password</code>。</li>
+                    <li>内网仓库走 HTTP（无 TLS）时，引用必须带 <code>http://</code> 前缀，例如 <code>http://harbor.internal:5000/ns/app:tag</code>。</li>
+                </ul>
+
+                <h3>升级、模板构建与卸载</h3>
+                <ul>
+                    <li><strong>升级 = 新部署包 + 新镜像</strong>（tag 会随版本变化）：重新执行步骤 1 和步骤 3，然后 <code>./install.sh --mode=upgrade</code>。</li>
+                    <li><strong>离线构建自定义模板镜像</strong>：Dockerfile 构建通常要访问 <code>apt</code> / <code>pip</code>，把软件源指向内网镜像，或提前在有公网环境构建好完整镜像再按步骤 5 推入内网仓库。</li>
+                    <li><strong>卸载</strong>流程不变：<code>/usr/local/services/cubetoolbox/scripts/one-click/uninstall.sh</code>。</li>
+                </ul>
+
+                <h3>排障速查</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>现象</th><th>原因</th><th>解决</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>pull failed for &lt;ref&gt; and no local copy is cached</code></td><td>load 的镜像引用与安装器解析出的不一致（tag 或仓库选错）</td><td>对照 <code>docker images</code> 与部署包默认引用（<code>env.example</code> 或 <code>grep</code> 查），检查 <code>MIRROR</code> 是否一致</td></tr>
+                            <tr><td>找不到 <code>docker</code>，安装器执行 <code>apt-get/yum install docker</code> 并失败</td><td>内网软件源中没有 Docker 软件包，且未提前安装</td><td>把 Docker 加入内网源，或提前装好 Docker Engine + Compose</td></tr>
+                            <tr><td>安装器因 snap Docker 中止</td><td><code>snap install docker</code> 的沙箱读不到 <code>/usr/local/services</code></td><td><code>sudo snap remove docker</code>，用软件包方式安装 docker-ce</td></tr>
+                            <tr><td>安装器安装 <code>dnsmasq</code> 时中止</td><td>宿主机没有 <code>systemd-resolved</code>，内网源中也没有 <code>dnsmasq</code></td><td>将 <code>dnsmasq</code> 加入内网源或提前装好；或换用带 <code>systemd-resolved</code> 的操作系统</td></tr>
+                            <tr><td>模板构建卡在 <code>phase: PULLING</code></td><td><code>--image</code> 引用不在内网仓库中，或 CubeMaster 访问不了该仓库</td><td>确认镜像已推入内网仓库、引用正确；HTTP 仓库检查 <code>http://</code> 前缀，需要认证时加 <code>--registry-username</code> / <code>--registry-password</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="dev-env">
+                <h2><span class="section-num">10</span>开发环境：QEMU 虚机</h2>
+                <p class="lead">手头只有一台<strong>本地机器</strong>（Linux 笔记本 / 工作站 / WSL 2），没有独立云服务器，但仍想体验或直接上手改代码？<code>dev-env/</code> 会在本机起一台<strong>一次性的 OpenCloudOS 9 虚机</strong>，把 Cube Sandbox 装在虚机里跑，宿主机保持干净。</p>
+
+                <div class="danger">
+                    <strong>不是生产部署方式。</strong><code>dev-env/</code> 是单机、密码认证、用完即弃的<strong>开发 / 体验</strong>环境。生产部署请走快速开始或多机集群部署，在 bare-metal 机器上执行。
+                </div>
+
+                <h3>前置条件与自检</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>要求</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>宿主机能使用 KVM</td><td><code>/dev/kvm</code> 存在且可读写</td></tr>
+                            <tr><td>已开启嵌套虚拟化</td><td>Cube Sandbox 在虚机内还要再起一层 MicroVM，否则沙箱创建会失败</td></tr>
+                            <tr><td>已安装 qemu、ssh 等命令</td><td><code>qemu-system-x86_64</code>（ARM64 上为 <code>qemu-system-aarch64</code>）、<code>qemu-img</code>、<code>curl</code>、<code>ssh</code>、<code>scp</code>、<code>setsid</code>、<code>python3</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+<pre><code>ls -l /dev/kvm
+cat /sys/module/kvm_intel/parameters/nested   <span class="c"># AMD 则是 kvm_amd，期望 Y / 1</span></code></pre>
+                <p><code>/dev/kvm</code> 存在、<code>nested</code> 为 <code>Y</code>/<code>1</code> 即可继续。若返回 <code>N</code> 或 <code>0</code>，以 Intel 为例在宿主机开启：</p>
+<pre><code>echo 'options kvm_intel nested=1' | sudo tee /etc/modprobe.d/kvm.conf
+sudo modprobe -r kvm_intel &amp;&amp; sudo modprobe kvm_intel</code></pre>
+
+                <h3>三条命令上手</h3>
+<pre><code>cd CubeSandbox/dev-env
+./create_vm.sh    <span class="c"># ① 创建虚机（仅首次，约 10 分钟）</span>
+./run_vm.sh       <span class="c"># ② 在终端 A 启动虚机</span>
+./login.sh        <span class="c"># ③ 在终端 B 登录，拿到 root shell</span></code></pre>
+                <ul>
+                    <li><code>create_vm.sh</code> 会下载官方 OpenCloudOS 9 qcow2（约 800 MB）、把磁盘扩到 100 GB、启动一次完成初始化后干净关机。只需跑一次；想重建干净虚机，删掉 <code>dev-env/.workdir/</code> 重跑即可。</li>
+                    <li><code>run_vm.sh</code> 把 QEMU 串口控制台挂在终端 A，默认只转发 SSH（<code>127.0.0.1:10022</code>）。</li>
+                    <li><code>login.sh</code> 密码由脚本自动处理，登录后<strong>直接是 root shell</strong>。</li>
+                </ul>
+                <div class="warning">
+                    <strong>关机千万别用 <code>Ctrl+a</code> 然后 <code>x</code>。</strong>那相当于硬断电，可能损坏虚机状态。请在另一个终端用 <code>./login.sh</code> 登录后，在虚机内执行 <code>poweroff</code>；虚机正常关机后，<code>run_vm.sh</code> 自己会退出。
+                </div>
+
+                <p>guest 就是一台普通的 OpenCloudOS 9 机器，<code>dnf</code>、<code>curl</code>、<code>docker</code> 都能直接用。在虚机内执行官方一键安装：</p>
+<pre><code>curl -sL https://github.com/tencentcloud/CubeSandbox/raw/master/deploy/one-click/online-install.sh | bash</code></pre>
+<pre><code><span class="c"># 国内环境建议走腾讯云镜像</span>
+curl -sL https://cnb.cool/CubeSandbox/CubeSandbox/-/git/raw/master/deploy/one-click/online-install.sh | MIRROR=cn bash</code></pre>
+
+                <h3>端口映射：宿主机 ↔ 虚机</h3>
+                <p>默认只转发 SSH。要把虚机内的 Cube API（3000）与 CubeProxy HTTPS（443）暴露到宿主机，用 <code>EXTRA_FORWARDS</code>：</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">宿主机 127.0.0.1</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">:10022<small>SSH</small></div>
+                        <div class="arch-box accent">:13000<small>Cube API</small></div>
+                        <div class="arch-box accent">:11443<small>CubeProxy HTTPS</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ QEMU user networking（-netdev user）</div>
+                    <div class="arch-label">OpenCloudOS 9 虚机（guest）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">:22<small>sshd</small></div>
+                        <div class="arch-box compute">:3000<small>cube-api（E2B 兼容）</small></div>
+                        <div class="arch-box compute">:443<small>cube-proxy</small></div>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>宿主机</th><th>虚机</th><th>用途</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>127.0.0.1:10022</code></td><td><code>:22</code></td><td>虚机 SSH（始终转发）</td></tr>
+                            <tr><td><code>127.0.0.1:13000</code></td><td><code>:3000</code></td><td>Cube Sandbox 兼容 E2B 的 API</td></tr>
+                            <tr><td><code>127.0.0.1:11443</code></td><td><code>:443</code></td><td>CubeProxy HTTPS</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+<pre><code><span class="c"># 启动时按需转发（推荐，长期使用），统一绑定在宿主机 127.0.0.1</span>
+EXTRA_FORWARDS="13000:3000 11443:443" ./run_vm.sh</code></pre>
+<pre><code><span class="c"># 临时开一条隧道（不改启动参数）</span>
+ssh -N -L 13000:127.0.0.1:3000 -p 10022 opencloudos@127.0.0.1</code></pre>
+                <p>条目格式是空格分隔的 <code>宿主机端口:虚机端口</code>；格式非法时脚本会在 QEMU 启动前直接报错退出。</p>
+
+                <h3>传文件（宿主机 ↔ 虚机）</h3>
+                <p>SSH 已转发到 <code>127.0.0.1:10022</code> 且允许密码登录（用户 / 密码默认 <code>opencloudos</code>），宿主机上直接用 <code>scp</code> / <code>rsync</code> / <code>ssh</code> 即可。</p>
+<pre><code><span class="c"># 宿主机 → 虚机</span>
+scp -P 10022 ./local-file opencloudos@127.0.0.1:/tmp/
+scp -P 10022 -r ./local-dir opencloudos@127.0.0.1:/tmp/
+rsync -avz -e 'ssh -p 10022' ./_output/bin/ opencloudos@127.0.0.1:/tmp/bin/</code></pre>
+                <div class="tip">
+                    <code>scp</code> 登录的是普通用户 <code>opencloudos</code>，写不了 <code>/usr/local/bin</code> 这类系统目录，需先落到 <code>/tmp</code> 再用 <code>sudo</code> 安装：
+<pre><code>scp -P 10022 ./cubelet opencloudos@127.0.0.1:/tmp/
+ssh -p 10022 opencloudos@127.0.0.1 \
+  'sudo install -m 0755 /tmp/cubelet /usr/local/bin/cubelet'</code></pre>
+                </div>
+<pre><code><span class="c"># 虚机 → 宿主机</span>
+scp -P 10022 opencloudos@127.0.0.1:/data/log/cubelet.log ./
+scp -P 10022 -r opencloudos@127.0.0.1:/data/log ./guest-logs/
+ssh -p 10022 opencloudos@127.0.0.1 'sudo journalctl -u cubelet --no-pager' &gt; cubelet-journal.log</code></pre>
+
+                <h3>关机、重启与清理</h3>
+<pre><code><span class="c"># 虚机内</span>
+poweroff
+
+<span class="c"># 宿主机上重新启动同一台虚机（虚机内装的东西都还在）</span>
+./run_vm.sh</code></pre>
+<pre><code><span class="c"># 重置 / 清理：停掉虚机后删掉磁盘与状态，再重建干净虚机</span>
+rm -rf dev-env/.workdir
+./create_vm.sh</code></pre>
+                <p>开发环境本身就是一次性的：虚机里装乱了，重建即可。常用组合还有 <code>VM_MEMORY_MB=16384 VM_CPUS=8 ./run_vm.sh</code> 给更多资源、<code>REQUIRE_NESTED_KVM=0 ./run_vm.sh</code> 跳过 nested 检查、<code>LOGIN_AS_ROOT=0 ./login.sh</code> 登录后留在普通用户。</p>
+
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>现象</th><th>可能原因</th><th>解决方法</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>虚机内没有 <code>/dev/kvm</code></td><td>宿主机未开启 nested KVM</td><td>在宿主机启用 nested virtualization 后重启虚机</td></tr>
+                            <tr><td><code>./login.sh</code> 连不上</td><td>虚机还没启动，或宿主机 <code>10022</code> 端口被占</td><td>确认 <code>./run_vm.sh</code> 还在运行，或通过 <code>SSH_PORT</code> 换端口</td></tr>
+                            <tr><td><code>cube-sandbox-mysql</code> 反复重启且报 <code>Permission denied</code></td><td>虚机里 SELinux 还是 enforcing</td><td>执行 <code>sudo setenforce 0</code> 并改 <code>/etc/selinux/config</code> 为 permissive，然后重启 mysql 容器</td></tr>
+                            <tr><td><code>df -h /</code> 仍然很小</td><td>虚机内扩容没走完</td><td>看 <code>.workdir/qemu-serial.log</code>，再 <code>scp</code> 进 <code>grow_rootfs.sh</code> 手动跑一次</td></tr>
+                            <tr><td><code>EXTRA_FORWARDS</code> 的端口被占</td><td>宿主机上已有服务占用该端口</td><td>换一个宿主机端口，例如 <code>EXTRA_FORWARDS="23000:3000"</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="downloads">
+                <h2><span class="section-num">11</span>下载与 Release</h2>
+                <p class="lead">CubeSandbox 的所有发布物都在同一个 Releases 页面上。先按场景对号入座，再照做即可——<strong>照着快速开始部署的话，你不需要本页</strong>，在线安装脚本会自动下载一键部署包并解析全部产物。</p>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>你的场景</th><th>需要手动下载什么</th><th>常规获取方式</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>标准部署（快速开始、裸金属）</td><td>什么都不用</td><td>在线安装脚本自动解析</td></tr>
+                            <tr><td>PVM 部署（云服务器无 <code>/dev/kvm</code>）</td><td>宿主机内核包（rpm/deb）</td><td><code>kernel-release-*</code> Release</td></tr>
+                            <tr><td>离线部署</td><td>安装包、容器镜像、系统软件包</td><td>见第 8、9 节</td></tr>
+                            <tr><td>自建发布包 / 替换内核或镜像</td><td>guest 内核、guest 镜像</td><td><code>kernel-release-*</code> / <code>guest-image-*</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>需要手动下载整包（<code>cube-sandbox-one-click-&lt;版本&gt;-&lt;架构&gt;.tar.gz</code>，架构为 <code>amd64</code> / <code>arm64</code>）：</p>
+<pre><code>wget https://cnb.cool/CubeSandbox/CubeSandbox/-/releases/download/v0.6.0/cube-sandbox-one-click-v0.6.0-amd64.tar.gz</code></pre>
+
+                <h3>PVM 部署：下载宿主机内核包</h3>
+                <p>PVM 部署中唯一需要手动下载的就是宿主机内核包——装上它、重启进入 PVM 内核即可获得 KVM 能力。PVM 的 guest 内核（<code>vmlinux-pvm</code>）已内置于一键部署包，安装时设 <code>CUBE_PVM_ENABLE=1</code> 即自动激活。内核包发布在专属的 <code>kernel-release-*</code> Release 上：</p>
+                <ul>
+                    <li><strong>RPM 系</strong>（OpenCloudOS、RHEL、CentOS、TencentOS、Fedora）：<code>kernel-*opencloudos9.cubesandbox.pvm.host*.x86_64.rpm</code></li>
+                    <li><strong>DEB 系</strong>（Ubuntu、Debian）：<code>linux-image-*opencloudos9.cubesandbox.pvm.host*_amd64.deb</code></li>
+                </ul>
+                <p>资产列表中的 <code>kernel-headers-*</code>、<code>-dbg</code> 等为可选包，无需下载。<strong>OpenCloudOS 9 用户</strong>可直接用官方 yum 仓库 <code>dnf install</code> 一行直装，无需手动下载 rpm。</p>
+
+                <h3>自建部署：下载 guest 内核与镜像</h3>
+                <p>只有在自行构建发布包或替换组件时才需要下载这些（一键部署包已全部自带）：</p>
+<pre><code><span class="c"># guest 内核（发布在 kernel-release-* 下，文件名固定）</span>
+wget "https://cnb.cool/CubeSandbox/CubeSandbox/-/releases/download/kernel-release-260812-1/vmlinux-amd64"       <span class="c"># 裸金属/KVM，aarch64 用 vmlinux-arm64</span>
+wget "https://cnb.cool/CubeSandbox/CubeSandbox/-/releases/download/kernel-release-260812-1/vmlinux-pvm-amd64"    <span class="c"># PVM guest 内核（仅 x86_64）</span>
+
+<span class="c"># guest 镜像（发布在 guest-image-* 下，内含 cube-guest-image-cpu.img）</span>
+wget https://cnb.cool/CubeSandbox/CubeSandbox/-/releases/download/guest-image-260820-1/cube-guest-image-amd64.tar.gz
+tar -xzf cube-guest-image-amd64.tar.gz</code></pre>
+                <p>URL 中的 tag 会随发布递增（文件名固定，换 tag 即可）；最新 tag 可在 Releases 页面过滤 <code>kernel-release</code> / <code>guest-image</code> 查看。自建时把 <code>vmlinux</code> 放入 <code>deploy/one-click/assets/kernel-artifacts/</code> 即可。</p>
+
+                <h3>URL 规律、最新 tag 与版本 pin</h3>
+                <p>所有资产两个渠道完全一致，把域名换掉即可切换：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>渠道</th><th>URL 规律</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>CNB 镜像（国内推荐）</td><td><code>https://cnb.cool/CubeSandbox/CubeSandbox/-/releases/download/&lt;tag&gt;/&lt;资产名&gt;</code></td></tr>
+                            <tr><td>GitHub（权威源，境外推荐）</td><td><code>https://github.com/TencentCloud/CubeSandbox/releases/download/&lt;tag&gt;/&lt;资产名&gt;</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+<pre><code><span class="c"># 列出最新的 kernel-release tag</span>
+gh release list --repo TencentCloud/CubeSandbox --limit 30 | grep kernel-release
+
+<span class="c"># 按通配下载（&lt;tag&gt; 替换为上面查到的最新 tag，无需知道精确文件名）</span>
+gh release download &lt;tag&gt; --repo TencentCloud/CubeSandbox \
+  --pattern 'kernel-6*.x86_64.rpm'   <span class="c"># 或：--pattern 'linux-image-6*_amd64.deb'</span></code></pre>
+
+                <div class="info">
+                    <strong>版本 pin：</strong>每个 <code>v*</code> 产品版本在 <code>deploy/release-assets.yaml</code> 中记录打包所用的 kernel / guest-image tag（也写在包内 <code>release-manifest.json</code>），据此可查「我手里的包用的是哪个内核」。专属 tag 的发布节奏独立于产品版本，pin 可能落后于最新 tag——<strong>PVM 宿主机内核建议始终用最新 <code>kernel-release-*</code></strong>（含内核安全修复），无需与产品版本对齐。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">12</span>易错点与记忆卡片</h2>
+                <p class="lead">下面这些是三条路线最容易踩的坑，几乎都来自「默认配置」与「生产预期」之间的落差。</p>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>易错点</th><th>为什么会错</th><th>正确做法</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>把 TKE worker 当成计算节点</td><td>默认都是 <code>2</code>，容易混为一谈</td><td>TKE worker 跑控制面 Pod；PVM 计算节点才跑 Cubelet 承载 sandbox，分开扩容</td></tr>
+                            <tr><td>默认内网模式下直接公网访问 WebUI / API</td><td>默认 <code>ENABLE_PUBLIC_NETWORK=false</code>，CLB 是 VPC 内网 VIP</td><td>经跳板机 / VPN 访问，或显式设 <code>true</code> 切公网并做加固</td></tr>
+                            <tr><td>只配了 <code>E2B_API_URL</code> 就以为能跑 E2B</td><td>sandbox 访问走 <code>*.cube.app</code> → cube-proxy</td><td>同时配好 cube.app 域名解析 + TLS 证书</td></tr>
+                            <tr><td>离线镜像 <code>MIRROR</code> 与引用不一致</td><td>拉了 <code>-cn</code> 却没设 <code>MIRROR=cn</code>，或反之</td><td>引用与 <code>MIRROR</code> 成对出现；<code>docker images</code> 对照清单</td></tr>
+                            <tr><td>用 snap 装 Docker</td><td>snap 沙箱读不到 <code>/usr/local/services</code></td><td><code>snap remove docker</code>，用 docker-ce / docker.io 软件包</td></tr>
+                            <tr><td>dev-env 用 <code>Ctrl+a</code> 再 <code>x</code> 关机</td><td>相当于硬断电，可能损坏虚机</td><td>虚机内 <code>poweroff</code>，<code>run_vm.sh</code> 会自行退出</td></tr>
+                            <tr><td>虚机里 mysql 容器反复重启</td><td>RHEL 系 SELinux enforcing + bind mount</td><td>SELinux 切 <code>permissive</code>（create_vm 已默认），必要时手动 <code>setenforce 0</code></td></tr>
+                            <tr><td>以为 <code>destroy.sh</code> 一定清干净</td><td>回收站 / 隔离态资源 Terraform 感知不到</td><td>到控制台手动删 VPC、MySQL/Redis 回收站、CFS</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="memory-grid">
+                    <div class="memory-card"><b>两套资源</b>TKE worker <code>TENCENTCLOUD_TKE_NODE_COUNT</code> 跑控制面；PVM 计算节点 <code>TENCENTCLOUD_COMPUTE_NODE_COUNT</code> 跑沙箱。</div>
+                    <div class="memory-card"><b>默认内网</b><code>ENABLE_PUBLIC_NETWORK=false</code>，CLB 是 VPC 内网 VIP，只有 VPC 内可达。</div>
+                    <div class="memory-card"><b>四个安全组</b>jumpserver / compute / tke-pod / clb，最小权限；计算与 TKE 节点无公网入站。</div>
+                    <div class="memory-card"><b>集群需手动 DNS</b>Terraform 集群不自动解析 <code>*.cube.app</code>，要配 Private DNS / hosts / 公网 DNS。</div>
+                    <div class="memory-card"><b>离线三件事</b>真正需要公网的只有：下载安装包、装软件包、拉容器镜像。</div>
+                    <div class="memory-card"><b>dev-env 三条命令</b><code>create_vm.sh</code> → <code>run_vm.sh</code>（终端 A）→ <code>login.sh</code>（终端 B）。</div>
+                    <div class="memory-card"><b>端口映射</b>SSH <code>10022→22</code>；<code>EXTRA_FORWARDS="13000:3000 11443:443"</code>。</div>
+                    <div class="memory-card"><b>按量计费</b>所有资源硬编码 POSTPAID，用完 <code>destroy.sh</code> 释放；长期用才改 PREPAID。</div>
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="quiz">
+                <h2><span class="section-num">13</span>自测题</h2>
+                <p class="lead">合上页面，先自己回答，再展开对照。</p>
+
+                <div class="quiz">
+                    <h4>自测</h4>
+                    <details>
+                        <summary>1. 默认配置下，为什么从公网访问不到 cube-webui？如果要临时切到公网，需要改哪个变量、注意什么？</summary>
+                        <p>因为默认 <code>TENCENTCLOUD_ENABLE_PUBLIC_NETWORK=false</code>，cube-api / cube-proxy / cube-webui 关联的是 <strong>VPC 内网 CLB</strong>（来源 <code>10.0.0.0/16</code>），只有 VPC 内（经跳板机 / VPN）可访问。设为 <code>true</code> 会重建 CLB 并放行 <code>0.0.0.0/0</code>。注意 WebUI 目前不带任何鉴权，cube-api 默认也不校验凭证，开启公网前必须做源 IP 白名单 / Auth Callback 等加固。</p>
+                    </details>
+                    <details>
+                        <summary>2. 离线部署时安装器报 <code>pull failed … and no local copy is cached</code>，如何定位？</summary>
+                        <p>说明某个镜像没 <code>load</code> 进来，或 load 的引用（tag / 仓库）与安装器解析出的不一致。用 <code>docker images</code> 对照部署包默认引用（<code>env.example</code>，或 <code>grep -rhE '_IMAGE.*_DEFAULT="' scripts/</code> 查），再检查 <code>MIRROR</code> 是否与拉取的 <code>-cn</code> / <code>-int</code> 引用一致。注意 <code>WARN: pull failed but local image exists; using cached copy</code> 是预期行为，不是错误。</p>
+                    </details>
+                    <details>
+                        <summary>3. 在 dev-env 里想用宿主机 <code>13000</code> 访问虚机里的 Cube API（3000 端口），怎么起虚机？</summary>
+                        <p>用 <code>EXTRA_FORWARDS</code> 启动：<code>EXTRA_FORWARDS="13000:3000 11443:443" ./run_vm.sh</code>，条目统一绑定在宿主机 <code>127.0.0.1</code>。若端口被占可换一个（如 <code>23000:3000</code>）；也可以不改启动参数、临时开隧道：<code>ssh -N -L 13000:127.0.0.1:3000 -p 10022 opencloudos@127.0.0.1</code>。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

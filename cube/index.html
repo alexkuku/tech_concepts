@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CubeSandbox 学习指南 · 从入门到可观测性</title>
+    <meta name="description" content="CubeSandbox 中文学习指南：15 章提炼官方 69 个页面，用表格与架构图讲清 MicroVM 沙箱、部署、生命周期、快照、网络、存储与可观测性。">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>CubeSandbox 学习指南</span>
+            </h1>
+            <p class="subtitle">把官方 69 个页面提炼成 15 章：从 MicroVM 沙箱原理，到部署、生命周期、快照、网络、存储与可观测性</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">中文整理</span>
+                <span class="badge badge-outline">表格 + 架构图</span>
+                <span class="badge badge-outline">入门 → 可观测性</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">首页</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">学习总览</span>
+                <h1>先建立一张地图，再逐个击破</h1>
+                <p class="lead">
+                    CubeSandbox 是专为 AI Agent 打造的开源 MicroVM 沙箱基础设施。它同时覆盖“安全执行不可信代码”和“托管常驻有状态服务”两类需求。
+                    这份指南把官方文档从「入门」到「可观测性与性能」的全部页面重新组织成 5 个阶段、15 章，目标是让你先看懂全局关系，再记住关键命令与边界条件。
+                </p>
+                <div class="page-meta">
+                    <span>📚 15 章 · 69 个官方页面</span>
+                    <span>⏱ 精读约 6–8 小时</span>
+                    <span>🎯 目标：能部署、能接入、能排障</span>
+                    <span>🧭 建议顺序：从上到下</span>
+                </div>
+            </div>
+
+            <div class="stat-grid">
+                <div class="stat">
+                    <div class="stat-value">41ms</div>
+                    <div class="stat-label">单并发冷启动均值</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">&lt; 5MB</div>
+                    <div class="stat-label">单 VMM 额外内存</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">512/s</div>
+                    <div class="stat-label">50 并发创建吞吐</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">15 章</div>
+                    <div class="stat-label">覆盖 5 大知识域</div>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本页导航</h3>
+                <ul>
+                    <li><a href="#learning-path">五阶段学习路径</a></li>
+                    <li><a href="#knowledge-map">知识地图</a></li>
+                    <li><a href="#architecture">核心架构总览</a></li>
+                    <li><a href="#relations">概念关系网</a></li>
+                    <li><a href="#glossary">核心术语速查</a></li>
+                    <li><a href="#study-method">记忆方法与自测</a></li>
+                </ul>
+            </div>
+
+            <section class="concept-section" id="learning-path">
+                <h2><span class="section-num">01</span>五阶段学习路径</h2>
+                <p>
+                    不要从第一页读到最后一页。按下面的阶段推进：每个阶段先读“结论”，再回到对应章节看命令和边界条件。
+                    阶段之间是递进关系——后一阶段会反复用到前一阶段的概念。
+                </p>
+
+                <div class="learning-path">
+                    <a class="path-item" href="intro.html">
+                        <h3>建立全景</h3>
+                        <p>产品定位、MicroVM 架构、E2B 兼容、5 行代码接入。</p>
+                        <span class="path-meta">第 01 章 · 约 25 分钟</span>
+                    </a>
+                    <a class="path-item" href="deploy-basic.html">
+                        <h3>把系统跑起来</h3>
+                        <p>PVM / 裸金属 / 源码构建 / 多机集群，选一条路线完成部署。</p>
+                        <span class="path-meta">第 02–04 章 · 约 90 分钟</span>
+                    </a>
+                    <a class="path-item" href="concepts.html">
+                        <h3>掌握状态原语</h3>
+                        <p>生命周期、Webhook、QoS、模板、快照、克隆、回滚、跨机迁移。</p>
+                        <span class="path-meta">第 05–07 章 · 约 80 分钟</span>
+                    </a>
+                    <a class="path-item" href="tutorials.html">
+                        <h3>接入与安全</h3>
+                        <p>三语言 SDK、网络策略、CubeEgress、鉴权、Volume 存储。</p>
+                        <span class="path-meta">第 08–11 章 · 约 100 分钟</span>
+                    </a>
+                    <a class="path-item" href="operations.html">
+                        <h3>运维与观测</h3>
+                        <p>节点/服务/调度、可观测性、三类指标、故障排查。</p>
+                        <span class="path-meta">第 12–15 章 · 约 100 分钟</span>
+                    </a>
+                </div>
+
+                <div class="tip">
+                    <strong>三条阅读路线：</strong>
+                    ① <b>15 分钟速览</b>——只读首页 + 第 01 章 + 每章开头的架构图；
+                    ② <b>半天动手</b>——01 → 02 → 05 → 06 → 07 → 08，完成一次“部署→建模板→建沙箱→快照→SDK 调用”闭环；
+                    ③ <b>一周精通</b>——按 01→15 顺序精读，每章完成记忆卡片与自测。
+                </div>
+            </section>
+
+            <section class="concept-section" id="knowledge-map">
+                <h2><span class="section-num">02</span>知识地图：五个知识域</h2>
+                <p>
+                    CubeSandbox 的知识点可以分成五列。纵向是“从部署到运行”，横向是“一个沙箱从创建到销毁会碰到的所有系统”。
+                    先记住每一列的关键词，再进入章节看细节。
+                </p>
+
+                <div class="knowledge-map">
+                    <div class="kmap-core">
+                        <b>CubeSandbox</b>
+                        <span>RustVMM + KVM · 独立内核 MicroVM · E2B 兼容</span>
+                    </div>
+
+                    <div class="kmap-grid">
+                        <div class="kmap-col">
+                            <h4>基础与部署</h4>
+                            <a href="intro.html">产品定位与核心优势</a>
+                            <a href="intro.html#quickstart">快速开始四步</a>
+                            <a href="intro.html#e2b-compat">E2B 兼容性</a>
+                            <a href="deploy-basic.html">PVM / 裸金属 / 源码 / 多机</a>
+                            <a href="k8s.html">Kubernetes + Helm</a>
+                            <a href="deploy-cloud.html">Terraform / 离线 / 开发环境</a>
+                        </div>
+                        <div class="kmap-col teal">
+                            <h4>核心状态原语</h4>
+                            <a href="concepts.html#lifecycle-ops">沙箱生命周期</a>
+                            <a href="concepts.html#webhooks">生命周期 Webhook</a>
+                            <a href="concepts.html#qos">QoS 资源控制</a>
+                            <a href="templates.html">模板 Template</a>
+                            <a href="snapshots.html#snapshot">快照 Snapshot</a>
+                            <a href="snapshots.html#clone">克隆 Clone / 分叉 Fork</a>
+                            <a href="snapshots.html#cross-node">跨机迁移</a>
+                        </div>
+                        <div class="kmap-col violet">
+                            <h4>模板与镜像</h4>
+                            <a href="templates.html#from-image">从 OCI 镜像制作模板</a>
+                            <a href="templates.html#byoi">自定义模板镜像</a>
+                            <a href="templates.html#from-sandbox">运行中沙箱提交模板</a>
+                            <a href="templates.html#prewarm">预热模板服务</a>
+                            <a href="templates.html#env">环境变量可见性</a>
+                            <a href="templates.html#alias">模板别名</a>
+                            <a href="templates.html#mcp">沙箱内 MCP 网关</a>
+                        </div>
+                        <div class="kmap-col amber">
+                            <h4>网络与安全</h4>
+                            <a href="network.html#policy-fields">出网网络策略</a>
+                            <a href="network.html#route-aware">路由感知出网</a>
+                            <a href="network.html#sandbox-to-sandbox">沙箱间互访</a>
+                            <a href="network.html#restrict-public">限制公开访问</a>
+                            <a href="network.html#https-domain">HTTPS 与域名</a>
+                            <a href="security.html#egress-chain">CubeEgress 安全代理</a>
+                            <a href="security.html#auth">API 鉴权</a>
+                            <a href="security.html#hardening">网络加固</a>
+                        </div>
+                        <div class="kmap-col red">
+                            <h4>存储与运维观测</h4>
+                            <a href="storage.html">Volume 存储与插件</a>
+                            <a href="operations.html#cli">CLI 工具</a>
+                            <a href="operations.html#node-identity">节点操作</a>
+                            <a href="operations.html#services">服务管理与日志</a>
+                            <a href="operations.html#scheduler">调度器与插件</a>
+                            <a href="observability.html">可观测性部署</a>
+                            <a href="metrics.html#cubeproxy">请求/资源/网络指标</a>
+                            <a href="troubleshooting.html">故障排查</a>
+                        </div>
+                    </div>
+
+                    <div class="kmap-legend">
+                        <span><i class="legend-dot" style="background:#39619b"></i>部署与接入</span>
+                        <span><i class="legend-dot" style="background:#2e8f83"></i>状态与生命周期</span>
+                        <span><i class="legend-dot" style="background:#7650d6"></i>模板与镜像</span>
+                        <span><i class="legend-dot" style="background:#b47b1f"></i>网络与安全</span>
+                        <span><i class="legend-dot" style="background:#a33d3d"></i>运维与观测</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="concept-section" id="architecture">
+                <h2><span class="section-num">03</span>核心架构总览</h2>
+                <p>
+                    先记住这条主链路：<b>SDK → CubeAPI（E2B 兼容层）→ CubeMaster（调度）→ Cubelet（节点代理）→ MicroVM 沙箱</b>。
+                    CubeProxy 负责数据面入口，CubeVS / CubeEgress 负责网络，Volume 负责持久化，CubeObservability 负责观测。
+                </p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">客户端 / Agent</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">Python SDK<small>e2b_code_interpreter</small></div>
+                        <div class="arch-box control">Go SDK<small>cube-sandbox-go</small></div>
+                        <div class="arch-box control">Node.js SDK<small>e2b</small></div>
+                        <div class="arch-box control">Claude Code / LangGraph<small>框架集成</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ HTTPS · E2B 兼容协议 · X-API-Key</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary wide">CubeAPI<small>E2B 兼容层 / 鉴权 / 请求编排</small></div>
+                        <div class="arch-box accent">CubeProxy<small>数据面入口 / Host 路由</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 内部 gRPC / 调度请求</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary wide">CubeMaster<small>资源调度 · 模板分发 · 节点管理</small></div>
+                        <div class="arch-box data">MySQL<small>元数据</small></div>
+                        <div class="arch-box data">Redis<small>缓存 / 状态</small></div>
+                        <div class="arch-box data">MinIO / S3<small>模板与快照工件</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ 节点级 gRPC</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute wide">Cubelet<small>节点代理 · 沙箱生命周期 · 资源记账</small></div>
+                        <div class="arch-box compute">CubeShim<small>containerd Shim</small></div>
+                        <div class="arch-box network">CubeVS<small>网络运行时</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ KVM / RustVMM</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary wide">MicroVM 沙箱<small>独立 Guest 内核 · CubeCoW 写时复制</small></div>
+                        <div class="arch-box security">CubeEgress<small>L7 出网过滤 / 凭证注入</small></div>
+                        <div class="arch-box storage">Volume<small>挂载 S3 / COS / JuiceFS / NFS</small></div>
+                    </div>
+                    <div class="arch-connector">↘ 指标 / 日志 / Trace</div>
+                    <div class="arch-layer">
+                        <div class="arch-box obs wide">CubeObservability · OTel Collector<small>Prometheus · Loki / ES · Tempo · Grafana</small></div>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <caption class="table-caption">表 1：核心组件职责与记忆锚点</caption>
+                        <thead>
+                            <tr><th>组件</th><th>一句话职责</th><th>记忆锚点</th><th>相关章节</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>CubeAPI</code></td><td>对外提供 E2B 兼容 API，做鉴权与请求编排</td><td>“前台”</td><td><a href="intro.html">01</a> / <a href="security.html#auth">10</a></td></tr>
+                            <tr><td><code>CubeMaster</code></td><td>集群大脑：调度、模板分发、节点管理</td><td>“调度中心”</td><td><a href="operations.html#scheduler">12</a></td></tr>
+                            <tr><td><code>Cubelet</code></td><td>节点代理：在宿主机上拉起/暂停/销毁沙箱</td><td>“节点管家”</td><td><a href="concepts.html">05</a> / <a href="metrics.html">14</a></td></tr>
+                            <tr><td><code>CubeShim</code></td><td>containerd Shim，衔接运行时与 VMM</td><td>“沙箱进程壳”</td><td><a href="troubleshooting.html#logs">15</a></td></tr>
+                            <tr><td><code>CubeProxy</code></td><td>数据面入口，按 Host/Header 路由到沙箱</td><td>“流量门卫”</td><td><a href="network.html#https-domain">09</a> / <a href="metrics.html#cubeproxy">14</a></td></tr>
+                            <tr><td><code>CubeVS</code></td><td>沙箱网络运行时，下发网络策略 map</td><td>“虚拟交换机”</td><td><a href="network.html#policy-fields">09</a></td></tr>
+                            <tr><td><code>CubeEgress</code></td><td>L7 出网代理：域名白名单、凭证注入、审计</td><td>“出网安检”</td><td><a href="security.html#egress-chain">10</a></td></tr>
+                            <tr><td><code>CubeCoW</code></td><td>写时复制引擎，支撑快照/克隆/高密度</td><td>“复制魔术”</td><td><a href="snapshots.html">06</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="relations">
+                <h2><span class="section-num">04</span>概念关系网：一张图串起所有原语</h2>
+                <p>
+                    下面这张图回答四个高频问题：模板怎么变成沙箱？快照和克隆是什么关系？Volume 挂在哪里？观测数据从哪来？
+                    建议先自己复述一遍，再对照文字。
+                </p>
+
+                <div class="relation-diagram">
+                    <h4>生命周期原语与依赖系统</h4>
+                    <div class="arch-layer">
+                        <div class="arch-box data">OCI 镜像<small>Docker / Registry</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box accent">模板 Template<small>构建 + 探针 + 分发</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box primary">沙箱 Sandbox<small>MicroVM</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 挂载 Volume（S3 / COS / JuiceFS / NFS）　　↓ 出网策略（CubeVS → CubeEgress）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box storage">Volume<small>持久化 / 多沙箱共享</small></div>
+                        <div class="arch-box network">网络策略<small>allow_out / deny_out / L7</small></div>
+                        <div class="arch-box obs">可观测性<small>指标 / 日志 / Trace</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 保存状态</div>
+                    <div class="arch-layer">
+                        <div class="arch-box accent">快照 Snapshot<small>检查点 / 有效期</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box teal">克隆 Clone<small>从同一检查点复制</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box teal">分叉 Fork<small>多分支探索</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 共享存储（JuiceFS / S3）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">源节点<small>暂停 / 快照</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box data">共享存储<small>WAL / 增量页</small></div>
+                        <div class="diagram-arrow">→</div>
+                        <div class="arch-box control">目标节点<small>恢复 / 新建沙箱</small></div>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <caption class="table-caption">表 2：最容易混淆的 6 组概念</caption>
+                        <thead>
+                            <tr><th>概念 A</th><th>概念 B</th><th>关键区别</th><th>什么时候用 A / B</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>模板 Template</td><td>快照 Snapshot</td><td>模板是“可复用的启动基线”；快照是“某个沙箱在某时刻的状态”</td><td>发布环境用模板；保存/分支运行态用快照</td></tr>
+                            <tr><td>克隆 Clone</td><td>分叉 Fork</td><td>克隆通常指从快照复制出新沙箱；分叉强调从同一检查点走多条独立分支</td><td>批量复制用 Clone；探索/回滚分支用 Fork</td></tr>
+                            <tr><td>暂停 Pause</td><td>快照 Snapshot</td><td>暂停释放计算资源但保留可恢复状态；快照是可持久化、可列举的检查点</td><td>空闲回收用暂停；长期保存/迁移用快照</td></tr>
+                            <tr><td>fs-only 快照</td><td>全状态快照</td><td>fs-only 只保存文件系统；全状态还保存内存/进程</td><td>只关心文件用 fs-only；要恢复运行态用全状态</td></tr>
+                            <tr><td>Volume</td><td>快照</td><td>Volume 是解耦的持久化存储；快照是沙箱状态检查点</td><td>跨沙箱共享数据用 Volume；保存沙箱现场用快照</td></tr>
+                            <tr><td>网络策略</td><td>CubeEgress</td><td>策略在 L3/L4 决定放行/拒绝；Egress 在 L7 做域名过滤与凭证注入</td><td>网段/端口控制用策略；HTTP 域名与密钥托管用 Egress</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="glossary">
+                <h2><span class="section-num">05</span>核心术语速查</h2>
+                <p>先混个脸熟。每个术语在对应章节都会展开，这里只给“一句话定义 + 记忆锚点”。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>术语</th><th>一句话定义</th><th>记忆锚点</th><th>章节</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><b>MicroVM</b></td><td>带独立 Guest 内核、由 KVM 硬件虚拟化隔离的轻量虚拟机</td><td>“每个沙箱一台小电脑”</td><td><a href="intro.html">01</a></td></tr>
+                            <tr><td><b>PVM</b></td><td>运行在没有 /dev/kvm 的普通云服务器上的 KVM 变体</td><td>“无 KVM 也能跑”</td><td><a href="deploy-basic.html#pvm">02</a></td></tr>
+                            <tr><td><b>CubeCoW</b></td><td>写时复制引擎，让快照/克隆/高密度共享页成为可能</td><td>“复制不拷贝”</td><td><a href="snapshots.html">06</a></td></tr>
+                            <tr><td><b>Template</b></td><td>从 OCI 镜像构建出的可复用沙箱基线，含就绪探针与分发产物</td><td>“沙箱的母版”</td><td><a href="templates.html">07</a></td></tr>
+                            <tr><td><b>Snapshot</b></td><td>沙箱在某一时刻的检查点，可在有效期内恢复</td><td>“时间机器”</td><td><a href="snapshots.html#snapshot">06</a></td></tr>
+                            <tr><td><b>Clone / Fork</b></td><td>从快照复制新沙箱 / 从同一检查点分叉多条探索分支</td><td>“克隆舱 / 平行宇宙”</td><td><a href="snapshots.html#clone">06</a></td></tr>
+                            <tr><td><b>Rollback</b></td><td>将沙箱恢复到某个快照状态</td><td>“读档”</td><td><a href="snapshots.html#rollback">06</a></td></tr>
+                            <tr><td><b>QoS</b></td><td>模板级资源限制：CPU、内存、网络带宽、块设备 IO</td><td>“资源配额”</td><td><a href="concepts.html#qos">05</a></td></tr>
+                            <tr><td><b>Webhook</b></td><td>沙箱生命周期事件通知，支持去重与重试</td><td>“状态广播”</td><td><a href="concepts.html#webhooks">05</a></td></tr>
+                            <tr><td><b>Volume</b></td><td>与沙箱解耦的持久化存储，支持多沙箱挂载</td><td>“外接硬盘”</td><td><a href="storage.html">11</a></td></tr>
+                            <tr><td><b>CubeVS</b></td><td>沙箱网络运行时，负责下发网络策略与转发</td><td>“虚拟交换机”</td><td><a href="network.html#policy-fields">09</a></td></tr>
+                            <tr><td><b>CubeEgress</b></td><td>L7 出网代理：域名白名单、未授权阻断、凭据注入、审计</td><td>“出网安检”</td><td><a href="security.html#egress-chain">10</a></td></tr>
+                            <tr><td><b>CubeObservability</b></td><td>指标 + 日志 + 链路追踪的统一采集与展示栈</td><td>“三件套”</td><td><a href="observability.html">13</a></td></tr>
+                            <tr><td><b>E2B 兼容</b></td><td>替换环境变量即可把现有 E2B 业务指向 CubeSandbox</td><td>“零代码迁移”</td><td><a href="intro.html#e2b-compat">01</a></td></tr>
+                            <tr><td><b>envd</b></td><td>沙箱内常驻的 agent 进程，提供健康检查、文件与命令执行能力</td><td>“沙箱内的小管家”</td><td><a href="templates.html#byoi">07</a></td></tr>
+                            <tr><td><b>WAL 镜像盘</b></td><td>CubeS3lvol 跨机快照所需的每节点写前日志盘</td><td>“迁移的账本”</td><td><a href="snapshots.html#cross-node">06</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="study-method">
+                <h2><span class="section-num">06</span>怎么快速记住：3-2-1 学习法</h2>
+                <p>
+                    这份指南信息密度高，但不要死记。每个知识点都按“三层”来记，记完立刻用一次。
+                </p>
+
+                <div class="layer-stack">
+                    <div class="layer accent">
+                        <span class="layer-tag">第 1 层</span>
+                        <div class="layer-body"><span>一句话定义：它是什么？</span><span>解决什么问题？</span></div>
+                    </div>
+                    <div class="layer">
+                        <span class="layer-tag">第 2 层</span>
+                        <div class="layer-body"><span>一张关系图：它和谁交互？</span><span>上游是谁？下游是谁？</span></div>
+                    </div>
+                    <div class="layer">
+                        <span class="layer-tag">第 3 层</span>
+                        <div class="layer-body"><span>一条验证命令：怎么确认它生效？</span><span>失败时先看哪个日志/指标？</span></div>
+                    </div>
+                </div>
+
+                <div class="memory-grid">
+                    <div class="memory-card"><b>部署</b>没有 KVM 选 PVM；有 KVM 选裸金属；要改源码选本地构建；多节点生产选集群/K8s。</div>
+                    <div class="memory-card"><b>生命周期</b>创建 → 运行 → 空闲自动暂停 → 有请求自动恢复 → 超时销毁。暂停可恢复，销毁不可逆。</div>
+                    <div class="memory-card"><b>快照</b>Snapshot 保存检查点；Clone 复制新沙箱；Fork 从同一检查点分支；Rollback 读档。</div>
+                    <div class="memory-card"><b>网络</b>L3/L4 用网络策略；L7 域名与凭据用 CubeEgress；沙箱互访走 CubeProxy Host 路由或 hostIP:hostPort。</div>
+                    <div class="memory-card"><b>存储</b>Volume 双角色：Controller 管后端生命周期，Node 管挂载；两级引用计数归零才卸载。</div>
+                    <div class="memory-card"><b>观测</b>请求看 CubeProxy 指标；资源看 host_sandbox / guest_workload；网络看沙箱流量 / Session / SNAT。</div>
+                </div>
+
+                <div class="quiz">
+                    <h4>自测：合上文档，试着回答</h4>
+                    <details>
+                        <summary>1. 为什么说 CubeSandbox 的快照比传统 VM 快？</summary>
+                        <p>关键在 CubeCoW 写时复制与增量脏页追踪：快照不需要完整复制磁盘/内存，只记录检查点与差异页，因此能做到百毫秒级；恢复时按需加载。传统 VM 快照往往要复制或冻结完整状态，秒到分钟级。</p>
+                    </details>
+                    <details>
+                        <summary>2. 一个沙箱从“创建”到“销毁”，中间可能经历哪些状态？</summary>
+                        <p>至少包含创建中、运行中、暂停（自动或显式）、恢复中、销毁/死亡等状态；具体状态名以第 05 章状态机为准。关键是区分“暂停可恢复”和“销毁不可逆”，以及 timeout 在恢复后如何重置。</p>
+                    </details>
+                    <details>
+                        <summary>3. 模板和快照都能“恢复出一个沙箱”，区别是什么？</summary>
+                        <p>模板是长期可复用的启动基线，通常由 OCI 镜像构建并分发到节点，适合发布环境；快照是某个沙箱在某一时刻的检查点，有有效期，适合保存现场、克隆分支或跨机迁移。</p>
+                    </details>
+                    <details>
+                        <summary>4. 出网策略和 CubeEgress 各自管什么？</summary>
+                        <p>出网策略在 L3/L4 决定哪些 IP/CIDR/端口可以出网，由 CubeVS 下发；CubeEgress 在 L7 做域名白名单、未授权出口阻断、凭据动态注入和审计，密钥不进入沙箱。</p>
+                    </details>
+                    <details>
+                        <summary>5. 排查“沙箱启动慢”时，应该先看哪三类信号？</summary>
+                        <p>先看请求指标（CubeProxy 的延迟/并发）、资源指标（host_sandbox / guest_workload 的 CPU/内存/统计周期）、日志（Cubelet、CubeShim/VMM、cube-proxy）。第 14、15 章给了对应的 PromQL 与日志路径。</p>
+                    </details>
+                </div>
+
+                <div class="warning">
+                    <strong>学习提醒：</strong>
+                    文档中的性能数字（41ms、92.4ms、121.9ms、512/s 等）来自特定裸金属环境的 CubeBench 实测，仅用于建立量级直觉；生产选型请以你所在环境的实测为准。
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+            <span>·</span>
+            <a href="https://github.com/tencentcloud/CubeSandbox" target="_blank" rel="noopener">GitHub</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

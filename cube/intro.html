@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>入门与快速开始 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>入门与快速开始</span>
+            </h1>
+            <p class="subtitle">从一个 MicroVM 沙箱的定位出发，四步跑通你的第一个隔离执行环境</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 01 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">入门</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 01 章</span>
+                <h1>入门与快速开始</h1>
+                <p>本页回答三个问题：CubeSandbox 是什么、凭什么快、如何用四步跑通第一个隔离沙箱。它是后续部署、概念与接入章节的起点，读完即可对「MicroVM 沙箱基础设施」建立完整心智模型。</p>
+                <div class="page-meta">
+                    <span>📖 预计 25 分钟</span>
+                    <span>🎯 难度：入门</span>
+                    <span>🧩 覆盖 3 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#positioning">1. 产品定位：CubeSandbox 是什么</a></li>
+                    <li><a href="#advantages">2. 核心优势：关键数字</a></li>
+                    <li><a href="#comparison">3. 方案对比：Docker / VM / CubeSandbox</a></li>
+                    <li><a href="#architecture">4. 架构速览：核心组件职责</a></li>
+                    <li><a href="#migrate">5. 5 行代码接入 E2B</a></li>
+                    <li><a href="#e2b-compat">6. E2B 兼容性与已知差异</a></li>
+                    <li><a href="#quickstart">7. 快速开始四步</a></li>
+                    <li><a href="#scenarios">8. 典型适用场景</a></li>
+                    <li><a href="#pitfalls">9. 易错点、记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <section class="concept-section" id="positioning">
+                <h2><span class="section-num">1</span>产品定位：CubeSandbox 是什么</h2>
+
+                <p class="lead">CubeSandbox 是<strong>专为 AI Agent 打造的开源 MicroVM 沙箱基础设施</strong>——既能安全执行不可信代码，也能托管长驻 Agent 进程与有状态服务。它基于 RustVMM + KVM 构建，每个沙箱都是一个<strong>具备独立内核的硬件隔离 MicroVM</strong>。</p>
+
+                <p>一句话记住三个硬指标：冷启动不到 <strong>60ms</strong>、单实例 VMM 额外内存消耗不足 <strong>5MB</strong>、原生同时支持 <strong>x86_64 与 ARM64</strong> 双架构。核心系统在开源前已在腾讯云生产环境规模化验证。</p>
+
+                <h3>它解决什么问题</h3>
+                <ul>
+                    <li><strong>不可信代码执行</strong>：LLM 生成的代码、Shell 命令、第三方工具需要强隔离环境，不能让一次逃逸污染宿主。</li>
+                    <li><strong>长驻 Agent 与有状态服务</strong>：不止「跑一段代码」，还要托管 Redis、MySQL、浏览器、桌面乃至常驻 Agent 进程。</li>
+                    <li><strong>规模化并发</strong>：评测、RL Rollout、海量会话需要高密度驻留与毫秒级启停，容器与重型 VM 都难以兼顾。</li>
+                </ul>
+
+                <h3>与 E2B / Docker / VM 的关系</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">CubeSandbox 在技术谱系中的位置</div>
+                    <div class="arch-layer">
+                        <div class="arch-box security">对比 Docker<small>不是容器：每个沙箱独立内核，无共享内核逃逸风险</small></div>
+                        <div class="arch-box data">对比传统 VM<small>更轻更快：亚 60ms 冷启动，VMM 内存不足 5MB</small></div>
+                        <div class="arch-box control">对比 E2B<small>SDK 级兼容：替换环境变量即切换，业务零改动</small></div>
+                    </div>
+                </div>
+
+                <p>更准确地说，CubeSandbox 把自己定位为 <strong>E2B 的可私有化替代</strong>：对外暴露 E2B 兼容的 REST API，对内用 MicroVM 提供硬件级隔离。因此既复用了 Docker 生态的镜像与编排习惯，又拿到了接近虚拟机的隔离强度。</p>
+
+                <h3>能力全景：四个维度</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">CubeSandbox 能力全景</div>
+                    <div class="arch-layer">
+                        <div class="arch-box security">隔离<small>独立内核 MicroVM · KVM + eBPF 双重边界</small></div>
+                        <div class="arch-box teal">生命周期<small>暂停 / 恢复 · 快照 / 克隆 / 回滚</small></div>
+                        <div class="arch-box network">网络<small>CubeEgress · L7 出口管控 · 沙箱互访</small></div>
+                        <div class="arch-box compute">部署<small>PVM · 裸金属 · K8s · Terraform</small></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="concept-section" id="advantages">
+                <h2><span class="section-num">2</span>核心优势：关键数字</h2>
+
+                <p>官方把优势归纳为四组：<strong>极速启动与硬件级隔离</strong>、<strong>面向 Agent 的生命周期与状态原语</strong>、<strong>零信任网络与存储</strong>、<strong>极简部署与生产级运维</strong>。下面先把最能代表性能的数字摆在一起。</p>
+
+                <div class="stat-grid">
+                    <div class="stat"><div class="stat-value">41ms</div><div class="stat-label">单并发冷启动均值</div></div>
+                    <div class="stat"><div class="stat-value">512 个/秒</div><div class="stat-label">创建吞吐（50 并发）</div></div>
+                    <div class="stat"><div class="stat-value">&lt; 5MB</div><div class="stat-label">单实例 VMM 额外内存</div></div>
+                    <div class="stat"><div class="stat-value">数千</div><div class="stat-label">单节点可承载实例</div></div>
+                    <div class="stat"><div class="stat-value">100ms 级</div><div class="stat-label">暂停后透明唤醒</div></div>
+                    <div class="stat"><div class="stat-value">x86_64 + ARM64</div><div class="stat-label">全栈原生双架构</div></div>
+                </div>
+
+                <p class="table-caption">以上数据来自官方 CubeBench v0.7.3 裸金属实测，具体测试条件以官方性能基准页为准。</p>
+
+                <div class="table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr><th>能力</th><th>关键数字 / 特性</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>⚡ 极速冷启动</td>
+                                <td>单并发均值 <code>41ms</code>；50 并发均值 <code>92.4ms</code>、P95 <code>121.9ms</code>；吞吐 <code>512 个/秒</code></td>
+                                <td>基于预快照池化与 <strong>CubeCoW</strong> 写时复制</td>
+                            </tr>
+                            <tr>
+                                <td>🔒 独立内核隔离</td>
+                                <td>每个沙箱独立 Guest OS 内核</td>
+                                <td>KVM + eBPF 构成硬件与内核级双重安全边界</td>
+                            </tr>
+                            <tr>
+                                <td>🧠 超低内存</td>
+                                <td>VMM 额外开销 <code>&lt; 5MB</code>；空载完整沙箱单 VM 均摊约 <code>18–25 MiB</code></td>
+                                <td>CoW 共享页带来超高驻留密度</td>
+                            </tr>
+                            <tr>
+                                <td>⚙️ 双架构</td>
+                                <td><code>x86_64</code> 与 <code>aarch64（ARM64）</code></td>
+                                <td>VMM、Guest 内核、基础镜像到部署链路全栈原生支持</td>
+                            </tr>
+                            <tr>
+                                <td>⏸️ 生命周期原语</td>
+                                <td>自动暂停 + 百毫秒级恢复</td>
+                                <td>空闲自动快照挂起、下次请求透明恢复，支持自动重启策略</td>
+                            </tr>
+                            <tr>
+                                <td>📸 状态原语</td>
+                                <td>百毫秒级检查点</td>
+                                <td>回滚到任意保存状态、从同一检查点分叉、FS-only 快照</td>
+                            </tr>
+                            <tr>
+                                <td>🌐 零信任网络</td>
+                                <td>L7 域名白名单 + 凭据动态注入</td>
+                                <td>敏感密钥留在控制面，永不进入沙箱 / 模型上下文 / 日志</td>
+                            </tr>
+                            <tr>
+                                <td>💾 解耦 Volume</td>
+                                <td>兼容 E2B 标准 Volume 框架</td>
+                                <td>插件形式接入 S3、COS、JuiceFS、NFS 等后端</td>
+                            </tr>
+                            <tr>
+                                <td>🚀 极简部署</td>
+                                <td>一键脚本，几分钟拉起</td>
+                                <td>PVM / 裸金属 / 多机 / Kubernetes / 腾讯云 Terraform</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info">
+                    <strong>怎么读这张表：</strong>前三行是「为什么快且安全」的根因，中间两行是「Agent 友好」的状态能力，最后三行是「能上生产」的工程保障。后续章节会分别展开生命周期、快照、网络与存储。
+                </div>
+            </section>
+
+            <section class="concept-section" id="comparison">
+                <h2><span class="section-num">3</span>方案对比：Docker / VM / CubeSandbox</h2>
+
+                <p>选型时最常见的疑问是「为什么不直接用 Docker 或传统 VM」。下表是官方给出的逐项对比，注意三列里 <strong>CubeSandbox 是唯一在隔离强度与启动速度上同时占优的方案</strong>。</p>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>指标</th><th>Docker 容器</th><th>传统虚拟机</th><th>CubeSandbox</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>隔离级别</strong></td><td>低（共享内核 Namespace）</td><td>高（独立内核）</td><td><span class="check">✓</span> 硬件级强隔离（独立内核 + eBPF）</td></tr>
+                            <tr><td><strong>启动速度</strong></td><td>约 200ms</td><td>秒至分钟级</td><td><span class="check">✓</span> 亚 60ms（单并发均值 41ms）</td></tr>
+                            <tr><td><strong>内存开销</strong></td><td>低（共享内核）</td><td>高（完整 Guest OS）</td><td><span class="check">✓</span> 超低（VMM &lt; 5MB，CoW 共享页）</td></tr>
+                            <tr><td><strong>单机部署密度</strong></td><td>高</td><td>低</td><td><span class="check">✓</span> 高（单节点可达数千实例）</td></tr>
+                            <tr><td><strong>自动暂停 / 恢复</strong></td><td>需自行编排</td><td>手动挂起，恢复较慢</td><td><span class="check">✓</span> 平台原生托管（百毫秒级恢复）</td></tr>
+                            <tr><td><strong>快照 / 克隆 / 回滚</strong></td><td>仅文件系统层，难留内存态</td><td>支持（秒至分钟级）</td><td><span class="check">✓</span> 百毫秒级（全状态 / FS-only）</td></tr>
+                            <tr><td><strong>跨机暂停 / 恢复</strong></td><td>需自行迁移</td><td>需共享存储与热迁移方案</td><td><span class="check">✓</span> JuiceFS / S3 后端（Preview）</td></tr>
+                            <tr><td><strong>E2B SDK 兼容</strong></td><td><span class="cross">✗</span> 无</td><td><span class="cross">✗</span> 无</td><td><span class="check">✓</span> 即插即用（零代码改动）</td></tr>
+                            <tr><td><strong>Agent 托管</strong></td><td>需自行搭建</td><td>需自行搭建</td><td><span class="check">✓</span> 原生支持（AgentHub，Preview）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="tip">
+                    <strong>一句话选型：</strong>只需跑无状态短任务、能接受共享内核风险 → Docker 足够；需要强隔离但能接受秒级启动 → 传统 VM；要「强隔离 + 亚 60ms + 原生暂停/快照 + E2B 兼容」→ 选 CubeSandbox。
+                </div>
+            </section>
+
+            <section class="concept-section" id="architecture">
+                <h2><span class="section-num">4</span>架构速览：核心组件职责</h2>
+
+                <p>CubeSandbox 采用「控制面 + 计算面 + 沙箱运行时」分层。一次沙箱请求从入口代理进入，经调度下发到节点上的 Cubelet，最终由 RustVMM + KVM 拉起一个独立内核的 MicroVM。下图按层梳理主要组件，便于后续定位问题。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">控制面 Control Plane</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">CubeProxy<small>TLS（mkcert）+ CoreDNS 域名路由</small></div>
+                        <div class="arch-box control">E2B 兼容 API<small>REST，监听 3000 端口</small></div>
+                        <div class="arch-box control">CubeMaster<small>调度与编排</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 下发 / 调度</div>
+                    <div class="arch-label">计算面 Compute</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">Cubelet<small>内置 network runtime</small></div>
+                        <div class="arch-box compute">CubeShim<small>宿主机进程</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 拉起 MicroVM</div>
+                    <div class="arch-label">沙箱运行时 Sandbox</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary">RustVMM + KVM<small>VMM 虚拟化底座</small></div>
+                        <div class="arch-box security">MicroVM<small>独立 Guest OS 内核</small></div>
+                        <div class="arch-box data">CubeCoW<small>写时复制 / 快照引擎</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 依赖</div>
+                    <div class="arch-label">依赖服务 Dependencies</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">MySQL / Redis<small>Docker Compose 管理</small></div>
+                        <div class="arch-box storage">Volume<small>解耦式持久化存储</small></div>
+                        <div class="arch-box security">CubeEgress<small>L7 出口管控</small></div>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="glossary-table">
+                        <thead>
+                            <tr><th>组件</th><th>所在层次</th><th>职责</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>CubeProxy</code></td><td>控制面 / 入口</td><td>提供 TLS（mkcert 签发）与 CoreDNS 域名路由（<code>cube.app</code>），是外部请求的统一入口。</td></tr>
+                            <tr><td><code>E2B 兼容 API</code></td><td>控制面</td><td>对外暴露 E2B 兼容的 REST 接口，监听 <code>3000</code> 端口，让 E2B SDK 直接可用。</td></tr>
+                            <tr><td><code>CubeMaster</code></td><td>控制面</td><td>负责调度与编排；同时提供命令行工具 <code>cubemastercli</code>（如制作模板、查看进度）。</td></tr>
+                            <tr><td><code>Cubelet</code></td><td>计算面</td><td>节点侧代理，内置 network runtime，负责在本机创建与管理沙箱。</td></tr>
+                            <tr><td><code>CubeShim</code></td><td>计算面</td><td>以宿主机进程形式协同 Cubelet 管理沙箱进程生命周期。</td></tr>
+                            <tr><td><code>RustVMM + KVM</code></td><td>沙箱运行时</td><td>虚拟化底座：RustVMM 驱动 KVM，拉起并运行 MicroVM。</td></tr>
+                            <tr><td><code>MicroVM</code></td><td>沙箱运行时</td><td>每个沙箱一个独立 Guest OS 内核，硬件级隔离不可信代码。</td></tr>
+                            <tr><td><code>CubeCoW</code></td><td>沙箱运行时</td><td>Copy-on-Write 引擎，支撑秒级/百毫秒级快照、克隆与回滚。</td></tr>
+                            <tr><td><code>MySQL / Redis</code></td><td>依赖服务</td><td>通过 Docker Compose 管理，存放控制面元数据与状态。</td></tr>
+                            <tr><td><code>Volume</code></td><td>依赖服务</td><td>兼容 E2B 标准的解耦式存储框架，可插件化接入多种后端。</td></tr>
+                            <tr><td><code>CubeEgress</code></td><td>依赖服务</td><td>出网安全代理：L7 域名白名单、凭据动态注入与审计。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="note">
+                    <strong>说明：</strong>本页只按源文档列出的组件做职责速览。控制面与数据面的完整交互、各组件通信协议等细节，请以官方「架构概览」页面为准。
+                </div>
+            </section>
+
+            <section class="concept-section" id="migrate">
+                <h2><span class="section-num">5</span>5 行代码接入 E2B</h2>
+
+                <p>如果你已有 E2B 项目，<strong>无需修改业务代码</strong>——只要把 SDK 请求指向你的 CubeSandbox 服务，就能切到私有化硬件隔离沙箱。迁移路径只有一步：改环境变量。</p>
+
+                <div class="h-diagram">
+                    <div class="arch-box">现有 E2B 代码<small>业务逻辑保持不动</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box accent">修改环境变量<small>E2B_API_URL / E2B_API_KEY</small></div>
+                    <div class="diagram-arrow">→</div>
+                    <div class="arch-box teal">CubeSandbox<small>私有化 MicroVM 沙箱</small></div>
+                </div>
+
+                <p class="code-label">Shell · 指向本地 CubeSandbox 服务</p>
+                <pre><code><span class="k">export</span> E2B_API_URL=<span class="s">"http://127.0.0.1:3000"</span>
+<span class="k">export</span> E2B_API_KEY=<span class="s">"e2b_000000"</span></code></pre>
+
+                <p class="code-label">Python · 直接沿用 E2B SDK</p>
+                <pre><code><span class="k">from</span> e2b_code_interpreter <span class="k">import</span> Sandbox  <span class="c"># 直接沿用 E2B SDK</span>
+
+<span class="k">with</span> Sandbox.create(template=<span class="s">"&lt;你的模板ID&gt;"</span>) <span class="k">as</span> sandbox:
+    result = sandbox.run_code(<span class="s">"print('Hello from CubeSandbox!')"</span>)
+    <span class="k">print</span>(result)</code></pre>
+
+                <div class="success">
+                    <strong>核心结论：</strong>接入成本 = 两个环境变量。E2B 的 <code>Sandbox.create</code>、<code>run_code</code> 等调用完全不变，CubeSandbox 在协议层接管全部请求。
+                </div>
+            </section>
+
+            <section class="concept-section" id="e2b-compat">
+                <h2><span class="section-num">6</span>E2B 兼容性与已知差异</h2>
+
+                <p>CubeSandbox 原生兼容 E2B SDK，官方文档将「E2B 兼容性与差异」作为独立页面维护。下表只汇总源文档中<strong>明确确认</strong>的内容。</p>
+
+                <div class="table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr><th>兼容性维度</th><th>源文档确认的内容</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>SDK 兼容范围</td><td>原生兼容 E2B SDK，覆盖至 <code>E2B 2.51.0+</code>（介绍页口径）；兼容页元信息给出 <code>1.0.0 – 2.62.0</code> 的逐版兼容矩阵范围。</td></tr>
+                            <tr><td>官方多语言 SDK</td><td>提供官方 <code>Python</code>、<code>Go</code>、<code>Node.js</code> SDK。</td></tr>
+                            <tr><td>接入方式</td><td>替换环境变量即切换，业务代码零改动。</td></tr>
+                            <tr><td>关键环境变量</td><td><code>E2B_API_URL</code>、<code>E2B_API_KEY</code>、<code>CUBE_TEMPLATE_ID</code>、<code>SSL_CERT_FILE</code>。</td></tr>
+                            <tr><td>Cube 扩展能力</td><td>在 E2B 标准之外提供 AgentHub（Preview）、CubeEgress、Volume 插件等扩展。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="warning">
+                    <strong>已知差异（源文档缺失说明）：</strong>本地抓取的 <code>e2b-compatibility.md</code> 仅有页面元信息、几乎无正文，因此无法逐项列出 SDK 接口级的已知差异。两处版本口径也不完全一致（介绍页写 <code>2.51.0+</code>，兼容页元信息写 <code>1.0.0 – 2.62.0</code> 矩阵）。<strong>具体接口兼容与差异请以官方「E2B 兼容性矩阵」页面为准。</strong>
+                </div>
+            </section>
+
+            <section class="concept-section" id="quickstart">
+                <h2><span class="section-num">7</span>快速开始四步</h2>
+
+                <p>官方快速开始是一条「在普通云服务器上通过 PVM 启用 KVM → 安装 → 制作模板 → 运行代码」的最短路径，全程无需本地构建。先看四步总览，再逐步执行命令。</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>第一步</b>：安装 PVM 宿主机内核（在无 <code>/dev/kvm</code> 的云服务器上启用 KVM）</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>第二步</b>：一键安装 CubeSandbox 全套组件</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>第三步</b>：从 OCI 镜像制作代码解释器模板</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>第四步</b>：安装 E2B SDK 并运行第一段隔离代码</div>
+                </div>
+
+                <h3>前置条件</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>项目</th><th>要求</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>架构</td><td><code>x86_64</code> 云服务器（普通云即可，无需 <code>/dev/kvm</code>）</td></tr>
+                            <tr><td>权限</td><td><code>root</code>（所有命令以 root 执行）</td></tr>
+                            <tr><td>网络</td><td>可访问互联网（下载发布包、拉取 Docker 镜像）</td></tr>
+                            <tr><td>系统 glibc</td><td>二进制基于 Ubuntu 20.04（glibc 2.31）构建，<code>glibc ≥ 2.31</code></td></tr>
+                            <tr><td>推荐系统</td><td>OpenCloudOS 9 / TencentOS 4（默认 XFS，开箱即用）</td></tr>
+                            <tr><td>磁盘</td><td><code>/data/cubelet</code> 至少 50 GB，建议 200 GB 以上；需 XFS（reflink）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="warning">
+                    <strong>ARM64 注意：</strong>PVM 宿主机内核<strong>仅支持 x86_64</strong>。在 aarch64（ARM64）上请改用本身提供原生 KVM 的物理机 / 裸金属服务器，参考「裸金属部署」或「本地构建部署」。
+                </div>
+
+                <h3>第一步：安装 PVM 宿主机内核</h3>
+                <p>到 Releases 页面下载 <code>kernel-release</code> 内核主包（RPM 系 <code>*.x86_64.rpm</code>，DEB 系 <code>*_amd64.deb</code>）。以 RPM 系为例：</p>
+                <pre><code><span class="c"># 安装内核包（--oldpackage 跳过版本号比较）</span>
+rpm -ivh --oldpackage kernel-*.rpm
+
+<span class="c"># 查看已安装内核，找到 PVM 内核序号</span>
+grubby --info=ALL | grep -E <span class="s">"^kernel|^index"</span>
+
+<span class="c"># 将 <span class="n">&lt;index&gt;</span> 替换为 PVM 内核对应数字并设为默认启动项</span>
+grubby --set-default-index=<span class="n">&lt;index&gt;</span>
+grubby --default-kernel
+
+<span class="c"># 配置内核启动参数</span>
+curl -sL https://cnb.cool/CubeSandbox/CubeSandbox/-/git/raw/master/deploy/pvm/grub/host_grub_config.sh | bash</code></pre>
+
+                <p>重启后验证并加载 KVM 模块：</p>
+                <pre><code>reboot
+
+uname -r                 <span class="c"># 期望包含 opencloudos9.cubesandbox.pvm.host</span>
+modprobe kvm_pvm
+lsmod | grep kvm         <span class="c"># 期望包含 kvm_pvm</span>
+<span class="k">echo</span> <span class="s">'kvm_pvm'</span> &gt; /etc/modules-load.d/kvm-pvm.conf  <span class="c"># 开机自动加载</span></code></pre>
+
+                <h3>第二步：一键安装</h3>
+                <p>以 root 身份执行在线安装脚本（<code>CUBE_PVM_ENABLE=1</code> 启用 PVM 模式，<code>MIRROR=cn</code> 使用国内镜像）：</p>
+                <pre><code>curl -sL https://cnb.cool/CubeSandbox/CubeSandbox/-/git/raw/master/deploy/one-click/online-install.sh | CUBE_PVM_ENABLE=1 MIRROR=cn bash</code></pre>
+                <div class="tip">
+                    <strong>跳过下载前检测：</strong>如需在特定测试环境绕过下载前的环境预检，可加 <code>ONE_CLICK_SKIP_PRECHECK=1</code> 环境变量或 <code>--skip-precheck</code> 参数。但解压后执行的 <code>install.sh</code> 仍会强制做最权威的系统条件检测。
+                </div>
+
+                <h3>第三步：制作模板</h3>
+                <p>安装完成后，用预构建镜像创建代码解释器模板，并监控构建进度直到状态变为 <code>READY</code>，记录输出中的 <code>template_id</code>：</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --writable-layer-size 1G \
+  --expose-port 49999 \
+  --expose-port 49983 \
+  --probe 49999
+
+<span class="c"># 监控构建进度（替换为实际 job_id）</span>
+cubemastercli tpl watch --job-id <span class="n">&lt;job_id&gt;</span></code></pre>
+                <div class="info">
+                    <strong>镜像仓库：</strong>国内优先 <code>cube-sandbox-cn.tencentcloudcr.com/...</code>，境外推荐 <code>cube-sandbox-int.tencentcloudcr.com/...</code>。目前仅 <code>sandbox-code:latest</code> 已发布为 Multi-Arch（同时支持 x86_64 与 ARM64）。
+                </div>
+
+                <h3>第四步：运行第一段 Agent 代码</h3>
+                <pre><code><span class="c"># 安装 Python 与 E2B SDK</span>
+apt update &amp;&amp; apt install -y python3 python3-pip
+pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple
+pip install e2b-code-interpreter</code></pre>
+
+                <pre><code><span class="k">import</span> os
+<span class="k">from</span> e2b_code_interpreter <span class="k">import</span> Sandbox  <span class="c"># 直接使用 E2B SDK！</span>
+
+<span class="c"># CubeSandbox 在底层无缝接管了所有的请求</span>
+<span class="k">with</span> Sandbox.create(template=os.environ[<span class="s">"CUBE_TEMPLATE_ID"</span>]) <span class="k">as</span> sandbox:
+    result = sandbox.run_code(<span class="s">"print('Hello from Cube Sandbox, safely isolated!')"</span>)
+    <span class="k">print</span>(result)</code></pre>
+
+                <div class="table-wrap">
+                    <table class="cmd-table table-compact">
+                        <thead>
+                            <tr><th>环境变量</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>E2B_API_URL</code></td><td>将 E2B SDK 请求指向本地 CubeSandbox（<code>http://127.0.0.1:3000</code>），而非 E2B 官方云</td></tr>
+                            <tr><td><code>E2B_API_KEY</code></td><td>SDK 强制非空校验，本地部署填任意字符串（如 <code>e2b_000000</code>）</td></tr>
+                            <tr><td><code>CUBE_TEMPLATE_ID</code></td><td>第三步获取的模板 ID</td></tr>
+                            <tr><td><code>SSL_CERT_FILE</code></td><td>mkcert 签发的 CA 根证书路径（<code>/root/.local/share/mkcert/rootCA.pem</code>），HTTPS 连接需要</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>关键命令速查</h3>
+                <div class="table-wrap">
+                    <table class="feature-table table-compact">
+                        <thead>
+                            <tr><th>步骤</th><th>关键命令</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>PVM 内核</td><td><code>rpm -ivh --oldpackage kernel-*.rpm</code> → <code>grubby --set-default-index=&lt;index&gt;</code></td></tr>
+                            <tr><td>安装</td><td><code>curl -sL .../online-install.sh | CUBE_PVM_ENABLE=1 MIRROR=cn bash</code></td></tr>
+                            <tr><td>制作模板</td><td><code>cubemastercli tpl create-from-image --image ... --expose-port 49999 ...</code></td></tr>
+                            <tr><td>运行代码</td><td><code>pip install e2b-code-interpreter</code> 后运行 Python 示例</td></tr>
+                            <tr><td>卸载</td><td><code>sudo /usr/local/services/cubetoolbox/scripts/one-click/uninstall.sh</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="danger">
+                    <strong>卸载会删数据：</strong>卸载脚本会停止并删除服务、容器、数据卷、网络配置、运行数据与日志，<strong>已有模板、沙箱及快照数据也会被删除</strong>。执行前请先备份。校验是否存在残留：<code>uninstall.sh check</code>；最后手动清理工具目录：<code>sudo rm -rf /usr/local/services/cubetoolbox</code>。
+                </div>
+            </section>
+
+            <section class="concept-section" id="scenarios">
+                <h2><span class="section-num">8</span>典型适用场景</h2>
+
+                <p>官方把落地场景归纳为四类。它们的共性都是「需要强隔离 + 快速启停 + 可托管状态」，这正是 MicroVM 沙箱的甜点区。</p>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <span class="icon">🧮</span>
+                        <h3>代码解释器与 Coding Agent</h3>
+                        <p>为模型生成的代码、Shell 命令与研发工具提供强隔离执行环境，已支持 Claude Code、LangGraph、OpenAI Agents SDK、Google ADK 等主流生态。</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🖥️</span>
+                        <h3>浏览器与桌面自动化（Computer Use）</h3>
+                        <p>在独立 MicroVM 中运行无头 Chromium（Playwright）或完整 Ubuntu 桌面，会话之间彻底隔离，避免串扰与凭据泄露。</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon">🤖</span>
+                        <h3>常驻有状态 Agent 与云端工作空间</h3>
+                        <p>借助自动暂停/恢复、Volume 持久化与安全出口代理，长期托管开发环境、数据库与专属 Agent 实例。</p>
+                    </div>
+                    <div class="card">
+                        <span class="icon">📊</span>
+                        <h3>大规模并发评测与 RL Rollout</h3>
+                        <p>利用亚 60ms 启动、高密度驻留与快照克隆/回滚，高效支撑 SWE-bench 自动化评测与强化学习并行采样。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">9</span>易错点、记忆卡片与自测</h2>
+
+                <h3>易错点与最佳实践</h3>
+                <div class="warning">
+                    <strong>架构别搞混：</strong>PVM 宿主机内核<strong>只支持 x86_64</strong>。ARM64 主机不要走快速开始的 PVM 路线，应直接使用物理机 / 裸金属部署。
+                </div>
+                <div class="warning">
+                    <strong>文件系统必须是 XFS：</strong>CubeSandbox 依赖 XFS reflink 实现 Copy-on-Write 快照。Ubuntu / Debian / WSL 默认 ext4，需把 XFS 挂到 <code>/data/cubelet</code>，否则模板与快照会异常。
+                </div>
+                <div class="tip">
+                    <strong>磁盘别卡在 50G：</strong>50 GB 只是下限；要制作多个模板或自定义镜像，建议 <code>200 GB</code> 及以上，避免构建中途空间不足。
+                </div>
+                <div class="info">
+                    <strong>glibc 版本是硬门槛：</strong>二进制基于 glibc 2.31 构建，系统 <code>glibc &lt; 2.31</code> 时二进制直接无法运行，装前先 <code>ldd --version</code> 确认。
+                </div>
+                <div class="success">
+                    <strong>生产环境先加固：</strong>把服务暴露到不可信网络前，务必先按「网络加固」指南完成安全配置；<code>E2B_API_KEY</code> 本地可填任意值，但对外务必启用 API 鉴权。
+                </div>
+
+                <h3>记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>一句话定位</b>专为 AI Agent 打造的开源 MicroVM 沙箱基础设施，基于 RustVMM + KVM。</div>
+                    <div class="memory-card"><b>三个硬指标</b>冷启动 &lt; 60ms（均值 41ms）· VMM 内存 &lt; 5MB · x86_64 / ARM64 双架构。</div>
+                    <div class="memory-card"><b>与 E2B 的关系</b>SDK 级兼容，改两个环境变量即可切换，业务代码零改动。</div>
+                    <div class="memory-card"><b>核心组件</b>CubeProxy（入口）· CubeMaster（调度）· Cubelet / CubeShim（计算）· CubeCoW（快照）。</div>
+                    <div class="memory-card"><b>四步上手</b>PVM 内核 → 一键安装 → 制作模板 → 运行代码。</div>
+                    <div class="memory-card"><b>关键前提</b>x86_64 + root + glibc ≥ 2.31 + <code>/data/cubelet</code> 为 XFS（≥ 50GB）。</div>
+                </div>
+
+                <h3>自测</h3>
+                <div class="quiz">
+                    <h4>自测：3 道题检验掌握度</h4>
+                    <details>
+                        <summary>1. 为什么说 CubeSandbox「与 Docker 不同」，核心差异是什么？</summary>
+                        <p>Docker 容器共享宿主机内核（靠 Namespace 隔离），隔离级别低、存在容器逃逸风险；CubeSandbox 每个沙箱是独立 Guest OS 内核的 MicroVM，由 KVM + eBPF 构成硬件与内核级双重边界，因此能安全执行不可信的 LLM 生成代码。</p>
+                    </details>
+                    <details>
+                        <summary>2. 已有 E2B 项目接入 CubeSandbox，最少需要做哪些改动？</summary>
+                        <p>无需改业务代码，只需设置 <code>E2B_API_URL</code>（指向本地 CubeSandbox，如 <code>http://127.0.0.1:3000</code>）与 <code>E2B_API_KEY</code>（本地填任意非空值）。完整示例还需 <code>CUBE_TEMPLATE_ID</code> 与 <code>SSL_CERT_FILE</code>。</p>
+                    </details>
+                    <details>
+                        <summary>3. 快速开始四步中，哪个环节容易被系统环境卡住？为什么？</summary>
+                        <p>最易卡住的是 PVM 内核与文件系统：PVM 仅支持 x86_64，且要求系统 glibc ≥ 2.31；同时 <code>/data/cubelet</code> 必须是 XFS（依赖 reflink 做 CoW），磁盘至少 50 GB（建议 200 GB+）。ARM64 主机应改走裸金属 / 物理机部署，而非 PVM。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

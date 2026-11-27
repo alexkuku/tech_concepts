@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部署基础：PVM / 裸金属 / 源码 / 多机 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>部署基础</span>
+            </h1>
+            <p class="subtitle">从云主机到多机集群，一次讲清四种官方部署路径</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 02 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">部署基础</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 02 章</span>
+                <h1>部署基础：PVM / 裸金属 / 源码 / 多机</h1>
+                <p>这一页把官方四个部署页面（PVM 部署、裸金属部署、本地构建部署、多机集群部署）压缩成一条决策主线：先判断宿主机有没有 <code>/dev/kvm</code>，再决定是否改源码、是否上多机。读完你应能选对方式、抄对命令、看懂产物与端口，并在装完/装坏时知道去哪查。</p>
+                <div class="page-meta">
+                    <span>📖 预计 45 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 4 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#choose">1. 部署方式选择决策树</a></li>
+                    <li><a href="#compare">2. 四种方式横向对比</a></li>
+                    <li><a href="#pvm">3. PVM 部署（无 /dev/kvm）</a></li>
+                    <li><a href="#bare-metal">4. 裸金属 / 物理机部署</a></li>
+                    <li><a href="#self-build">5. 本地构建部署</a></li>
+                    <li><a href="#multi-node">6. 多机集群部署</a></li>
+                    <li><a href="#ports">7. 端口与配置速查</a></li>
+                    <li><a href="#pitfalls">8. 易错点、记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="choose">
+                <h2><span class="section-num">1</span>部署方式选择决策树</h2>
+                <p class="lead">CubeSandbox 的所有沙箱都运行在 Micro-VM 里，因此部署的第一性问题只有一个：<strong>宿主机能不能提供 KVM</strong>。围绕这个判断，再加上「是否改源码」「是否多机」两个变量，就能唯一确定该走哪条路径。</p>
+
+                <div class="decision">
+                    <div class="decision-card">
+                        <span class="badge badge-primary">场景 A</span>
+                        <h4>没有 /dev/kvm → 选 PVM</h4>
+                        <p>普通云服务器屏蔽了嵌套虚拟化。安装 PVM 宿主机内核并传入 <code>CUBE_PVM_ENABLE=1</code>，由 PVM 提供 KVM 能力。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-teal">场景 B</span>
+                        <h4>有 KVM 的物理机 → 裸金属</h4>
+                        <p>物理机、裸金属或已开启嵌套虚拟化的云服务器，<code>/dev/kvm</code> 可读写，一条在线安装命令即可。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-violet">场景 C</span>
+                        <h4>要改源码 / 定制 → 本地构建</h4>
+                        <p>需要自定义组件或扩展计算节点时，从源码构建发布包，再部署到目标机。适用于评估、开发测试。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-warning">场景 D</span>
+                        <h4>多节点生产 → 多机集群</h4>
+                        <p>先部署控制节点，再用 <code>install-compute.sh</code> 添加计算节点，横向扩容沙箱算力。</p>
+                    </div>
+                </div>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>① 看虚拟化</b>：执行 <code>ls -la /dev/kvm</code>，确认宿主机能否直接提供 KVM 设备。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>② 无 /dev/kvm</b>（云服务器屏蔽嵌套虚拟化）→ 走 <b>PVM 部署</b>：装 PVM 内核后由 PVM 提供 KVM。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>③ 有 KVM</b>（物理机 / 裸金属 / 已开嵌套虚拟化）→ <b>裸金属一键部署</b> 即可。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>④ 需要改源码或定制组件</b> → 从源码构建发布包，走 <b>本地构建部署</b>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>⑤ 需要横向扩容 / 生产多机</b> → 先起控制节点，再用 <code>install-compute.sh</code> 加计算节点，走 <b>多机集群部署</b>。</div>
+                </div>
+
+                <div class="note">
+                    <strong>三种基础方式可以叠加。</strong>PVM 只是「让普通云主机具备 KVM 能力」，一旦 <code>/dev/kvm</code> 可用，后续安装、模板、SDK 流程与标准部署完全一致；多机集群的控制节点也可以是 PVM 或裸金属节点。因此决策树是「先定 KVM，再定规模」。
+                </div>
+                <div class="warning">
+                    <strong>生产环境先做网络加固。</strong>四个官方页面都强调：在把服务暴露到不可信网络之前，请先阅读「网络加固」指南完成安全加固。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="compare">
+                <h2><span class="section-num">2</span>四种方式横向对比</h2>
+                <p>先用一张表把「适用场景、前置条件、复杂度、是否支持 PVM、典型命令、优缺点」对齐，再逐节展开。</p>
+
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>方式</th>
+                                <th>适用场景</th>
+                                <th>前置条件</th>
+                                <th>架构复杂度</th>
+                                <th>支持 PVM</th>
+                                <th>典型命令</th>
+                                <th>优缺点</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>PVM 部署</strong></td>
+                                <td>云服务器 <code>/dev/kvm</code> 不可用</td>
+                                <td>x86_64、root、内存 ≥ 8 GB，<strong>无需 /dev/kvm</strong></td>
+                                <td>中（多装一个宿主机内核）</td>
+                                <td><span class="check">✅ 原生</span></td>
+                                <td><code>… | CUBE_PVM_ENABLE=1 MIRROR=cn bash</code></td>
+                                <td>普通云主机即可跑 MicroVM；需重启换内核</td>
+                            </tr>
+                            <tr>
+                                <td><strong>裸金属一键</strong></td>
+                                <td>有 KVM 的物理机 / 裸金属</td>
+                                <td><code>/dev/kvm</code> 可读写、Docker、内存 ≥ 8 GB、磁盘 ≥ 50 GB</td>
+                                <td>低（一条命令）</td>
+                                <td><span class="cross">❌ 不需要</span></td>
+                                <td><code>… | MIRROR=cn bash</code></td>
+                                <td>最省事；依赖现成 KVM（ARM64 需手动装包）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>本地构建</strong></td>
+                                <td>评估体验、开发测试、改源码</td>
+                                <td>构建机 Docker + make；目标机 KVM + Docker + root</td>
+                                <td>高（编译 + 打包 + 部署）</td>
+                                <td><span class="check">✅ 可带 PVM guest 内核</span></td>
+                                <td><code>./deploy/one-click/build-release-bundle-builder.sh</code></td>
+                                <td>完全可控可定制；构建链长、产物大</td>
+                            </tr>
+                            <tr>
+                                <td><strong>多机集群</strong></td>
+                                <td>生产、横向扩容</td>
+                                <td>控制节点 + 每台计算节点同构；全集群时间同步；3010 端口连通</td>
+                                <td>最高（控制面 + 数据面）</td>
+                                <td><span class="check">✅ 各节点均可 PVM</span></td>
+                                <td><code>sudo ./install-compute.sh</code></td>
+                                <td>可扩展、支持调度；运维复杂度高</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="tip">
+                    <strong>一句话记忆：</strong>PVM 解决「有没有 KVM」，本地构建解决「要不要定制」，多机集群解决「够不够大」。裸金属一键则是「KVM 现成」时的最短路径。
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="pvm">
+                <h2><span class="section-num">3</span>PVM 部署：在普通云服务器上获得 KVM</h2>
+                <p class="lead">PVM 部署相比标准部署只多两步：<strong>① 安装 PVM 宿主机内核并重启；② 安装时传入 <code>CUBE_PVM_ENABLE=1</code></strong>。其余流程与快速开始完全一致。</p>
+
+                <h3>3.1 原理：PVM 内核 + KVM 模块</h3>
+                <p><strong>PVM（Pagetable-based Virtual Machine）</strong>是一种基于页表的嵌套虚拟化框架，构建于 KVM 之上。与传统嵌套虚拟化不同，PVM 不依赖宿主 hypervisor 向 guest 暴露 Intel VT-x / AMD-V 等硬件虚拟化扩展，而是在 guest 内核层通过共享内存区域和影子页表（shadow page table）完成特权级切换与内存虚拟化，对宿主 hypervisor 完全透明。腾讯云已在生产环境大规模部署 PVM，并将改进成果开源至 OpenCloudOS 内核。</p>
+
+                <div class="layer-stack">
+                    <div class="layer accent">
+                        <span class="layer-tag">应用层</span>
+                        <div class="layer-body"><span>Cube Sandbox 组件</span><span>Micro-VM 沙箱</span></div>
+                    </div>
+                    <div class="layer">
+                        <span class="layer-tag">Guest 内核</span>
+                        <div class="layer-body"><span>vmlinux-pvm（覆盖为运行时 vmlinux）</span></div>
+                    </div>
+                    <div class="layer">
+                        <span class="layer-tag">PVM 提供</span>
+                        <div class="layer-body"><span>kvm_pvm 模块</span><span>/dev/kvm</span><span>影子页表 + 共享内存</span></div>
+                    </div>
+                    <div class="layer">
+                        <span class="layer-tag">底层</span>
+                        <div class="layer-body"><span>PVM 宿主机内核</span><span>普通云服务器（无 VT-x/AMD-V）</span></div>
+                    </div>
+                </div>
+
+                <h3>3.2 启动链路</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>Step 0</b>：准备 x86_64 云服务器（推荐 OpenCloudOS 9；Ubuntu / Debian / CentOS 亦可）。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>Step 1</b>：下载并安装 <code>kernel-release-*</code> 中的 PVM 宿主机内核包（RPM 或 DEB）。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>Step 2</b>：设置 PVM 内核为默认启动项，并执行 <code>host_grub_config.sh</code> 配置内核启动参数。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>Step 3</b>：<code>reboot</code>，用 <code>uname -r</code> 确认版本含 <code>opencloudos9.cubesandbox.pvm.host</code>。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>Step 4</b>：<code>modprobe kvm_pvm</code> 加载模块 → <code>/dev/kvm</code> 出现。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>Step 5</b>：以 <code>CUBE_PVM_ENABLE=1</code> 安装，安装脚本用 PVM guest 内核覆盖 <code>vmlinux</code>。</div>
+                </div>
+
+                <h3>3.3 前置条件</h3>
+                <ul>
+                    <li><strong>x86_64</strong> 架构的 Linux 服务器（云服务器或物理机均可）</li>
+                    <li>有 <strong>root 权限</strong>（全文命令均在 root shell 执行，先 <code>sudo su root</code>）</li>
+                    <li><strong>无需 <code>/dev/kvm</code></strong>（安装 PVM 内核后由 PVM 提供 KVM 能力）</li>
+                    <li>内存 ≥ 8 GB、XFS 或可用于 <code>/data/cubelet</code> 的分区（与快速开始一致）</li>
+                    <li>规格建议：CPU ≥ 4 核、内存 ≥ 8 GB、系统盘 ≥ 50 GB（推荐挂额外数据盘给 <code>/data/cubelet</code>）</li>
+                </ul>
+
+                <h3>3.4 第一步：安装 PVM 宿主机内核</h3>
+                <p>到 Releases 页面（过滤 <code>kernel-release</code>）下载<strong>内核主包</strong>：RPM 系为 <code>kernel-*opencloudos9.cubesandbox.pvm.host*.x86_64.rpm</code>，DEB 系为 <code>linux-image-*opencloudos9.cubesandbox.pvm.host*_amd64.deb</code>。<code>kernel-headers-*</code>、<code>-dbg</code> 为可选包，无需下载。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>步骤</th><th>RPM 系（OpenCloudOS / RHEL / CentOS / TencentOS / Fedora）</th><th>DEB 系（Ubuntu / Debian）</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>安装内核包</td><td><code>rpm -ivh --oldpackage kernel-*.rpm</code></td><td><code>dpkg -i linux-image-*opencloudos9.cubesandbox.pvm.host*.deb</code></td></tr>
+                            <tr><td>设默认启动项</td><td><code>grubby --set-default-index=&lt;index&gt;</code></td><td>改写 <code>/etc/default/grub</code> 的 <code>GRUB_DEFAULT</code></td></tr>
+                            <tr><td>配置启动参数</td><td colspan="2"><code>host_grub_config.sh</code>（DEB 内部会调用 <code>update-grub</code>）</td></tr>
+                            <tr><td>重启</td><td colspan="2"><code>reboot</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="code-label">RPM 系完整命令</p>
+                <pre><code><span class="c"># 若宿主机已有更高版本内核，--oldpackage 跳过版本号比较</span>
+rpm -ivh --oldpackage kernel-*.rpm
+
+<span class="c"># 查看已安装内核列表，找到 PVM 内核对应的序号</span>
+grubby --info=ALL | grep -E "^kernel|^index"
+
+<span class="c"># 将 &lt;index&gt; 替换为上面输出中 PVM 内核对应的数字</span>
+grubby --set-default-index=&lt;index&gt;
+
+<span class="c"># 确认设置生效</span>
+grubby --default-kernel
+
+<span class="c"># 配置内核启动参数</span>
+curl -sL https://cnb.cool/CubeSandbox/CubeSandbox/-/git/raw/master/deploy/pvm/grub/host_grub_config.sh | bash</code></pre>
+
+                <p class="code-label">DEB 系完整命令</p>
+                <pre><code>dpkg -i linux-image-*opencloudos9.cubesandbox.pvm.host*.deb
+
+<span class="c"># 查看已安装的内核列表，确认 PVM 内核版本字符串</span>
+ls /boot/vmlinuz-*
+
+<span class="c"># 将 GRUB 默认启动项指向 PVM 内核（下面自动取实际版本字符串）</span>
+KVER="$(ls /boot/vmlinuz-*opencloudos9.cubesandbox.pvm.host* | sed 's|/boot/vmlinuz-||' | tail -1)"
+sed -i "s|^GRUB_DEFAULT=.*|GRUB_DEFAULT=\"Advanced options for Ubuntu&gt;Ubuntu, with Linux ${KVER}\"|" \
+  /etc/default/grub
+
+<span class="c"># 配置内核启动参数（脚本内部会调用 update-grub 使设置生效）</span>
+curl -sL https://cnb.cool/CubeSandbox/CubeSandbox/-/git/raw/master/deploy/pvm/grub/host_grub_config.sh | bash</code></pre>
+
+                <h3>3.5 重启并验证</h3>
+                <pre><code>reboot
+
+<span class="c"># 确认已进入 PVM 内核，期望输出包含 opencloudos9.cubesandbox.pvm.host</span>
+uname -r
+
+<span class="c"># 加载 PVM KVM 模块</span>
+modprobe kvm_pvm
+
+<span class="c"># 确认模块已加载，期望输出中包含 kvm_pvm</span>
+lsmod | grep kvm
+
+<span class="c"># 设置开机自动加载 kvm_pvm 模块</span>
+echo 'kvm_pvm' &gt; /etc/modules-load.d/kvm-pvm.conf</code></pre>
+
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>验证项</th><th>命令</th><th>期望结果</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>内核版本</td><td><code>uname -r</code></td><td>包含 <code>opencloudos9.cubesandbox.pvm.host</code></td></tr>
+                            <tr><td>KVM 模块</td><td><code>lsmod | grep kvm_pvm</code></td><td>出现 <code>kvm_pvm</code></td></tr>
+                            <tr><td>KVM 设备</td><td><code>ls -la /dev/kvm</code></td><td>设备存在</td></tr>
+                            <tr><td>运行时开关</td><td><code>grep CUBE_PVM_ENABLE /usr/local/services/cubetoolbox/.one-click.env</code></td><td><code>CUBE_PVM_ENABLE=1</code></td></tr>
+                            <tr><td>安装日志</td><td>查看安装输出</td><td><code>[one-click] CUBE_PVM_ENABLE=1, installed PVM guest kernel as .../cube-kernel-scf/vmlinux</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>3.6 第二步：安装 Cube Sandbox（启用 PVM）</h3>
+                <p>发布包内含两份 guest 内核：普通版（<code>vmlinux</code>）和 PVM 版（<code>vmlinux-pvm</code>）。<code>CUBE_PVM_ENABLE=1</code> 告知安装脚本把 PVM guest 内核覆盖安装为运行时使用的 <code>vmlinux</code>；不设置则默认使用普通 guest 内核，PVM 不生效。</p>
+
+                <p><strong>方式一：在线安装（推荐）</strong>——脚本下载到临时目录再执行，目录中无 <code>.env</code>，直接前置变量即可生效。</p>
+                <pre><code><span class="c"># 国内访问（推荐，从 CNB 拉取脚本）</span>
+curl -sL https://cnb.cool/CubeSandbox/CubeSandbox/-/git/raw/master/deploy/one-click/online-install.sh \
+  | CUBE_PVM_ENABLE=1 MIRROR=cn bash
+
+<span class="c"># 境外访问（从 GitHub 拉取脚本）</span>
+curl -sL https://github.com/tencentcloud/CubeSandbox/raw/master/deploy/one-click/online-install.sh \
+  | CUBE_PVM_ENABLE=1 bash
+
+<span class="c"># 多网卡机器可显式指定节点 IP</span>
+curl -sL https://cnb.cool/CubeSandbox/CubeSandbox/-/git/raw/master/deploy/one-click/online-install.sh \
+  | CUBE_PVM_ENABLE=1 MIRROR=cn bash -s -- --node-ip=&lt;你的服务器 IP&gt;</code></pre>
+
+                <p><strong>方式二：手动下载发布包</strong>——解压后直接传入环境变量安装。</p>
+                <pre><code>tar -xzf cube-sandbox-one-click-&lt;sha&gt;.tar.gz
+cd cube-sandbox-one-click-&lt;sha&gt;
+
+<span class="c"># 解压目录中不含 .env，环境变量可直接生效</span>
+CUBE_PVM_ENABLE=1 ./install.sh</code></pre>
+
+                <div class="danger">
+                    <strong>env 文件覆盖陷阱。</strong>若你曾执行 <code>cp env.example .env</code>，目录中的 <code>.env</code> 默认 <code>CUBE_PVM_ENABLE=0</code>，安装脚本会 <code>source</code> 它并<strong>覆盖</strong>父 shell 传入的同名变量，导致 PVM 未启用。此时先改 <code>.env</code>：
+                    <pre><code>sed -i 's/^CUBE_PVM_ENABLE=0/CUBE_PVM_ENABLE=1/' .env
+grep CUBE_PVM_ENABLE .env   <span class="c"># 期望：CUBE_PVM_ENABLE=1</span>
+./install.sh</code></pre>
+                </div>
+
+                <h3>3.7 第三步：验证 PVM 环境</h3>
+                <pre><code><span class="c"># 确认运行时配置中 PVM 已启用</span>
+grep CUBE_PVM_ENABLE /usr/local/services/cubetoolbox/.one-click.env
+<span class="c"># 期望：CUBE_PVM_ENABLE=1</span>
+
+<span class="c"># 确认 KVM 设备可用</span>
+ls -la /dev/kvm
+
+<span class="c"># 确认 PVM KVM 模块已加载</span>
+lsmod | grep kvm_pvm</code></pre>
+                <p>环境就绪后，后续「制作模板 → 运行沙箱」与标准部署完全一致。</p>
+
+                <h3>3.8 卸载</h3>
+                <p>卸载会停止并删除服务、容器、数据卷、网络配置、运行数据和日志，已有模板、沙箱及快照数据也会被删除——执行前先备份。</p>
+                <pre><code>sudo /usr/local/services/cubetoolbox/scripts/one-click/uninstall.sh
+sudo /usr/local/services/cubetoolbox/scripts/one-click/uninstall.sh check
+sudo rm -rf /usr/local/services/cubetoolbox</code></pre>
+                <div class="note">卸载脚本<strong>不会</strong>卸载 PVM 宿主机内核，也<strong>不会</strong>删除 Cube 相关 Docker 镜像；如需清理镜像请按脚本提示手动删除。</div>
+
+                <h3>3.9 常见问题</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>现象</th><th>原因</th><th>处理</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>安装日志显示 <code>using ordinary guest kernel</code></td>
+                                <td><code>.env</code> 中 <code>CUBE_PVM_ENABLE=0</code> 覆盖了环境变量</td>
+                                <td><code>sed -i 's/^CUBE_PVM_ENABLE=0/CUBE_PVM_ENABLE=1/' .env</code> 后重跑安装</td>
+                            </tr>
+                            <tr>
+                                <td><code>lsmod | grep kvm_pvm</code> 无输出 / <code>/dev/kvm</code> 不存在</td>
+                                <td>未进入 PVM 内核，或模块未加载</td>
+                                <td><code>uname -r</code> 确认含 <code>opencloudos9.cubesandbox.pvm.host</code>，再 <code>modprobe kvm_pvm</code></td>
+                            </tr>
+                            <tr>
+                                <td>模块仍加载失败</td>
+                                <td>内核包未正确安装</td>
+                                <td>RPM 系 <code>rpm -qa | grep cube.pvm</code>；DEB 系 <code>dpkg -l | grep cube.pvm</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="bare-metal">
+                <h2><span class="section-num">4</span>裸金属 / 物理机部署</h2>
+                <p class="lead">适用于已有支持 KVM 的 x86_64 或 aarch64（ARM64）Linux 机器，<code>/dev/kvm</code> 可用，例如物理机、裸金属服务器，或已开启嵌套虚拟化的云服务器。普通云服务器（<code>/dev/kvm</code> 不可用）请改用 PVM。</p>
+
+                <h3>4.1 前置条件</h3>
+                <ul>
+                    <li><strong>x86_64</strong> 或 <strong>aarch64</strong>（ARM64）架构的 Linux 机器</li>
+                    <li><code>/dev/kvm</code> 存在且可读写（<code>ls -la /dev/kvm</code>）</li>
+                    <li>有 <strong>root 权限</strong>（<code>sudo su root</code>）</li>
+                    <li><strong>Docker</strong> 已安装并正常运行</li>
+                    <li>可访问互联网（下载发布包、拉取 Docker 镜像）</li>
+                    <li>内存 ≥ 8 GB，磁盘空余 ≥ 50 GB</li>
+                </ul>
+
+                <div class="info">
+                    <strong>一键装出来的组件：</strong>E2B 兼容 REST API 监听 <code>3000</code> 端口；CubeMaster、内置 network runtime 的 Cubelet、CubeShim 作为宿主机进程运行；MySQL 和 Redis 通过 Docker Compose 管理；CubeProxy 提供 TLS（mkcert）和 CoreDNS 域名路由（<code>cube.app</code>）。
+                </div>
+
+                <h3>4.2 第一步：安装</h3>
+                <p class="code-label">x86_64（AMD64）——以 root 身份执行</p>
+                <pre><code>curl -sL https://cnb.cool/CubeSandbox/CubeSandbox/-/git/raw/master/deploy/one-click/online-install.sh | MIRROR=cn bash</code></pre>
+
+                <p class="code-label">ARM64（aarch64）——当前需手动下载发布包</p>
+                <div class="warning"><code>online-install.sh</code> 当前仅自动发现 x86_64 包，ARM64 自动检测与一键安装将后续补齐。目前请按以下手动步骤操作。</div>
+                <pre><code><span class="c"># 将 &lt;version&gt; 替换为你实际下载的版本（如 v0.5.0-rc3）</span>
+tar -xzf cube-sandbox-one-click-&lt;version&gt;-arm64.tar.gz
+cd cube-sandbox-one-click-&lt;version&gt;-arm64
+./install.sh</code></pre>
+                <div class="tip">部分 aarch64 主机（较旧内核、嵌套虚拟化环境或某些 ARM 核心）KVM 不向 guest 暴露 PMUv3，此时 MicroVM 仍可正常启动，guest 只是看不到硬件性能计数器，无需额外操作。</div>
+
+                <h3>4.3 第二步：制作模板</h3>
+                <p>安装完成后，用预构建镜像创建代码解释器模板：</p>
+                <pre><code>cubemastercli tpl create-from-image \
+  --image cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest \
+  --writable-layer-size 1G \
+  --expose-port 49999 \
+  --expose-port 49983 \
+  --probe 49999
+
+<span class="c"># 监控构建进度，等待状态变为 READY</span>
+cubemastercli tpl watch --job-id &lt;job_id&gt;</code></pre>
+                <div class="note">国内优先使用 <code>cube-sandbox-cn.tencentcloudcr.com/cube-sandbox/sandbox-code:latest</code>；境外访问推荐 <code>cube-sandbox-int.tencentcloudcr.com/cube-sandbox/sandbox-code:latest</code>。镜像较大，下载、解压、制作可能较久，请耐心等待。记录输出中的 <strong>template_id</strong>。</div>
+
+                <h3>4.4 第三步：运行第一段代码</h3>
+                <pre><code>yum install -y python3 python3-pip
+pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/simple
+pip install e2b-code-interpreter
+
+export E2B_API_URL="http://127.0.0.1:3000"
+export E2B_API_KEY="e2b_000000"
+export CUBE_TEMPLATE_ID="&lt;你的模板ID&gt;"
+export SSL_CERT_FILE="/root/.local/share/mkcert/rootCA.pem"</code></pre>
+
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>变量</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>E2B_API_URL</code></td><td>将 E2B SDK 请求指向本地 Cube Sandbox，而非 E2B 官方云服务</td></tr>
+                            <tr><td><code>E2B_API_KEY</code></td><td>SDK 强制非空校验，本地部署填任意字符串即可</td></tr>
+                            <tr><td><code>CUBE_TEMPLATE_ID</code></td><td>第二步获取的模板 ID</td></tr>
+                            <tr><td><code>SSL_CERT_FILE</code></td><td>mkcert 签发的 CA 根证书路径，沙箱 HTTPS 连接需要</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <pre><code>import os
+from e2b_code_interpreter import Sandbox  <span class="c"># 直接使用 E2B SDK！</span>
+
+<span class="c"># CubeSandbox 在底层无缝接管了所有的请求</span>
+with Sandbox.create(template=os.environ["CUBE_TEMPLATE_ID"]) as sandbox:
+    result = sandbox.run_code("print('Hello from Cube Sandbox, safely isolated!')")
+    print(result)</code></pre>
+
+                <h3>4.5 卸载</h3>
+                <pre><code>sudo /usr/local/services/cubetoolbox/scripts/one-click/uninstall.sh
+sudo /usr/local/services/cubetoolbox/scripts/one-click/uninstall.sh check
+sudo rm -rf /usr/local/services/cubetoolbox</code></pre>
+                <div class="note">卸载脚本不会删除 Cube 相关 Docker 镜像，如需删除请按脚本提示手动处理。</div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="self-build">
+                <h2><span class="section-num">5</span>本地构建部署：从源码到发布包</h2>
+                <p class="lead">本方式从源码构建发布包并部署到单台裸金属服务器，适用于<strong>评估体验、开发测试</strong>，也是需要自定义组件或扩展计算节点时的起点。构建机和目标机可以是同一台物理机；发布包按构建机架构<strong>原生构建</strong>，不做交叉编译。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">构建机（与目标同架构）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box obs">Docker<small>builder 容器</small></div>
+                        <div class="arch-box obs">make<small>构建工具链</small></div>
+                        <div class="arch-box storage">vmlinux / vmlinux-pvm<small>Guest 内核</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ build-release-bundle-builder.sh</div>
+                    <div class="arch-layer">
+                        <div class="arch-box accent wide">cube-sandbox-one-click-&lt;version&gt;.tar.gz<small>发布包</small></div>
+                    </div>
+                    <div class="arch-connector">上传并解压 ↓</div>
+                    <div class="arch-label">目标机（KVM 裸金属）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">install.sh<small>控制节点</small></div>
+                        <div class="arch-box compute">install-compute.sh<small>计算节点</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 安装到 /usr/local/services/cubetoolbox</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">MySQL / Redis</div>
+                        <div class="arch-box network">CubeProxy / CoreDNS</div>
+                        <div class="arch-box primary">CubeMaster / cube-api / Cubelet</div>
+                    </div>
+                </div>
+
+                <h3>5.1 软件要求</h3>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>要求</th><th>目标机</th><th>构建机</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>系统</td><td>Linux，推荐 Ubuntu 22.04+</td><td>—</td></tr>
+                            <tr><td>Docker</td><td>已安装并正常运行</td><td>用于运行 builder 容器</td></tr>
+                            <tr><td>root</td><td><code>install.sh</code> 需 root 执行</td><td>—</td></tr>
+                            <tr><td>编译工具</td><td>—</td><td><code>make</code>（构建 builder 镜像）</td></tr>
+                            <tr><td>打包工具</td><td><code>tar</code>、<code>ss</code>、<code>grep</code>、<code>sed</code>、<code>awk</code></td><td><code>tar</code>、<code>python3</code>、<code>truncate</code>、<code>ldd</code>、<code>mkfs.ext4</code></td></tr>
+                            <tr><td>DNS 路由</td><td><code>systemd-resolved</code>（推荐）或 <code>NetworkManager + dnsmasq</code></td><td>—</td></tr>
+                            <tr><td>硬件</td><td colspan="2">物理机或裸金属（不支持嵌套虚拟化）；x86_64 或 aarch64；已启用 KVM（<code>ls /dev/kvm</code>）；推荐 8 核以上 CPU、16 GB 以上内存</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="note">
+                    <strong>网络要求：</strong>需联网拉取 <code>mysql:8.0</code> 和 <code>redis:7-alpine</code> 镜像；<code>mkcert</code> 已内置在发布包中，无需联网下载；S3 Volume 插件是内置 S3 客户端的静态 Go 二进制（打包时从 <code>examples/volume/s3</code> 编译），可用 <code>ONE_CLICK_VOLUME_S3_BIN</code> 指定预编译二进制；挂载 Volume 的节点仍需 <code>s3fs</code>。
+                </div>
+
+                <h3>5.2 第一步：构建部署包（在构建机执行）</h3>
+                <p><strong>1.1 准备内核文件</strong>——下载预编译内核或自行编译，放到 <code>deploy/one-click/assets/kernel-artifacts/</code>：</p>
+                <pre><code><span class="c"># 普通（裸金属/KVM）guest 内核 —— 按目标架构选择（aarch64 用 vmlinux-arm64）</span>
+wget -O deploy/one-click/assets/kernel-artifacts/vmlinux \
+  "https://cnb.cool/CubeSandbox/CubeSandbox/-/releases/download/kernel-release-260812-1/vmlinux-amd64"
+
+<span class="c"># 若目标主机以 PVM 方式部署，另需下载 PVM guest 内核</span>
+wget -O deploy/one-click/assets/kernel-artifacts/vmlinux-pvm \
+  "https://cnb.cool/CubeSandbox/CubeSandbox/-/releases/download/kernel-release-260812-1/vmlinux-pvm-amd64"</code></pre>
+                <div class="warning"><code>vmlinux</code> 是通用名称：x86_64 上是原始 ELF <code>vmlinux</code>；aarch64 上应为 <code>make arch/arm64/boot/Image</code> 产出的 PE/COFF boot Image（发布资产 <code>vmlinux-arm64</code> 即以此历史名发布）。原始 ELF <code>vmlinux</code> 无法在 aarch64 启动。可用仓库辅助目标生成正确镜像：<code>make guest-kernel KERNEL_SRC=/path/to/linux KERNEL_TARGET_ARCH=aarch64</code>。</div>
+
+                <p><strong>1.2 执行构建</strong>：</p>
+                <pre><code>cd CubeSandbox
+cp deploy/one-click/build.env.example deploy/one-click/build.env
+./deploy/one-click/build-release-bundle-builder.sh</code></pre>
+                <p>脚本会：构建或复用 <code>cube-sandbox-builder</code> 镜像 → 在 builder 容器内编译所有组件（CubeMaster、Cubelet、cube-api、cube-agent、CubeShim、cube-runtime）→ 在宿主机构建 Guest VM 镜像 → 打包为发布包。</p>
+
+                <p><strong>1.3 获取构建产物</strong>：</p>
+                <pre><code>deploy/one-click/dist/cube-sandbox-one-click-&lt;version&gt;.tar.gz</code></pre>
+                <p><code>&lt;version&gt;</code> 取自当前 Git commit ID。发布包包含：编译后的二进制（cubemaster、cubelet、cube-api、containerd-shim-cube-rs、cube-runtime）、Guest VM 镜像（<code>cube-guest-image-cpu.img</code>）、内核包（<code>cube-kernel-scf.zip</code>）、CubeProxy 与 CoreDNS 的 Compose 模板、MySQL/Redis 的 Compose 模板、S3 Volume 插件二进制、安装脚本（<code>install.sh</code>、<code>install-compute.sh</code>、<code>down.sh</code>、<code>smoke.sh</code>）、环境变量模板（<code>env.example</code>）。</p>
+
+                <h3>5.3 第二步：部署到目标机</h3>
+                <p><strong>2.1 上传并解压</strong>：</p>
+                <pre><code>tar -xzf cube-sandbox-one-click-&lt;version&gt;.tar.gz
+cd cube-sandbox-one-click-&lt;version&gt;</code></pre>
+
+                <p><strong>2.2 配置环境变量</strong>：</p>
+                <pre><code>cp env.example .env
+
+<span class="c"># 大多数变量有单机默认值；安装脚本会自动从 eth0 探测节点 IP</span>
+<span class="c"># 若主网卡名称不同或需指定 IP，在 .env 中显式设置：</span>
+CUBE_SANDBOX_NODE_IP=&lt;你的节点IP&gt;</code></pre>
+
+                <p><strong>2.3 执行安装</strong>（控制节点）：</p>
+                <pre><code>sudo ./install.sh</code></pre>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>变量</th><th>默认值</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>ONE_CLICK_DEPLOY_ROLE</code></td><td><code>control</code></td><td>部署角色；单机部署保持默认</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NODE_IP</code></td><td>自动从 <code>eth0</code> 探测</td><td>节点主网卡 IP；网卡名不同请显式指定</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NETWORK_CIDR</code></td><td><code>192.168.0.0/18</code></td><td>cubevs 本地网络 CIDR（掩码 /16~/24）；与宿主机冲突时安装会中止</td></tr>
+                            <tr><td><code>ONE_CLICK_RUN_QUICKCHECK</code></td><td><code>1</code></td><td>安装后是否执行健康检查</td></tr>
+                            <tr><td><code>ONE_CLICK_RUNTIME_DIR</code></td><td><code>/var/run/cube-sandbox-one-click</code></td><td>PID 和运行时文件目录</td></tr>
+                            <tr><td><code>ONE_CLICK_LOG_DIR</code></td><td><code>/var/log/cube-sandbox-one-click</code></td><td>进程标准输出/错误日志目录</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>安装脚本依次：可选配置 Docker 镜像加速 → 解压到 <code>/usr/local/services/cubetoolbox</code> → 创建日志/数据目录 → 软链 CubeShim → 安装内置 <code>mkcert</code> 并签发 <code>cube.app</code> 证书 → 通过 Compose 启动 MySQL 和 Redis → 构建并启动 CubeProxy → 启动 CoreDNS 并配置宿主机 DNS 路由 → 启动 cubemaster、cube-api、cubelet → 执行健康检查。完成后 <code>cubemastercli</code> 和 <code>cubecli</code> 软链到 <code>/usr/local/bin</code>。</p>
+                <div class="tip">要扩展到多台机器，添加计算节点并注册到本控制节点即可，详见下一节「多机集群部署」。</div>
+
+                <h3>5.4 验证部署</h3>
+                <pre><code><span class="c"># 运行 quickcheck.sh，验证 cube-api /health 端点是否正常响应</span>
+sudo ./smoke.sh</code></pre>
+                <p>在客户端机器上设置环境变量后即可用 E2B SDK 测试（<code>E2B_API_URL=http://&lt;目标机IP&gt;:3000</code>、<code>E2B_API_KEY=e2b_000000</code>、<code>CUBE_TEMPLATE_ID</code>、<code>SSL_CERT_FILE=/root/.local/share/mkcert/rootCA.pem</code>），执行代码、执行 Shell、读取文件等示例与上一节一致。</p>
+
+                <h3>5.5 常用操作</h3>
+                <pre><code><span class="c"># 停止所有服务（宿主机进程 + 容器，并回滚 cube.app 的 DNS 路由）</span>
+sudo ./down.sh
+
+<span class="c"># 已存在部署时再次运行 install.sh 默认执行「保留配置的升级」</span>
+<span class="c"># 交互式会先询问（默认升级，输入 n 改为整机重装）；非交互直接升级</span>
+<span class="c"># 要丢弃现有配置并整机重装：</span>
+sudo ./install.sh --mode=install</code></pre>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>组件</th><th>日志路径</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>cube-api</td><td><code>/data/log/CubeAPI/</code></td></tr>
+                            <tr><td>CubeMaster</td><td><code>/data/log/CubeMaster/</code></td></tr>
+                            <tr><td>Cubelet</td><td><code>/data/log/Cubelet/</code></td></tr>
+                            <tr><td>CubeShim</td><td><code>/data/log/CubeShim/</code></td></tr>
+                            <tr><td>Hypervisor (VMM)</td><td><code>/data/log/CubeVmm/</code></td></tr>
+                            <tr><td>CubeProxy</td><td><code>/data/log/cube-proxy/</code></td></tr>
+                            <tr><td>运行时 PID 文件</td><td><code>/var/run/cube-sandbox-one-click/</code></td></tr>
+                            <tr><td>进程标准输出/错误</td><td><code>/var/log/cube-sandbox-one-click/</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>5.6 安装后目录结构</h3>
+                <pre><code>/usr/local/services/cubetoolbox/
+├── CubeAPI/bin/cube-api                  <span class="c"># E2B 兼容 API 服务</span>
+├── CubeMaster/
+│   ├── bin/cubemaster                    <span class="c"># 调度编排服务</span>
+│   ├── bin/cubemastercli                 <span class="c"># 命令行工具</span>
+│   └── conf.yaml                         <span class="c"># CubeMaster 配置</span>
+├── Cubelet/
+│   ├── bin/cubelet                       <span class="c"># 节点管理 Agent</span>
+│   ├── bin/cubecli                       <span class="c"># 命令行工具</span>
+│   ├── config/                           <span class="c"># Cubelet 配置</span>
+│   └── dynamicconf/                      <span class="c"># 动态配置</span>
+├── cube-shim/bin/
+│   ├── containerd-shim-cube-rs           <span class="c"># containerd shim</span>
+│   └── cube-runtime                      <span class="c"># 运行时</span>
+├── cube-image/cube-guest-image-cpu.img   <span class="c"># Guest VM 镜像</span>
+├── cube-kernel-scf/                      <span class="c"># 内核制品</span>
+├── cubeproxy/                            <span class="c"># CubeProxy Compose 与配置</span>
+├── coredns/                              <span class="c"># CoreDNS Compose</span>
+├── support/                              <span class="c"># MySQL/Redis Compose + 内置 mkcert</span>
+├── sql/                                  <span class="c"># 数据库初始化 SQL</span>
+├── scripts/one-click/                    <span class="c"># 运行时管理脚本</span>
+└── .one-click.env                        <span class="c"># 当前生效的环境配置</span></code></pre>
+
+                <h3>5.7 故障排查</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>现象</th><th>原因 / 处理</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>Error: required command not found: docker</code></td><td>Docker 未安装或未运行：<code>sudo systemctl start docker &amp;&amp; sudo systemctl enable docker</code></td></tr>
+                            <tr><td><code>/dev/kvm</code> 不存在</td><td>确认是物理机且内核支持 KVM；<code>lsmod | grep kvm</code>，Intel 需 <code>kvm_intel</code>、AMD 需 <code>kvm_amd</code></td></tr>
+                            <tr><td>DNS 路由失败</td><td>需 <code>systemd-resolved</code> 或 <code>NetworkManager + dnsmasq</code>；否则手动在 <code>/etc/hosts</code> 或 DNS 加 <code>*.cube.app</code> 指向 <code>CUBE_SANDBOX_NODE_IP</code></td></tr>
+                            <tr><td>mkcert 异常</td><td>二进制已内置；也可提前把 <code>mkcert</code> 装到 PATH，或构建时用 <code>ONE_CLICK_MKCERT_BIN</code> 指定</td></tr>
+                            <tr><td>MySQL/Redis 容器启动失败</td><td><code>docker logs cube-sandbox-mysql</code> / <code>docker logs cube-sandbox-redis</code>；常见为 3306/6379 端口冲突、磁盘不足、Docker 异常</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="warning"><strong>已知限制：</strong><code>assets/kernel-artifacts/</code> 缺 <code>vmlinux</code> 时构建立即失败；构建机 <code>mkfs.ext4</code> 不支持 <code>-d</code> 时 Guest 镜像生成失败；目标机同时缺 <code>systemd-resolved</code> 和 <code>NetworkManager</code> 时自动 DNS 配置无法完成。</div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="multi-node">
+                <h2><span class="section-num">6</span>多机集群部署</h2>
+                <p class="lead">在单机部署基础上通过「添加计算节点」扩展为多机集群。计算节点只运行沙箱运行时组件（内置 network runtime 的 <code>Cubelet</code>、<code>CubeShim</code>），向控制面注册。前置条件：必须先按「本地构建部署」完成控制节点部署。</p>
+
+                <h3>6.1 组件拓扑</h3>
+                <div class="arch-diagram">
+                    <div class="arch-label">控制节点（完整技术栈 + 自身也是计算节点）</div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box control">CubeMaster<small>编排调度</small></div>
+                        <div class="arch-box control">CubeOps<small>节点管理 :3010</small></div>
+                        <div class="arch-box control">cube-api<small>API 网关 :3000</small></div>
+                        <div class="arch-box network">CubeProxy<small>TLS + CoreDNS</small></div>
+                    </div>
+                    <div class="arch-layer tight">
+                        <div class="arch-box data">MySQL</div>
+                        <div class="arch-box data">Redis</div>
+                        <div class="arch-box storage">MinIO S3<small>:9000</small></div>
+                        <div class="arch-box compute">Cubelet<small>network runtime</small></div>
+                    </div>
+                    <div class="arch-connector strong">↓ /internal/v1/node-agent 注册与心跳（3010）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">计算节点 #1<small>Cubelet + CubeShim</small></div>
+                        <div class="arch-box compute">计算节点 #2<small>Cubelet + CubeShim</small></div>
+                        <div class="arch-box compute dashed">计算节点 #N</div>
+                    </div>
+                </div>
+
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <h4>控制节点</h4>
+                        <p>运行完整技术栈：编排调度（CubeMaster）、节点管理（CubeOps）、API 网关（cube-api）、代理（CubeProxy + CoreDNS）、数据库（MySQL + Redis）、内置 MinIO S3 存储（供 volume 使用），同时自身也作为计算节点。</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>计算节点</h4>
+                        <p>只运行内置 network runtime 的 <code>Cubelet</code>，向控制面 <code>CubeOps</code> 注册并接收来自 <code>CubeMaster</code> 的沙箱调度请求。</p>
+                    </div>
+                </div>
+
+                <h3>6.2 前置条件</h3>
+                <ul>
+                    <li>每台计算节点需满足与控制节点相同的硬件/软件要求：物理机或裸金属（不支持嵌套虚拟化）、x86_64 或 aarch64、<strong>已启用 KVM</strong>（<code>ls /dev/kvm</code>）、Docker 已安装并运行</li>
+                    <li>所有集群节点（控制节点 + 全部计算节点）均已启用<strong>时间同步</strong>（<code>chrony</code>、<code>ntpd</code>、<code>systemd-timesyncd</code>、PTP 等）</li>
+                    <li>到控制节点的网络连通：默认需访问 <code>CubeOps</code> 的 <code>3010</code> 端口；使用内置 MinIO 时还需访问 <code>9000</code> 端口</li>
+                </ul>
+                <div class="danger">
+                    <strong>务必要时间同步。</strong>若计算节点时间落后于控制节点，其心跳可能看起来已超过 15 秒过期窗口，导致节点被标记为不健康、模板也不会下发。时间恢复同步后 CubeMaster 通常会自动补齐缺失副本；如需立即触发可执行 template redo。
+                </div>
+
+                <h3>6.3 第一步：准备发布包</h3>
+                <p>使用与控制节点<strong>相同的发布包</strong>，拷贝到计算节点并解压：</p>
+                <pre><code>tar -xzf cube-sandbox-one-click-&lt;version&gt;.tar.gz
+cd cube-sandbox-one-click-&lt;version&gt;</code></pre>
+
+                <h3>6.4 第二步：配置环境变量</h3>
+                <pre><code>cp env.example .env</code></pre>
+                <p>编辑 <code>.env</code>，设置以下变量：</p>
+                <pre><code>ONE_CLICK_DEPLOY_ROLE=compute
+CUBE_SANDBOX_NODE_IP=&lt;当前节点IP&gt;
+ONE_CLICK_CONTROL_PLANE_IP=&lt;控制节点IP&gt;
+
+<span class="c"># CUBE_S3_*：可选但强烈建议。缺失时仅告警并继续安装，S3 卷插件不可用。</span>
+<span class="c"># 内置 MinIO 时形如：</span>
+CUBE_S3_ENDPOINT=http://&lt;控制节点IP&gt;:9000
+CUBE_S3_ACCESS_KEY_ID=&lt;取自控制节点&gt;
+CUBE_S3_SECRET_ACCESS_KEY=&lt;取自控制节点&gt;
+CUBE_S3_BUCKET=cube-volumes
+CUBE_S3_S3FS_EXTRA_OPTS=-ouse_path_request_style</code></pre>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>变量</th><th>默认值</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>ONE_CLICK_DEPLOY_ROLE</code></td><td><code>control</code></td><td>计算节点必须设为 <code>compute</code></td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NODE_IP</code></td><td><code>10.0.0.10</code></td><td><strong>必须修改。</strong>当前节点主网卡 IP</td></tr>
+                            <tr><td><code>ONE_CLICK_CONTROL_PLANE_IP</code></td><td>空</td><td>控制节点 IP，自动拼接为 <code>&lt;ip&gt;:3010</code> 作为 CubeOps 注册地址</td></tr>
+                            <tr><td><code>ONE_CLICK_CONTROL_PLANE_CUBEOPS_ADDR</code></td><td>空</td><td>显式指定 CubeOps 地址，优先级高于 <code>ONE_CLICK_CONTROL_PLANE_IP</code></td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NETWORK_CIDR</code></td><td><code>192.168.0.0/18</code></td><td>cubevs 本地网络 CIDR，需与控制节点一致；掩码 /16~/24</td></tr>
+                            <tr><td><code>CUBE_S3_*</code></td><td>空 / 由控制面 MinIO 填入</td><td>可选但强烈建议。缺失时仅告警、S3 卷插件不可用</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="tip">
+                    <strong>从控制节点取 CUBE_S3_* 回填：</strong>在控制节点执行 <code>grep '^CUBE_S3_' /usr/local/services/cubetoolbox/.one-click.env</code>，把输出逐行拷贝到计算节点 <code>.env</code>，再重跑 <code>sudo ./install-compute.sh</code>。使用内置 MinIO 时，还需放行计算节点到控制面的 TCP 9000。
+                </div>
+
+                <h3>6.5 第三步：安装</h3>
+                <pre><code>sudo ./install-compute.sh</code></pre>
+                <p>计算节点安装脚本会：① 只安装内置 network runtime 的 <code>Cubelet</code>、<code>cube-shim</code>、<code>cube-image</code>、<code>cube-kernel-scf</code> 和运行时脚本；② 只启动 <code>cubelet</code> 宿主机进程；③ 自动把 <code>Cubelet</code> 的 <code>meta_server_endpoint</code> 指向控制面 <code>CubeOps</code>；④ 通过 <code>/internal/v1/node-agent</code> 接口向 CubeOps 注册节点并上报状态。</p>
+
+                <h3>6.6 验证部署</h3>
+                <pre><code><span class="c"># 计算节点本地健康检查：本机 Cubelet + network runtime、控制面 CubeOps 可达性</span>
+sudo ./smoke.sh
+
+<span class="c"># 在控制节点确认计算节点已注册（返回应含计算节点 IP 与健康状态）</span>
+curl http://127.0.0.1:3010/internal/v1/nodes</code></pre>
+
+                <h3>6.7 配置 CubeMaster 调度评分</h3>
+                <p>多机部署时应在控制节点 <code>cubemaster.yaml</code> 的 <code>scheduler</code> 段设置评分（保留已有 <code>filter</code>、超时等配置）。未配置评分时，新沙箱可能集中到第一个可用节点，直到资源过滤器把流量推走。</p>
+                <pre><code>scheduler:
+  <span class="c"># 保留当前部署已有的 filter、超时和其他 scheduler 配置。</span>
+  priority_select_num: 3
+  score:
+    enable_scorers:
+      - real_time_weighted_average
+    resource_weights:
+      mvm_num: 2
+      local_create_num: 3
+      quota_cpu_usage: 1
+      quota_mem_usage: 1
+    plugin_conf:
+      real_time_weighted_average:
+        weight: 1.0
+        enable_weight_factors:
+          - mvm_num
+          - local_create_num
+          - quota_cpu_usage
+          - quota_mem_usage</code></pre>
+                <div class="note">默认配置 <code>priority_select_num: 1</code> 只决定「下一个沙箱落到哪个节点」，不会在多个高分节点间分散；小规模集群可从 <code>3</code> 起步并按节点数调整。<code>scheduler.least_select_name</code> 默认 <code>random</code>，通常无需显式设置。更新后按当前部署方式重启 CubeMaster 生效。</div>
+
+                <h3>6.8 从客户端连接集群（4 种方式）</h3>
+                <p>客户端需要 CubeAPI 控制面地址，以及一条通过 CubeProxy 访问沙箱的数据面链路。按客户端类型选择最简方式：</p>
+                <div class="table-wrap">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr><th>方式</th><th>适用场景</th><th>泛域名 DNS</th><th>额外组件</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>CubeSandbox SDK 直连 + <code>CUBE_PROXY_NODE_IP</code></td><td>Python、Go、Node.js SDK</td><td>不需要</td><td>不需要</td></tr>
+                            <tr><td>CubeProxy 路径模式</td><td>curl、后端服务、通用 HTTP 客户端</td><td>不需要</td><td>不需要</td></tr>
+                            <tr><td>E2B header 模式</td><td>固定地址下使用官方 E2B SDK</td><td>不需要</td><td>不需要</td></tr>
+                            <tr><td>泛域名 DNS（无 DNS 时用 E2B 开发 sidecar）</td><td>生产环境、浏览器、SPA、官方 E2B SDK</td><td>需要</td><td>sidecar 需要</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p><strong>方式一：CubeSandbox SDK 直连 CubeProxy</strong>——保留虚拟 <code>Host</code> 做路由，无需泛域名 DNS。</p>
+                <pre><code>export CUBE_API_URL="http://&lt;控制面IP&gt;:3000"
+export CUBE_PROXY_NODE_IP="&lt;CubeProxy节点IP&gt;"
+export CUBE_PROXY_PORT_HTTP=80
+export CUBE_TEMPLATE_ID="&lt;模板ID或别名&gt;"</code></pre>
+
+                <p><strong>方式二：通用 HTTP 客户端 —— 路径模式</strong>——不需要 DNS 或证书，支持 WebSocket 升级；但不适合用根绝对路径（如 <code>/static/app.js</code>）加载资源的 SPA。</p>
+                <pre><code><span class="c"># 格式：http://&lt;CubeProxy地址&gt;:&lt;HTTP端口&gt;/sandbox/&lt;sandbox-id&gt;/&lt;容器端口&gt;/&lt;路径&gt;</span>
+curl http://10.0.0.5/sandbox/abc123/49999/health</code></pre>
+
+                <p><strong>方式三：固定地址下的官方 E2B SDK —— header 模式</strong>——Host 不带 <code>&lt;port&gt;-&lt;sandbox-id&gt;.&lt;domain&gt;</code> 路由属性时，CubeProxy 回退到 <code>E2b-Sandbox-Id</code>（必填）和 <code>E2b-Sandbox-Port</code>（可选，默认 envd 端口 <code>49983</code>）。</p>
+                <pre><code>export E2B_API_URL="http://&lt;cubeapi地址&gt;:&lt;api端口&gt;"
+export E2B_SANDBOX_URL="http://&lt;cubeproxy地址&gt;:&lt;http端口&gt;"
+export E2B_API_KEY="&lt;your-api-key&gt;"</code></pre>
+                <div class="warning">路径模式与 header 模式都在明文端口把整条数据面暴露给能访问 CubeProxy 的请求方，请仅在可信网络中使用。Host 路由保持优先，存量泛域名流量不受影响。</div>
+
+                <p><strong>方式四：生产 / 浏览器 —— 泛域名 DNS</strong>——使用 <code>&lt;端口&gt;-&lt;sandbox-id&gt;.&lt;域名&gt;</code> 格式，需要配置指向 CubeProxy 的泛域名 A 记录，并让 CubeAPI 使用相同基础域名。</p>
+                <pre><code><span class="c"># 泛域名 A 记录示例</span>
+*.cube.example.com  →  &lt;CubeProxy公网或内网IP&gt;
+
+export CUBE_API_SANDBOX_DOMAIN=cube.example.com</code></pre>
+                <div class="note">内置 CoreDNS 仅供本机解析 <code>*.cube.app</code>，主要用于本地体验；生产环境和多机共享环境应使用托管 DNS 或内网 DNS。<code>/etc/hosts</code> 不支持泛域名记录。没有 DNS 但必须用官方 E2B SDK 时，可用 E2B 开发 sidecar：配置 <code>CUBE_REMOTE_PROXY_BASE="https://&lt;CubeProxy节点IP&gt;:443"</code> 后 <code>python demo.py</code>，该地址必须指向 CubeProxy 而非 sidecar 自身监听地址。</div>
+
+                <h3>6.9 常用运维</h3>
+                <pre><code><span class="c"># 停止计算节点服务（只停 cubelet，不影响控制面或其他计算节点）</span>
+sudo ./down.sh
+
+<span class="c"># 重新安装：直接重跑即可，脚本会自动停止已有部署再安装</span>
+sudo ./install-compute.sh
+
+<span class="c"># 分别卸载控制节点与计算节点（先备份，并按节点操作先隔离清理待移除节点）</span>
+sudo /usr/local/services/cubetoolbox/scripts/one-click/uninstall.sh
+sudo /usr/local/services/cubetoolbox/scripts/one-click/uninstall.sh check
+sudo rm -rf /usr/local/services/cubetoolbox</code></pre>
+
+                <h3>6.10 故障排查</h3>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead>
+                            <tr><th>现象</th><th>排查</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>计算节点无法连接 CubeOps</td><td><code>curl http://&lt;控制节点IP&gt;:3010/internal/v1/nodes</code>；检查控制节点防火墙放行 3010、<code>.env</code> 中 <code>ONE_CLICK_CONTROL_PLANE_IP</code> / <code>..._CUBEOPS_ADDR</code></td></tr>
+                            <tr><td><code>smoke.sh</code> 通过但控制面看不到节点</td><td>看 <code>/data/log/Cubelet/</code>；确认 <code>meta_server_endpoint</code> 指向正确 CubeOps；确保 <code>CUBE_SANDBOX_NODE_IP</code> 是可路由 IP（不是 <code>127.0.0.1</code>）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip">通用故障排查（Docker、KVM、DNS 等）参见「本地构建部署 — 故障排查」。</div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="ports">
+                <h2><span class="section-num">7</span>端口与配置速查</h2>
+                <p>以下默认值来自一键部署，多数可在 <code>.env</code>（安装时）或 <code>build.env</code>（构建时）覆盖。以官方文档为准。</p>
+
+                <h3>7.1 端口速查</h3>
+                <div class="table-wrap">
+                    <table class="cmd-table">
+                        <thead>
+                            <tr><th>端口</th><th>组件 / 用途</th><th>默认值 / 说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>3000</code></td><td>cube-api（E2B 兼容 REST API）</td><td><code>CUBE_API_BIND=0.0.0.0:3000</code>；健康检查 <code>127.0.0.1:3000</code></td></tr>
+                            <tr><td><code>8089</code></td><td>CubeMaster</td><td><code>CUBEMASTER_ADDR=127.0.0.1:8089</code></td></tr>
+                            <tr><td><code>3010</code></td><td>CubeOps 节点注册 API</td><td><code>/internal/v1/nodes</code>、<code>/internal/v1/node-agent</code></td></tr>
+                            <tr><td><code>80</code> / <code>443</code></td><td>CubeProxy HTTP / HTTPS</td><td><code>CUBE_PROXY_HTTP_PORT=80</code>、<code>CUBE_PROXY_HTTPS_PORT=443</code></td></tr>
+                            <tr><td><code>9090</code></td><td>CubeProxy 明文 gRPC（HTTP/2）</td><td><code>CUBE_PROXY_GRPC_PORT=9090</code></td></tr>
+                            <tr><td><code>9091</code></td><td>CubeEgress 本机 admin API（策略推送）</td><td><code>CUBE_EGRESS_ADMIN_PORT=9091</code></td></tr>
+                            <tr><td><code>3306</code></td><td>MySQL</td><td><code>CUBE_SANDBOX_MYSQL_PORT=3306</code></td></tr>
+                            <tr><td><code>6379</code></td><td>Redis</td><td><code>CUBE_SANDBOX_REDIS_PORT=6379</code></td></tr>
+                            <tr><td><code>9000</code></td><td>MinIO S3（Volume）</td><td>多机集群计算节点需可访问控制面 9000</td></tr>
+                            <tr><td><code>49983</code></td><td>envd（沙箱内默认端口）</td><td>header 模式 <code>E2b-Sandbox-Port</code> 默认值</td></tr>
+                            <tr><td><code>49999</code></td><td>模板示例暴露 / probe 端口</td><td><code>--expose-port 49999 --probe 49999</code></td></tr>
+                            <tr><td><code>127.0.0.54</code></td><td>CoreDNS 绑定地址</td><td><code>CUBE_PROXY_COREDNS_BIND_ADDR=127.0.0.54</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>7.2 关键配置速查</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>变量</th><th>默认值</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>CUBE_PVM_ENABLE</code></td><td><code>0</code></td><td>PVM 部署时设为 <code>1</code>，用 PVM guest 内核覆盖 <code>vmlinux</code></td></tr>
+                            <tr><td><code>ONE_CLICK_DEPLOY_ROLE</code></td><td><code>control</code></td><td>计算节点设为 <code>compute</code></td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NODE_IP</code></td><td>自动从 <code>eth0</code> 探测</td><td>节点主网卡 IP</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NETWORK_CIDR</code></td><td><code>192.168.0.0/18</code></td><td>cubevs 本地网络 CIDR（/16~/24），冲突时安装中止</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NETWORK_CIDR_SKIP_CONFLICT_CHECK</code></td><td><code>0</code></td><td>设为 <code>1</code> 跳过冲突检测（不推荐）</td></tr>
+                            <tr><td><code>CUBE_API_SANDBOX_DOMAIN</code></td><td><code>cube.app</code></td><td>沙箱域名，用于 CubeProxy 路由</td></tr>
+                            <tr><td><code>CUBE_PROXY_ENABLE</code> / <code>CUBE_PROXY_DNS_ENABLE</code></td><td><code>1</code></td><td>一键部署必须为 <code>1</code></td></tr>
+                            <tr><td><code>CUBE_PROXY_DNS_ANSWER_IP</code></td><td><code>${CUBE_SANDBOX_NODE_IP}</code></td><td>CoreDNS 对 <code>cube.app</code> 返回的 IP</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_MYSQL_PASSWORD</code></td><td><code>cube_pass</code></td><td>MySQL 用户密码（root 密码 <code>cube_root</code>，库 <code>cube_mvp</code>，用户 <code>cube</code>）</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_REDIS_PASSWORD</code></td><td><code>ceuhvu123</code></td><td>Redis 密码</td></tr>
+                            <tr><td><code>ONE_CLICK_ENABLE_TENCENT_DOCKER_MIRROR</code></td><td><code>1</code></td><td>启用腾讯云 Docker 镜像加速</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================ -->
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">8</span>易错点、记忆卡片与自测</h2>
+
+                <h3>8.1 易错点 / 最佳实践</h3>
+                <div class="danger">
+                    <strong>① .env 覆盖 CUBE_PVM_ENABLE。</strong>先 <code>cp env.example .env</code> 再 <code>CUBE_PVM_ENABLE=1 ./install.sh</code> 会被 <code>.env</code> 里的 <code>0</code> 覆盖，务必先 <code>sed</code> 改 <code>.env</code> 或用在线安装脚本。
+                </div>
+                <div class="warning">
+                    <strong>② 时间不同步 = 假死节点。</strong>计算节点时钟落后会让心跳看起来超过 15 秒过期窗口，节点被判不健康、模板也不下发。全集群统一时间同步。
+                </div>
+                <div class="warning">
+                    <strong>③ CUBE_S3_* 缺失只是告警。</strong>不配也能装，但 S3 卷插件不可用；从控制节点 <code>grep '^CUBE_S3_' .one-click.env</code> 回填后重装即可。
+                </div>
+                <div class="warning">
+                    <strong>④ 网段冲突会直接中止安装。</strong><code>CUBE_SANDBOX_NETWORK_CIDR</code> 与宿主机网卡/路由/DNS 冲突时前置检测中止；确需跳过用 <code>..._SKIP_CONFLICT_CHECK=1</code>（不推荐）。
+                </div>
+                <div class="note">
+                    <strong>⑤ 卸载有保留项。</strong>卸载脚本不删 PVM 宿主机内核、也不删 Cube 的 Docker 镜像；集群需控制节点与计算节点<strong>分别</strong>卸载。
+                </div>
+                <div class="note">
+                    <strong>⑥ 多机默认只打分不分散。</strong><code>priority_select_num</code> 默认 <code>1</code>，只在单个节点上决策；多机集群建议设为 <code>3</code> 并随规模调整。
+                </div>
+
+                <h3>8.2 记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>一句话</b>没有 /dev/kvm 选 PVM，有 KVM 选裸金属，改源码选本地构建，要扩容选多机。</div>
+                    <div class="memory-card"><b>PVM 两个动作</b>装 PVM 宿主机内核 + 重启；安装时传 <code>CUBE_PVM_ENABLE=1</code>。</div>
+                    <div class="memory-card"><b>PVM 验证三连</b><code>uname -r</code> 含 pvm.host → <code>modprobe kvm_pvm</code> → <code>ls -la /dev/kvm</code>。</div>
+                    <div class="memory-card"><b>构建三产物</b>发布包 tar.gz、Guest 镜像 <code>cube-guest-image-cpu.img</code>、内核包 <code>cube-kernel-scf.zip</code>。</div>
+                    <div class="memory-card"><b>集群两角色</b>控制节点跑全套 + 自身也算计算节点；计算节点只跑 Cubelet + CubeShim，向 3010 注册。</div>
+                    <div class="memory-card"><b>四接入方式</b>SDK 直连、路径模式、header 模式、泛域名 DNS（无 DNS 用 sidecar）。</div>
+                </div>
+
+                <h3>8.3 自测</h3>
+                <div class="quiz">
+                    <h4>自测（点击展开答案）</h4>
+                    <details>
+                        <summary>Q1：一台普通云服务器上 <code>ls -la /dev/kvm</code> 报「No such file or directory」，应该走哪种部署？关键开关是什么？</summary>
+                        <p>走 PVM 部署。先安装 PVM 宿主机内核（RPM 或 DEB）并 <code>reboot</code> 进入含 <code>opencloudos9.cubesandbox.pvm.host</code> 的内核，<code>modprobe kvm_pvm</code> 后由 PVM 提供 <code>/dev/kvm</code>；安装时必须传入 <code>CUBE_PVM_ENABLE=1</code>，否则会用普通 guest 内核导致 PVM 不生效。注意 <code>.env</code> 里的 <code>CUBE_PVM_ENABLE=0</code> 会覆盖该变量。</p>
+                    </details>
+                    <details>
+                        <summary>Q2：多机集群里，计算节点需要配置哪些关键变量？为什么 <code>smoke.sh</code> 通过但控制面看不到节点？</summary>
+                        <p>关键变量：<code>ONE_CLICK_DEPLOY_ROLE=compute</code>、<code>CUBE_SANDBOX_NODE_IP=&lt;当前节点IP&gt;</code>、<code>ONE_CLICK_CONTROL_PLANE_IP=&lt;控制节点IP&gt;</code>（或 <code>..._CUBEOPS_ADDR</code> 显式指定 <code>:3010</code>），以及强烈建议的 <code>CUBE_S3_*</code>。看不到节点时：看 <code>/data/log/Cubelet/</code>、确认 <code>meta_server_endpoint</code> 指向正确 CubeOps、确保 <code>CUBE_SANDBOX_NODE_IP</code> 是可路由 IP（不是 <code>127.0.0.1</code>），并检查控制节点 3010 防火墙与时间同步。</p>
+                    </details>
+                    <details>
+                        <summary>Q3：客户端要访问集群里的沙箱，四种方式分别适合什么场景？各是否需要泛域名 DNS？</summary>
+                        <p>① CubeSandbox SDK 直连 + <code>CUBE_PROXY_NODE_IP</code>：Python/Go/Node.js SDK，无需 DNS；② 路径模式 <code>/sandbox/&lt;id&gt;/&lt;port&gt;/&lt;path&gt;</code>：curl、后端服务、通用 HTTP 客户端，无需 DNS，支持 WebSocket 但不适合根绝对路径的 SPA；③ header 模式 <code>E2b-Sandbox-Id</code>：固定地址下用官方 E2B SDK，无需 DNS；④ 泛域名 DNS <code>&lt;port&gt;-&lt;id&gt;.&lt;domain&gt;</code>：生产、浏览器、SPA，需要泛域名 A 记录（无 DNS 时用 E2B 开发 sidecar）。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

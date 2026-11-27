@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可观测性部署、日志与追踪 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>可观测性部署、日志与追踪</span>
+            </h1>
+            <p class="subtitle">指标、日志、追踪三类信号的采集、存储、看板与排障</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 13 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">可观测性</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 13 章</span>
+                <h1>可观测性部署、日志与追踪</h1>
+                <p>这一页把 CubeSandbox 的「可观测性」讲透：指标（Prometheus）、日志（Loki / Elasticsearch）、追踪（OTel / Tempo / Jaeger）三类信号如何从 Cubelet 与沙箱采集，经 OTel Collector 汇聚到后端与 Grafana；以及 one-click、Helm、对接外部平台、独立安装四种落地方式，和沙箱日志、分布式追踪、性能基准入口。指标口径细节见第 14 章，故障定位手法见第 15 章。</p>
+                <div class="page-meta">
+                    <span>📖 预计 35 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 4 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#architecture">1. 可观测性总体架构</a></li>
+                    <li><a href="#topology">2. 采集范围与部署拓扑</a></li>
+                    <li><a href="#precheck">3. 安装前自检</a></li>
+                    <li><a href="#install">4. 安装与部署</a></li>
+                    <li><a href="#verify">5. 验证与 Grafana 看板</a></li>
+                    <li><a href="#sandbox-logs">6. 沙箱日志</a></li>
+                    <li><a href="#tracing">7. 分布式链路追踪</a></li>
+                    <li><a href="#benchmark">8. 性能基准入口</a></li>
+                    <li><a href="#pitfalls">9. 易错点与最佳实践</a></li>
+                    <li><a href="#memory">10. 记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <section class="concept-section" id="architecture">
+                <h2><span class="section-num">1</span>可观测性总体架构</h2>
+                <p>CubeObservability 为 CubeSandbox 提供开箱即用的<strong>沙箱资源指标</strong>与<strong>沙箱日志</strong>可观测性方案。它在 one-click（CVM / 裸金属）与 Kubernetes Helm 安装流程中<strong>默认关闭</strong>，用<strong>一个环境变量或一个 Helm Value</strong> 即可按需开启，并且同时支持两条路径：</p>
+                <ul>
+                    <li><strong>内置全栈</strong>：Prometheus + Loki（或 Elasticsearch）+ Grafana 一次部署到位；</li>
+                    <li><strong>对接外部平台</strong>：团队已有监控 / 日志平台时，只部署节点侧 Collector，把数据推过去。</li>
+                </ul>
+                <p>整体是<strong>「节点侧轻量采集 + 中心侧集中存储与展示」</strong>的三层架构：<strong>不改动 Cubelet 自身逻辑</strong>，并保持后端可替换——换掉 Prometheus / Loki / ES 不影响采集侧。</p>
+
+                <div class="card-grid">
+                    <div class="card"><span class="icon">📊</span><h3>指标 Metrics</h3><p>抓取本机 Cubelet <code>127.0.0.1:9998/v1/metrics/resource</code>，覆盖沙箱 CPU、内存及节点沙箱计数共 24 个指标族，自动带 <code>cluster</code> / <code>node</code> 标签，存入 Prometheus（<code>:9092</code>）。</p></div>
+                    <div class="card"><span class="icon">📜</span><h3>日志 Logs</h3><p>用 <code>filelog</code> 实时 tail 沙箱目录 <code>/data/cubelet/log/&lt;sandbox-id&gt;/{stdout,stderr}</code>，自动解析 <code>sandbox_id</code> 与 <code>stdout</code>/<code>stderr</code>，存入 Loki（<code>:3100</code>）或 Elasticsearch（<code>:9200</code>）。</p></div>
+                    <div class="card"><span class="icon">🧵</span><h3>追踪 Traces</h3><p>沙箱生命周期操作以 W3C Trace Context 贯穿五个服务，经 OTLP/<strong>gRPC</strong> 上报到外部 Collector 或 Tempo 接收端；Grafana 侧 3 张指标看板 + 1 张日志看板。</p></div>
+                </div>
+
+                <h3>数据流：从采集到看板</h3>
+                <p>每个计算节点上的 OTel Collector 用<strong>独立管道</strong>分别上报指标和日志，并把文件读取游标与 OTLP 发送队列<strong>持久化到本机磁盘</strong>（systemd 为 <code>/var/lib/cube-sandbox/otelcol/storage</code>，Helm 为 <code>/var/lib/cube-sandbox/otelcol-k8s</code>），进程重启或后端短暂抖动时可续传。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">计算节点 · 采集层（每台节点部署）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">Cubelet<small>127.0.0.1:9998/v1/metrics/resource</small></div>
+                        <div class="arch-box compute">沙箱日志目录<small>/data/cubelet/log/&lt;sandbox-id&gt;/{stdout,stderr}</small></div>
+                        <div class="arch-box obs dashed">组件容器日志<small>/var/log/pods（仅 Helm 可选）</small></div>
+                    </div>
+                    <div class="arch-connector">prometheus / filelog receiver ↓ 本地游标 + 发送队列</div>
+                    <div class="arch-layer">
+                        <div class="arch-box accent wide">OTel Collector Contrib<small>0.162.0 · 每节点一个 · 本地健康检查 :13133</small></div>
+                    </div>
+                    <div class="arch-connector strong">OTLP/HTTP 或 Remote Write ｜ OTLP/HTTP(Loki) 或 Bulk API(ES)</div>
+                    <div class="arch-label">存储与展示 · 后端层（内置部署或外部平台）</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">Prometheus<small>:9092 指标存储</small></div>
+                        <div class="arch-box data">Loki :3100 / Elasticsearch :9200<small>日志二选一，不双写</small></div>
+                        <div class="arch-box primary">Grafana<small>:3001 · 3 指标 + 1 日志看板</small></div>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>能力边界：</strong>本页聚焦<strong>指标与日志</strong>的采集、存储和看板。详细指标口径见第 14 章「指标与性能」；单机日志读取见本页第 6 节；端到端请求耗时分析见本页第 7 节。Terraform 集群部署<strong>不包含</strong>可观测性安装。
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>数据类型</th><th>数据源</th><th>采集方式</th><th>关键特性</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>沙箱资源指标</strong></td><td>本机 Cubelet <code>127.0.0.1:9998/v1/metrics/resource</code></td><td><code>prometheus</code> receiver 定时抓取</td><td>覆盖沙箱 CPU、内存及节点沙箱计数共 24 个指标族，自动附带 <code>cluster</code> / <code>node</code> 标签</td></tr>
+                            <tr><td><strong>沙箱标准日志</strong></td><td><code>/data/cubelet/log/&lt;sandbox-id&gt;/{stdout,stderr}</code></td><td><code>filelog</code> receiver 实时 tail</td><td>从路径自动解析 <code>sandbox_id</code> 和 <code>stdout</code>/<code>stderr</code>；沙箱销毁会删除本地目录，因此需在存活期间持续上报</td></tr>
+                            <tr><td><strong>组件容器日志</strong>（仅 Helm 可选）</td><td><code>/var/log/pods</code> 下允许列表内的 CubeSandbox 容器</td><td>独立只读 <code>component-otelcol</code> DaemonSet</td><td>默认关闭，从文件末尾开始采集，不回放历史日志；one-click 暂不支持</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="topology">
+                <h2><span class="section-num">2</span>采集范围与部署拓扑</h2>
+                <p>理解「谁是全栈节点、谁是计算节点、谁是后端节点」是正确启用的前提。one-click 集群里，<strong>第一台节点默认 all-in-one</strong>（控制面 + 计算 + 监控后端 + 采集器），<strong>后续计算节点只装采集器</strong>并自动指向第一台节点。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">one-click 集群 · 角色拓扑</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary tall">全栈节点（第一台）<small>控制面 + 计算 + 监控后端 + 采集器</small></div>
+                    </div>
+                    <div class="arch-connector">内网 9092 ｜ 3100 或 9200 ｜ 3001</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">计算节点 A<small>仅本机 OTel Collector</small></div>
+                        <div class="arch-box compute">计算节点 B<small>仅本机 OTel Collector</small></div>
+                        <div class="arch-box compute">计算节点 N<small>仅本机 OTel Collector</small></div>
+                    </div>
+                    <div class="arch-connector">Helm 形态：用 DaemonSet 代替 systemd 服务</div>
+                    <div class="arch-layer">
+                        <div class="arch-box obs">cube-node-otelcol<small>计算节点 DaemonSet</small></div>
+                        <div class="arch-box obs dashed">cube-component-otelcol<small>可选 · 组件 CRI 日志</small></div>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>部署方式</th><th>节点采集器（Collector）</th><th>监控后端（Prometheus + 日志后端 + Grafana）</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>one-click 第一台节点</strong>（默认 all-in-one）</td><td>本机 systemd 服务</td><td>同机部署（无需另建监控控制面）</td><td>设置 <code>ONE_CLICK_ENABLE_OBSERVABILITY=1</code> 自动安装全栈</td></tr>
+                            <tr><td><strong>one-click 后续计算节点</strong></td><td>本机 systemd 服务</td><td>自动推送到第一台节点</td><td>填写第一台节点内网 IP，仅安装采集器</td></tr>
+                            <tr><td><strong>Kubernetes Helm</strong></td><td>计算节点 DaemonSet</td><td>控制面部署内置后端（默认）或对接外部平台</td><td>通过 <code>--set observability.enabled=true</code> 开启</td></tr>
+                            <tr><td><strong>独立安装</strong>（不依赖 one-click / Helm）</td><td>本机 systemd 服务</td><td>支持全栈（<code>all</code>）、纯后端（<code>backend</code>）或纯采集器（<code>cvm</code>）</td><td>通过 <code>deploy/one-click/observability/install.sh</code> 直接管理</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>组件版本与外部兼容基线</h3>
+                <p>安装器为内置部署锁定了经过验证的组件版本；如需对接自建或托管的外部平台，请满足下表的兼容基线。</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>组件</th><th>内置锁定版本</th><th>外部自建兼容基线</th><th>默认端口</th><th>角色说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>OTel Collector Contrib</strong></td><td><code>0.162.0</code></td><td>建议 <code>0.162.x</code>（升级后需执行 <code>otelcol validate</code>）</td><td><code>127.0.0.1:13133</code></td><td>节点采集器（健康检查端口）</td></tr>
+                            <tr><td><strong>Prometheus</strong></td><td>one-click <code>3.13.4</code>；Helm <code>v3.2.1</code></td><td><code>3.x</code>（需启用 <code>--web.enable-otlp-receiver</code> 与 <code>--web.enable-remote-write-receiver</code>）</td><td><code>9092</code></td><td>指标后端（注意 <code>9090</code> 被 <code>cube-proxy</code> 占用）</td></tr>
+                            <tr><td><strong>Loki</strong>（默认日志后端）</td><td><code>3.7.9</code></td><td><code>3.x</code>（需启用原生 OTLP <code>/otlp</code> 与 structured metadata）</td><td><code>3100</code></td><td>默认日志后端，Grafana 使用 LogQL 查询</td></tr>
+                            <tr><td><strong>Elasticsearch</strong>（可选日志后端）</td><td><code>8.17.3</code></td><td><code>8.x</code></td><td><code>9200</code></td><td>可选日志后端，使用 <code>raw</code> mapping 和 Bulk API</td></tr>
+                            <tr><td><strong>Grafana OSS</strong></td><td><code>10.4.18</code></td><td><code>&gt;= 10.4</code>（兼容 dashboard schema <code>39</code>）</td><td><code>3001</code></td><td>指标与日志可视化看板</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="decision">
+                    <div class="decision-card"><span class="badge badge-success">Loki（默认推荐）</span><h4>轻量快速落地</h4><p>资源占用低、部署轻量，适合快速落地以及按集群、节点、沙箱 ID 和正则筛选日志。</p></div>
+                    <div class="decision-card"><span class="badge badge-warning">Elasticsearch（可选）</span><h4>已有 ES 体系</h4><p>适合已有 ES 运维体系，或需要全文检索（Lucene / Query DSL）的团队。同一部署<strong>只启用一个日志后端，不会双写</strong>。</p></div>
+                </div>
+
+                <h3>系统与平台依赖</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>维度</th><th>one-click / systemd（CVM / 裸金属）</th><th>Kubernetes / Helm</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>宿主机环境</strong></td><td>64 位 Linux（<code>amd64</code> / <code>arm64</code>）、<code>systemd</code></td><td>无需宿主机预装监控相关二进制</td></tr>
+                            <tr><td><strong>基础命令工具</strong></td><td><code>curl</code>、<code>tar</code>、<code>python3</code>（用于安全解包并校验 Loki 安装包）</td><td><code>helm</code>、<code>kubectl</code></td></tr>
+                            <tr><td><strong>Cubelet 要求</strong></td><td>Cubelet 正常运行并暴露 <code>127.0.0.1:9998/v1/metrics/resource</code></td><td>需保持默认 <code>cubeNode.hostNetwork=true</code>，以便同节点 Collector 访问 <code>127.0.0.1:9998</code></td></tr>
+                            <tr><td><strong>持久化存储</strong></td><td>宿主机本地磁盘（<code>/var/lib/cube-sandbox/*</code>）</td><td>内置后端默认启用 PVC，需集群具备可用 <code>StorageClass</code>（仅临时验证可设 <code>persistence.enabled=false</code>）</td></tr>
+                            <tr><td><strong>Grafana 密码</strong></td><td>必须显式配置 <code>CUBE_GRAFANA_ADMIN_PASSWORD</code>，<strong>至少 16 个字符</strong>且首尾不含空白</td><td>留空时自动生成 release 级随机 Secret；手工指定内联密码同样需至少 16 个字符</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>网络与端口要求</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>访问方向</th><th>端口（TCP）</th><th>用途</th></tr></thead>
+                        <tbody>
+                            <tr><td>计算节点 → 后端节点</td><td><code>9092</code></td><td>Collector 上报指标到 Prometheus</td></tr>
+                            <tr><td>计算节点 → 后端节点</td><td><code>3100</code>（Loki）或 <code>9200</code>（Elasticsearch）</td><td>Collector 上报日志到所选日志后端</td></tr>
+                            <tr><td>管理员 → 后端节点</td><td><code>3001</code></td><td>访问 Grafana Web 界面</td></tr>
+                            <tr><td>节点本机回环（<code>127.0.0.1</code>）</td><td><code>9998</code>、<code>13133</code></td><td>Collector 抓取本机 Cubelet 指标、本地健康检查</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="stat"><div class="stat-value">9998</div><div class="stat-label">Cubelet 指标接口</div></div>
+                    <div class="stat"><div class="stat-value">9092</div><div class="stat-label">Prometheus 指标</div></div>
+                    <div class="stat"><div class="stat-value">3100</div><div class="stat-label">Loki 日志</div></div>
+                    <div class="stat"><div class="stat-value">9200</div><div class="stat-label">Elasticsearch</div></div>
+                    <div class="stat"><div class="stat-value">3001</div><div class="stat-label">Grafana 看板</div></div>
+                </div>
+
+                <div class="warning">
+                    <strong>安全提醒：</strong>内置部署的 Prometheus、Loki 和 Elasticsearch <strong>不自带服务端鉴权</strong>。请在防火墙 / 安全组中仅对计算节点内网放通 <code>9092</code>、<code>3100</code>、<code>9200</code>，<strong>切勿直接暴露到公网</strong>；如需公网或跨网段访问，请前置认证网关 / 反向代理，或直接对接带鉴权的外部托管平台。
+                </div>
+            </section>
+
+            <section class="concept-section" id="precheck">
+                <h2><span class="section-num">3</span>安装前自检</h2>
+                <p>如果节点已经安装 Cubelet，可先确认指标接口和日志路径就绪；<strong>全新 one-click 安装可直接跳到第 4 节</strong>。自检三件事：Cubelet 版本、资源指标接口、沙箱日志路径。</p>
+
+                <span class="code-label">节点自检</span>
+                <pre><code><span class="c"># 1. 检查 Cubelet 版本与运行状态</span>
+/usr/local/services/cubetoolbox/Cubelet/bin/cubecli version
+sudo systemctl is-active cube-sandbox-cubelet.service
+
+<span class="c"># 2. 检查沙箱资源指标接口</span>
+curl -fsS http://127.0.0.1:9998/v1/metrics/resource | \
+  grep -E '^cubesandbox_(host_sandbox|guest_workload|node_sandbox_)'
+
+<span class="c"># 3. 如有运行中的沙箱，检查其 stdout/stderr 日志路径</span>
+SANDBOX_ID=&lt;替换为实际沙箱ID&gt;
+ls -l "/data/cubelet/log/${SANDBOX_ID}"/{stdout,stderr}</code></pre>
+
+                <div class="tip">
+                    <strong>判读口径：</strong>没有活跃沙箱时，逐沙箱指标与日志<strong>可以为空</strong>，但 <code>cubesandbox_node_sandbox_count</code> 和 <code>cubesandbox_node_sandbox_available_count</code> 应返回 <code>0</code>——它们代表节点级计数，与是否有沙箱运行无关。
+                </div>
+            </section>
+
+            <section class="concept-section" id="install">
+                <h2><span class="section-num">4</span>安装与部署</h2>
+                <p>按部署形态选择对应入口即可，<strong>无需额外命令行开关</strong>——开关都收敛在 <code>.env</code> 或 Helm Value 里。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>场景</th><th>安装入口</th><th>核心启用方式</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>one-click 全新 / 存量部署</strong></td><td><code>deploy/one-click/install.sh</code> / <code>install-compute.sh</code></td><td><code>.env</code> 设置 <code>ONE_CLICK_ENABLE_OBSERVABILITY=1</code></td></tr>
+                            <tr><td><strong>Kubernetes Helm</strong></td><td><code>deploy/kubernetes/chart</code></td><td>安装时增加 <code>--set observability.enabled=true</code></td></tr>
+                            <tr><td><strong>对接已有外部平台</strong></td><td>one-click 或 Helm</td><td>填入外部 Prometheus / Loki / ES 地址及凭据</td></tr>
+                            <tr><td><strong>独立安装</strong>（不走主安装器）</td><td><code>deploy/one-click/observability/install.sh</code></td><td>执行 <code>all</code> / <code>backend</code> / <code>cvm</code> 子命令</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>0. 自检</b>：确认 Cubelet 版本、<code>9998/v1/metrics/resource</code> 接口与日志路径就绪。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>1. 选形态</b>：one-click（CVM / 裸金属）/ Kubernetes Helm / 对接外部平台 / 独立安装。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>2. 第一台全栈节点</b>：<code>.env</code> 开 <code>ONE_CLICK_ENABLE_OBSERVABILITY=1</code>，执行 <code>install.sh</code>，同机部署 Prometheus + Loki/ES + Grafana + Collector。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>3. 后续计算节点</b>：填第一台节点内网 IP，执行 <code>install-compute.sh</code>，仅装本机 Collector 并自动推导后端地址。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>4. 验证</b>：<code>status</code> / <code>systemctl</code> / 探活接口，登录 Grafana <code>:3001</code> 查看看板。</div>
+                </div>
+
+                <h3>one-click 部署（CVM / 裸金属）</h3>
+                <h4>步骤 1：部署第一台 all-in-one 节点</h4>
+                <p>进入 <code>deploy/one-click</code>（或解压后的发布包根目录），首次安装时创建 <code>.env</code>：</p>
+                <pre><code>cd deploy/one-click
+[[ -f .env ]] || cp env.example .env
+chmod 600 .env</code></pre>
+                <p>在 <code>.env</code> 中填入可被计算节点访问的内网 IP 和可观测性参数（如需 Elasticsearch，将 <code>CUBE_LOGS_BACKEND</code> 改为 <code>elasticsearch</code>）：</p>
+                <pre><code>CUBE_SANDBOX_NODE_IP=10.0.0.10
+ONE_CLICK_ENABLE_OBSERVABILITY=1
+CUBE_OBSERVABILITY_CLUSTER_ID=cube-prod
+CUBE_LOGS_BACKEND=loki
+CUBE_GRAFANA_ADMIN_PASSWORD='&lt;随机且至少16字符的密码&gt;'</code></pre>
+                <p>执行常规安装命令，并确认最终生效的内网 IP（供后续计算节点使用）：</p>
+                <pre><code>sudo ./install.sh
+grep '^CUBE_SANDBOX_NODE_IP=' /usr/local/services/cubetoolbox/.one-click.env</code></pre>
+
+                <h4>步骤 2：部署后续计算节点</h4>
+                <p>在每台计算节点准备同版本发布包与 <code>.env</code>，填写第一台节点内网 IP（<strong>保持集群 ID 和日志后端一致</strong>），然后执行 <code>install-compute.sh</code>：</p>
+                <pre><code><span class="c"># .env</span>
+ONE_CLICK_CONTROL_PLANE_IP=10.0.0.10
+ONE_CLICK_ENABLE_OBSERVABILITY=1
+CUBE_OBSERVABILITY_CLUSTER_ID=cube-prod
+CUBE_LOGS_BACKEND=loki</code></pre>
+                <pre><code>sudo ./install-compute.sh</code></pre>
+                <p><code>install-compute.sh</code> 会自动识别计算节点角色，<strong>仅安装本机 OTel Collector</strong>，并自动推导第一台节点的 Prometheus（<code>:9092</code>）与日志后端（<code>:3100</code> 或 <code>:9200</code>）地址。</p>
+
+                <h4>步骤 3：在存量 one-click 集群中启用或关闭</h4>
+                <p>保留原安装目录中的 <code>.env</code>（<strong>不要</strong>用 <code>env.example</code> 覆盖，也不要直接编辑 <code>/usr/local/services/cubetoolbox/.one-click.env</code>）：</p>
+                <ol>
+                    <li>在第一台节点的 <code>.env</code> 中添加上述可观测性变量，执行升级：<code>sudo ./install.sh --mode=upgrade --yes</code></li>
+                    <li>第一台节点验收通过后，在各计算节点的 <code>.env</code> 中添加对应变量，执行升级：<code>sudo ./install-compute.sh --mode=upgrade --yes</code></li>
+                </ol>
+                <pre><code>sudo ./install.sh --mode=upgrade --yes
+sudo ./install-compute.sh --mode=upgrade --yes</code></pre>
+                <div class="note">
+                    <strong>不会误关：</strong>升级时默认配置中的 <code>ONE_CLICK_ENABLE_OBSERVABILITY=0</code> 不会关掉已启用的监控；如需<strong>明确关闭</strong>，执行 <code>sudo env ONE_CLICK_ENABLE_OBSERVABILITY=0 ./install.sh --mode=upgrade --yes</code>（计算节点用 <code>./install-compute.sh</code>）。
+                </div>
+
+                <h4>补充：在线一键安装（online-install.sh）</h4>
+                <p>如需直接通过在线脚本安装，可通过 <code>env</code> 透传相同变量。涉及外部鉴权 Token 等敏感信息时，建议下载 release 包并写入 <code>0600</code> 权限的 <code>.env</code>，避免残留在 shell 历史中。</p>
+                <pre><code><span class="c"># 第一台 all-in-one 节点</span>
+GRAFANA_ADMIN_PASSWORD="$(openssl rand -hex 16)"
+echo "Grafana admin password: ${GRAFANA_ADMIN_PASSWORD}"
+curl -fsSL https://raw.githubusercontent.com/tencentcloud/CubeSandbox/master/deploy/one-click/online-install.sh \
+  | sudo env ONE_CLICK_ENABLE_OBSERVABILITY=1 \
+      CUBE_OBSERVABILITY_CLUSTER_ID=cube-prod \
+      CUBE_LOGS_BACKEND=loki \
+      CUBE_GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD}" \
+      bash
+
+<span class="c"># 后续计算节点</span>
+curl -fsSL https://raw.githubusercontent.com/tencentcloud/CubeSandbox/master/deploy/one-click/online-install.sh \
+  | sudo env ONE_CLICK_DEPLOY_ROLE=compute \
+      ONE_CLICK_CONTROL_PLANE_IP=10.0.0.10 \
+      ONE_CLICK_ENABLE_OBSERVABILITY=1 \
+      CUBE_OBSERVABILITY_CLUSTER_ID=cube-prod \
+      CUBE_LOGS_BACKEND=loki \
+      bash</code></pre>
+
+                <h3>Kubernetes Helm 部署</h3>
+                <p>在现有 <code>runtime-values.yaml</code>（含数据库、Redis 凭据及节点调度配置）基础上，追加 <code>observability.*</code> 参数即可。以下为<strong>使用内置后端</strong>的快速部署：</p>
+                <pre><code>helm upgrade --install cube ./deploy/kubernetes/chart \
+  -n cube-system --create-namespace \
+  -f /path/to/runtime-values.yaml \
+  --set observability.enabled=true \
+  --set observability.clusterId=k8s-prod \
+  --set observability.logs.backend=loki</code></pre>
+                <p><strong>获取 Grafana 密码</strong>：Chart 默认生成 release 级随机密码 Secret 并在升级时复用，通过以下命令读取（生产环境建议提前创建 Secret 并配置 <code>observability.backend.grafana.existingSecret</code>）：</p>
+                <pre><code>kubectl get secret -n cube-system \
+  -l app.kubernetes.io/component=grafana-admin \
+  -o jsonpath='{.items[0].data.admin-password}' | base64 --decode; echo</code></pre>
+                <ul>
+                    <li><strong>切换为 Elasticsearch</strong>：将 <code>--set observability.logs.backend=loki</code> 改为 <code>--set observability.logs.backend=elasticsearch</code>。</li>
+                    <li><strong>开启组件容器日志采集</strong>（可选）：追加 <code>--set observability.logs.components.enabled=true</code>。这会启动第二个只读 DaemonSet，仅采集当前 namespace 下白名单容器（默认 <code>cube-master</code>、<code>cube-api</code>、<code>cube-ops</code>、<code>cube-templatecenter</code>、<code>cubelet</code>、<code>cube-proxy</code>、<code>cube-lifecycle-manager</code>）在 <code>/var/log/pods</code> 中的新增日志。开启前请确认组件日志不含明文密钥。</li>
+                    <li>所有内置监控 Pod 均配置了 readiness / liveness probe 用于健康检查和自动重启（<strong>不包含 Alertmanager 告警规则</strong>）。</li>
+                </ul>
+
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>Value</th><th>默认值</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>observability.enabled</code></td><td><code>false</code></td><td>可观测性总开关</td></tr>
+                            <tr><td><code>observability.clusterId</code></td><td><code>cubesandbox</code></td><td>写入指标与日志的集群标签</td></tr>
+                            <tr><td><code>observability.backend.enabled</code></td><td><code>true</code></td><td>是否部署集群内 Prometheus、日志后端与 Grafana</td></tr>
+                            <tr><td><code>observability.otelCollector.scrapeInterval</code></td><td><code>15s</code></td><td>Cubelet 抓取周期（不得小于固定的 <code>10s</code> 超时）</td></tr>
+                            <tr><td><code>observability.otelCollector.cubeletMetricsTarget</code></td><td><code>127.0.0.1:9998</code></td><td>本机 Cubelet 地址（要求 <code>cubeNode.hostNetwork=true</code>）</td></tr>
+                            <tr><td><code>observability.otelCollector.stateHostPath</code></td><td><code>/var/lib/cube-sandbox/otelcol-k8s</code></td><td>节点持久状态目录（游标、队列、WAL）</td></tr>
+                            <tr><td><code>observability.metrics.otlpEndpoint</code> / <code>remoteWriteUrl</code></td><td><code>""</code></td><td>外部指标 OTLP/HTTP 或 Remote Write 地址（二选一）</td></tr>
+                            <tr><td><code>observability.logs.backend</code></td><td><code>loki</code></td><td>日志后端：<code>loki</code> 或 <code>elasticsearch</code></td></tr>
+                            <tr><td><code>observability.logs.otlpEndpoint</code> / <code>esEndpoint</code></td><td><code>""</code></td><td>外部日志 OTLP（Loki）或 Elasticsearch 地址（二选一）</td></tr>
+                            <tr><td><code>observability.logs.components.enabled</code></td><td><code>false</code></td><td>是否启用独立只读 DaemonSet 采集组件 CRI 日志</td></tr>
+                            <tr><td><code>observability.metrics.auth.existingSecret</code> / <code>observability.logs.auth.existingSecret</code></td><td><code>""</code></td><td>外部后端鉴权与租户 Header 所在 Secret</td></tr>
+                            <tr><td><code>observability.backend.&lt;component&gt;.persistence.*</code></td><td><code>enabled: true</code></td><td>配置内置组件的 PVC（<code>storageClassName</code>、<code>existingClaim</code>、<code>size</code>）</td></tr>
+                            <tr><td><code>observability.backend.grafana.existingSecret</code></td><td><code>""</code></td><td>外部管理的 Grafana 管理员 Secret（<code>admin-user</code> / <code>admin-password</code>）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>对接外部监控与日志平台（含鉴权）</h3>
+                <p>如果团队已有 Prometheus / VictoriaMetrics / Loki / Elasticsearch 或托管可观测性平台，可以<strong>只部署节点 Collector</strong>，将数据推送到外部后端。</p>
+                <div class="warning">
+                    <strong>互斥与安全约束：</strong>
+                    <ul>
+                        <li>指标输出端（OTLP/HTTP 与 Remote Write）<strong>只能二选一</strong>；日志输出端（Loki OTLP 与 Elasticsearch）同样<strong>只能二选一</strong>。</li>
+                        <li>鉴权配置<strong>仅用于 Collector 与 Grafana 客户端请求头</strong>，不会给内置后端开启服务端认证。</li>
+                        <li>HTTPS 端点默认校验证书（使用系统 / 容器 CA）；私有 CA 场景请挂载信任链，<strong>勿长期关闭 TLS 校验</strong>。</li>
+                    </ul>
+                </div>
+
+                <h4>方式 A：one-click / systemd 对接外部后端</h4>
+                <p>在 <code>.env</code> 中显式配置外部地址后，<code>ONE_CLICK_OBSERVABILITY_ROLE=auto</code> 会自动跳过本地后端，仅安装节点 Collector：</p>
+                <pre><code>ONE_CLICK_ENABLE_OBSERVABILITY=1
+ONE_CLICK_OBSERVABILITY_ROLE=auto
+CUBE_OBSERVABILITY_CLUSTER_ID=cube-prod
+CUBE_LOGS_BACKEND=loki
+
+<span class="c"># 外部指标与日志地址（OTLP 填基础路径，不要附加 /v1/metrics 或 /v1/logs）</span>
+CUBE_METRICS_OTLP_HTTP_ENDPOINT=https://prometheus.example.com/api/v1/otlp
+CUBE_LOGS_OTLP_HTTP_ENDPOINT=https://loki.example.com/otlp
+
+<span class="c"># 外部后端鉴权（可选；*_AUTHORIZATION 填完整 Header，*_TOKEN 填裸 Token，二者不可同时设置）</span>
+CUBE_METRICS_AUTHORIZATION='Bearer &lt;metrics-token&gt;'
+CUBE_METRICS_TENANT_ID=cube-prod
+CUBE_LOGS_AUTHORIZATION='Bearer &lt;logs-token&gt;'
+CUBE_LOGS_TENANT_ID=cube-prod</code></pre>
+                <ul>
+                    <li>对接外部 <strong>Elasticsearch</strong> 时，将 <code>CUBE_LOGS_BACKEND</code> 改为 <code>elasticsearch</code>，改填 <code>CUBE_LOGS_ES_ENDPOINT=https://es.example.com:9200</code>（可选 <code>CUBE_LOGS_ES_INDEX</code>），并使用 <code>CUBE_LOGS_ES_API_KEY</code> 或成对的 <code>CUBE_LOGS_ES_USER</code> / <code>CUBE_LOGS_ES_PASSWORD</code>。</li>
+                    <li>对接 Prometheus <strong>Remote Write</strong> 时，改用 <code>CUBE_METRICS_REMOTE_WRITE_URL</code> 替代 <code>CUBE_METRICS_OTLP_HTTP_ENDPOINT</code>。</li>
+                </ul>
+
+                <h4>方式 B：Kubernetes Helm 对接外部后端</h4>
+                <p>关闭内置后端并指定外部地址：</p>
+                <pre><code>helm upgrade --install cube ./deploy/kubernetes/chart \
+  -n cube-system --create-namespace \
+  -f /path/to/runtime-values.yaml \
+  --set observability.enabled=true \
+  --set observability.backend.enabled=false \
+  --set observability.clusterId=k8s-prod \
+  --set observability.metrics.otlpEndpoint="https://prometheus.example.com/api/v1/otlp" \
+  --set observability.logs.backend=loki \
+  --set observability.logs.otlpEndpoint="https://loki.example.com/otlp"</code></pre>
+                <p>如外部后端需要鉴权，通过集群 Secret 管理流程创建 Secret（保存<strong>完整 <code>Authorization</code> Header</strong>，如 <code>Bearer ...</code> 或 ES 的 <code>ApiKey ...</code>，不要通过 <code>--set</code> 明文传入）：</p>
+                <pre><code>apiVersion: v1
+kind: Secret
+metadata:
+  name: cube-observability-auth
+  namespace: cube-system
+type: Opaque
+stringData:
+  metrics-authorization: "Bearer &lt;metrics-token&gt;"
+  metrics-tenant-id: "cube-prod"
+  logs-authorization: "Bearer &lt;logs-token&gt;"
+  logs-tenant-id: "cube-prod"</code></pre>
+                <p>并在 <code>runtime-values.yaml</code> 中引用（后端无需 <code>X-Scope-OrgID</code> 时将 <code>tenantIdKey</code> 置空或删除）：</p>
+                <pre><code>observability:
+  metrics:
+    auth:
+      existingSecret: cube-observability-auth
+      authorizationKey: metrics-authorization
+      tenantIdKey: metrics-tenant-id
+  logs:
+    auth:
+      existingSecret: cube-observability-auth
+      authorizationKey: logs-authorization
+      tenantIdKey: logs-tenant-id</code></pre>
+
+                <h3>独立安装（不依赖 one-click / Helm，可选）</h3>
+                <p>如果不想触动现有 CubeMaster / Cubelet 服务，可以直接使用独立脚本管理可观测性组件：</p>
+                <pre><code><span class="c"># 1. 全栈节点（后端 + 本机 Collector）；如节点不运行沙箱，将末尾 all 改为 backend</span>
+sudo env \
+  CUBE_OBSERVABILITY_CLUSTER_ID=cube-prod \
+  CUBE_LOGS_BACKEND=loki \
+  CUBE_GRAFANA_ADMIN_PASSWORD='&lt;随机且至少16字符的密码&gt;' \
+  ./deploy/one-click/observability/install.sh all
+
+<span class="c"># 2. 其他 CVM / 裸金属计算节点（仅安装 Collector，Loki 示例）</span>
+sudo env \
+  CUBE_OBSERVABILITY_CLUSTER_ID=cube-prod \
+  CUBE_METRICS_OTLP_HTTP_ENDPOINT=http://10.0.0.10:9092/api/v1/otlp \
+  CUBE_LOGS_OTLP_HTTP_ENDPOINT=http://10.0.0.10:3100/otlp \
+  ./deploy/one-click/observability/install.sh cvm
+
+<span class="c">#    如使用 Elasticsearch，将上例中的日志参数替换为：</span>
+<span class="c">#    CUBE_LOGS_BACKEND=elasticsearch CUBE_LOGS_ES_ENDPOINT=http://10.0.0.10:9200</span>
+
+<span class="c"># 3. 卸载组件（保留历史数据目录）</span>
+sudo ./deploy/one-click/observability/install.sh uninstall all</code></pre>
+
+                <div class="tip">
+                    <strong>预览与排查生成的 Collector 配置：</strong>请勿直接手工修改安装后的 <code>/etc/cube-sandbox/otelcol/otelcol.yaml</code> 或 Kubernetes ConfigMap，重新安装 / 升级会将其覆盖。如需确认当前参数渲染出的完整配置，请用内置渲染命令：
+                    <pre><code><span class="c"># systemd 形态：基于当前环境变量渲染 Collector 配置（不执行安装）</span>
+./deploy/one-click/observability/install.sh render cvm
+
+<span class="c"># Kubernetes Helm 形态：预览模板（render-only 占位凭据仅用于本地渲染）</span>
+helm template cube ./deploy/kubernetes/chart \
+  --set observability.enabled=true \
+  --set-string mysql.password=render-only \
+  --set-string mysql.rootPassword=render-only \
+  --set-string redis.password=render-only \
+  -s templates/observability.yaml</code></pre>
+                </div>
+
+                <h3>默认运行参数与语义字段</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>项目</th><th>默认行为与调优建议</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>抓取周期 / 超时</strong></td><td>systemd：<code>5s / 3s</code>；Helm：<code>15s / 10s</code>（Helm 周期不得小于固定超时 <code>10s</code>，较大规模建议保持 <code>15s</code>）</td></tr>
+                            <tr><td><strong>内存限制与批处理</strong></td><td>Collector <code>memory_limiter</code> 固定 <code>256MiB</code>（Helm Pod request/limit <code>128Mi / 512Mi</code>）；batch 大小 <code>1024</code>，超时 <code>2s</code>（systemd）/ <code>5s</code>（Helm）</td></tr>
+                            <tr><td><strong>队列与可靠性</strong></td><td>OTLP 使用 <code>1000</code> 容量的磁盘队列（<code>file_storage</code>）并持续重试；Remote Write 使用 WAL；ES 使用内存队列（<code>1000</code>、<code>10</code> 消费者、最多重试 <code>5</code> 次，持续故障可能丢日志）</td></tr>
+                            <tr><td><strong>数据保留策略</strong></td><td>内置 Prometheus 与 Loki 默认保留 <code>15d</code>；Elasticsearch 需自行配置 ILM 清理策略</td></tr>
+                            <tr><td><strong>日志标准字段</strong></td><td>沙箱日志：<code>service_name=cubesandbox-sandbox</code>、<code>cubesandbox_log_source=sandbox-init</code>、<code>cubesandbox_cluster_id</code>、<code>host_name</code>、<code>cubesandbox_sandbox_id</code>、<code>log_iostream</code>（<code>stdout</code>/<code>stderr</code>）、<code>log_file_path</code>；Helm 组件日志使用 <code>service_name=cubesandbox-&lt;container&gt;</code>、<code>cubesandbox_log_source=component</code>、<code>cubesandbox_component_name=&lt;container&gt;</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="verify">
+                <h2><span class="section-num">5</span>验证与 Grafana 看板</h2>
+                <p>部署完成后先做<strong>服务健康检查</strong>，再打开 Grafana 看板确认数据真的进来了。</p>
+
+                <h3>服务健康检查</h3>
+                <h4>one-click / systemd 环境</h4>
+                <p>全栈 / 后端节点一键检查；计算节点检查本机 Collector；再手动探活后端接口（Elasticsearch 场景改用注释里的命令）：</p>
+                <pre><code><span class="c"># 全栈 / 后端节点一键检查</span>
+sudo /usr/local/services/cubetoolbox/observability/install.sh status
+
+<span class="c"># 计算节点检查本机 Collector</span>
+sudo systemctl --no-pager --full status cube-sandbox-otelcol.service
+sudo journalctl -u cube-sandbox-otelcol.service -n 100 --no-pager
+
+<span class="c"># 手动探活后端接口</span>
+curl -fsS http://127.0.0.1:9092/-/ready
+curl -fsS http://127.0.0.1:3100/ready
+<span class="c"># Elasticsearch 场景改为：</span>
+<span class="c"># curl -fsS 'http://127.0.0.1:9200/cubesandbox-logs*/_count'</span></code></pre>
+
+                <h4>Kubernetes Helm 环境</h4>
+                <pre><code>kubectl -n cube-system rollout status daemonset/cube-node-otelcol
+<span class="c"># 仅当开启 observability.logs.components.enabled=true 时存在</span>
+kubectl -n cube-system rollout status daemonset/cube-component-otelcol</code></pre>
+
+                <h3>内置 Grafana 看板</h3>
+                <p>浏览器访问 <code>http://&lt;后端节点IP&gt;:3001</code>（或通过 Kubernetes Service / <code>port-forward</code> 访问）。内置 Grafana 自动预置 <strong>3 张指标看板 + 1 张日志看板</strong>：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>看板文件</th><th>用途</th><th>核心维度</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>cubesandbox-cluster.json</code></td><td>集群级沙箱资源汇总</td><td><code>cluster</code></td></tr>
+                            <tr><td><code>cubesandbox-node.json</code></td><td>单节点沙箱资源汇总</td><td><code>cluster</code> → <code>node</code></td></tr>
+                            <tr><td><code>cubesandbox-sandbox.json</code></td><td>单沙箱 Host Sandbox 与 Guest Workload 详情</td><td><code>cluster</code> → <code>node</code> → <code>sandbox_id</code> → <code>container_id</code></td></tr>
+                            <tr><td><code>cubesandbox-logs.json</code>（Loki）或 <code>cubesandbox-logs-elasticsearch.json</code>（ES）</td><td>沙箱 stdout/stderr 日志趋势与检索，含默认折叠的 <strong>Component logs</strong> 分组</td><td>统一 UID <code>cubesandbox-logs</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip">
+                    <strong>看板口径说明：</strong>
+                    <ul>
+                        <li>指标看板覆盖 Cubelet 导出的全部 24 个指标族，下拉按 <code>cluster → node → sandbox_id → container_id</code> 逐级联动。</li>
+                        <li>CPU 速率单位为<strong>使用核数</strong>；内存限额为<strong>已导出有限限额之和</strong>，不等同于物理机容量。</li>
+                        <li>Host Sandbox 与 Guest Workload <strong>记账口径不同，不可直接相加</strong>；缺样本不等于 <code>0</code>。</li>
+                        <li>Loki 仅将低基数字段 <code>service_name</code>、<code>cubesandbox_cluster_id</code>、<code>host_name</code> 建为索引 label，<code>cubesandbox_sandbox_id</code> 与 <code>log_iostream</code> 保留为 structured metadata，避免产生高基数 stream。</li>
+                    </ul>
+                </div>
+                <p>内置 Grafana provisioning 会自动复用上述指标 / 日志凭证；执行 <code>grafana/install.sh dashboards</code> 可向已有 Grafana 按 UID 导入或更新数据源与看板。</p>
+
+                <h3>常用日志查询与告警表达式</h3>
+                <h4>日志查询示例</h4>
+                <span class="code-label">Loki（LogQL）</span>
+                <pre><code><span class="c"># 所有沙箱的 stderr</span>
+{service_name="cubesandbox-sandbox"} | log_iostream="stderr"
+
+<span class="c"># 单个沙箱中的错误日志</span>
+{service_name="cubesandbox-sandbox"}
+  | cubesandbox_sandbox_id="&lt;sandbox-id&gt;"
+  |~ "(?i)error|fatal|panic"</code></pre>
+                <span class="code-label">Elasticsearch（Lucene）</span>
+                <pre><code><span class="c"># 所有沙箱的 stderr</span>
+service_name:"cubesandbox-sandbox" AND log_iostream:"stderr"
+
+<span class="c"># 单个沙箱日志</span>
+cubesandbox_sandbox_id:"&lt;sandbox-id&gt;"</code></pre>
+
+                <h4>建议监控告警表达式（PromQL）</h4>
+                <p>安装器<strong>默认不部署 Alertmanager 或告警规则</strong>。以下 PromQL 可作为告警起点（CPU、节流、内存占比和采样不可用建议加 <code>for: 5m</code>；内存限制失败建议立即触发；占比类表达式仅适用于配置了有限配额的沙箱）：</p>
+                <pre><code><span class="c"># 沙箱 CPU 使用率超过 80%</span>
+100 * rate(cubesandbox_host_sandbox_cpu_usage_seconds_total[5m])
+  / clamp_min(cubesandbox_host_sandbox_cpu_limit_cores, 0.001) &gt; 80
+
+<span class="c"># CPU 节流周期占比超过 20%</span>
+100 * rate(cubesandbox_host_sandbox_cpu_throttled_periods_total[5m])
+  / clamp_min(rate(cubesandbox_host_sandbox_cpu_periods_total[5m]), 0.001) &gt; 20
+
+<span class="c"># 沙箱内存使用率超过 85%</span>
+100 * cubesandbox_host_sandbox_memory_current_bytes
+  / clamp_min(cubesandbox_host_sandbox_memory_limit_bytes, 1) &gt; 85
+
+<span class="c"># 最近 5 分钟内出现内存限制失败</span>
+increase(cubesandbox_host_sandbox_memory_failures_total[5m]) &gt; 0
+
+<span class="c"># 存在沙箱但当前无可用资源采样</span>
+cubesandbox_node_sandbox_count - cubesandbox_node_sandbox_available_count &gt; 0</code></pre>
+
+                <h3>关键环境变量速查（one-click / systemd）</h3>
+                <p>one-click 用户可直接在 <code>deploy/one-click/env.example</code> 的 <code>Observability</code> 配置段中按需取消注释（Helm 使用 <code>observability.*</code> Values，<strong>不读取以下环境变量</strong>）：</p>
+                <div class="table-wrap">
+                    <table class="table-compact">
+                        <thead><tr><th>类别</th><th>变量</th><th>默认值</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td rowspan="5"><strong>基础开关</strong></td><td><code>ONE_CLICK_ENABLE_OBSERVABILITY</code></td><td><code>0</code></td><td>设为 <code>1</code> 在 one-click 安装 / 升级时启用可观测性</td></tr>
+                            <tr><td><code>ONE_CLICK_OBSERVABILITY_ROLE</code></td><td><code>auto</code></td><td>角色覆盖：<code>auto</code> / <code>all</code> / <code>backend</code> / <code>cvm</code></td></tr>
+                            <tr><td><code>CUBE_OBSERVABILITY_CLUSTER_ID</code></td><td><code>cubesandbox</code></td><td>写入指标与日志的集群标签</td></tr>
+                            <tr><td><code>CUBE_SANDBOX_NODE_IP</code></td><td>自动探测</td><td>节点标签及第一台节点地址</td></tr>
+                            <tr><td><code>CUBE_LOGS_BACKEND</code></td><td><code>loki</code></td><td>日志后端：<code>loki</code> 或 <code>elasticsearch</code></td></tr>
+                            <tr><td rowspan="4"><strong>指标输出</strong></td><td><code>CUBE_METRICS_OTLP_HTTP_ENDPOINT</code></td><td>自动推导</td><td>外部 Prometheus OTLP/HTTP 基础地址（不含 <code>/v1/metrics</code>）</td></tr>
+                            <tr><td><code>CUBE_METRICS_REMOTE_WRITE_URL</code></td><td>空</td><td>外部 Prometheus Remote Write 地址（与 OTLP 二选一）</td></tr>
+                            <tr><td><code>CUBE_METRICS_AUTHORIZATION</code> / <code>CUBE_METRICS_REMOTE_WRITE_TOKEN</code></td><td>空</td><td>指标上报鉴权（完整 Header 或裸 Token，二选一）</td></tr>
+                            <tr><td><code>CUBE_METRICS_TENANT_ID</code></td><td>空</td><td>指标 <code>X-Scope-OrgID</code> 租户头</td></tr>
+                            <tr><td rowspan="6"><strong>日志输出</strong></td><td><code>CUBE_LOGS_OTLP_HTTP_ENDPOINT</code></td><td>自动推导</td><td>外部 Loki OTLP/HTTP 基础地址（不含 <code>/v1/logs</code>）</td></tr>
+                            <tr><td><code>CUBE_LOGS_ES_ENDPOINT</code> / <code>CUBE_LOGS_ES_INDEX</code></td><td>自动推导 / <code>cubesandbox-logs</code></td><td>Elasticsearch 地址与索引名（与 OTLP 二选一）</td></tr>
+                            <tr><td><code>CUBE_LOGS_AUTHORIZATION</code> / <code>CUBE_LOGS_TOKEN</code></td><td>空</td><td>Loki 上报鉴权（完整 Header 或裸 Token，二选一）</td></tr>
+                            <tr><td><code>CUBE_LOGS_TENANT_ID</code></td><td>空</td><td>日志 <code>X-Scope-OrgID</code> 租户头</td></tr>
+                            <tr><td><code>CUBE_LOGS_ES_API_KEY</code> ／ <code>CUBE_LOGS_ES_USER</code> / <code>CUBE_LOGS_ES_PASSWORD</code></td><td>空</td><td>ES API Key 鉴权（与 Basic Auth 二选一）；Basic 凭据必须成对设置</td></tr>
+                            <tr><td><code>CUBE_LOGS_ES_TLS_INSECURE_SKIP_VERIFY</code></td><td><code>false</code></td><td>跳过 ES TLS 校验（仅限临时诊断）</td></tr>
+                            <tr><td rowspan="2"><strong>采集微调</strong></td><td><code>CUBE_LOGS_SANDBOX_ID</code></td><td><code>*</code></td><td>仅 systemd：限制采集单个沙箱 ID（排障时使用）</td></tr>
+                            <tr><td><code>CUBE_LOGS_FILE_START_AT</code></td><td><code>beginning</code></td><td>仅 systemd：首次读取位置，可选 <code>beginning</code> 或 <code>end</code></td></tr>
+                            <tr><td rowspan="4"><strong>存储与容量</strong></td><td><code>CUBE_PROMETHEUS_RETENTION_TIME</code> / <code>CUBE_PROMETHEUS_RETENTION_SIZE</code></td><td><code>15d</code> / <code>40GB</code></td><td>内置 Prometheus 数据保留时长与空间上限</td></tr>
+                            <tr><td><code>CUBE_LOKI_RETENTION_PERIOD</code></td><td><code>15d</code></td><td>内置 Loki 日志保留时长</td></tr>
+                            <tr><td><code>CUBE_ES_HEAP_SIZE</code></td><td><code>1g</code></td><td>内置 Elasticsearch JVM 堆大小（建议不超过可用内存 50%）</td></tr>
+                            <tr><td><code>CUBE_GRAFANA_ADMIN_PASSWORD</code></td><td>必填（≥16 位）</td><td>内置 Grafana 管理员密码</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="concept-section" id="sandbox-logs">
+                <h2><span class="section-num">6</span>沙箱日志</h2>
+                <div class="warning">
+                    <strong>功能迭代中：</strong>日志能力目前仍在持续迭代，<code>cubecli logs</code> 命令是<strong>临时使用版本</strong>——后续版本可能对接口及底层存储结构进行调整。
+                </div>
+                <p>CubeSandbox 提供两个<strong>互补</strong>的日志层，不要混淆：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>层级</th><th>记录内容</th><th>获取方式</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>沙箱日志</strong></td><td>容器 init 进程（主入口）的 stdout/stderr</td><td><code>cubecli logs</code>（本节）</td></tr>
+                            <tr><td><strong><code>envd</code> 任务日志</strong></td><td>在沙箱内通过 <code>exec</code> 接口启动的子任务的 stdout/stderr</td><td>E2B SDK（<code>on_stdout</code> / <code>on_stderr</code> 回调）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>前置条件</h3>
+                <p><code>cubecli</code> 随 Cubelet 一同构建，并在一键部署时自动安装。<code>logs</code> 子命令访问的日志文件位于 <strong>Cubelet 挂载命名空间</strong>内，因此必须<strong>直接在计算节点上执行</strong>，无法通过 API 或非节点主机远程调用。</p>
+
+                <h3>读取沙箱日志</h3>
+                <pre><code><span class="c"># 最后 100 行 stdout（默认）</span>
+cubecli logs &lt;sandbox-id&gt;
+
+<span class="c"># 最后 100 行 stderr</span>
+cubecli logs --stderr &lt;sandbox-id&gt;
+
+<span class="c"># 完整日志（全部行）</span>
+cubecli logs --all &lt;sandbox-id&gt;
+
+<span class="c"># 最后 N 行</span>
+cubecli logs --tail 50 &lt;sandbox-id&gt;
+<span class="c"># 简写</span>
+cubecli logs -t 50 &lt;sandbox-id&gt;
+
+<span class="c"># 前 N 行</span>
+cubecli logs --head 20 &lt;sandbox-id&gt;
+<span class="c"># 简写</span>
+cubecli logs -H 20 &lt;sandbox-id&gt;</code></pre>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>参数</th><th>简写</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>--stderr</code></td><td><code>-e</code></td><td>读取 stderr，默认读取 stdout</td></tr>
+                            <tr><td><code>--all</code></td><td><code>-a</code></td><td>输出全部行；不可与 <code>--tail</code> 或 <code>--head</code> 同时使用</td></tr>
+                            <tr><td><code>--tail N</code></td><td><code>-t N</code></td><td>输出最后 N 行（未指定其他标志时默认为 100）</td></tr>
+                            <tr><td><code>--head N</code></td><td><code>-H N</code></td><td>输出前 N 行</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>读取模板构建日志</h3>
+                <p>模板构建过程中，容器的 stdout/stderr 会写入宿主机文件系统 <code>/data/log/template/&lt;templateID&gt;_0/</code>。这些文件无需进入 Cubelet 挂载命名空间，使用 <code>--tpl</code> 标志可跳过命名空间切换：</p>
+                <pre><code><span class="c"># 最后 100 行模板构建 stdout</span>
+cubecli logs --tpl &lt;template-id&gt;
+
+<span class="c"># 完整模板构建 stderr</span>
+cubecli logs --tpl --all --stderr &lt;template-id&gt;</code></pre>
+
+                <h3>日志文件路径</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>场景</th><th>路径</th></tr></thead>
+                        <tbody>
+                            <tr><td>沙箱 stdout</td><td><code>/data/cubelet/state/io.containerd.runtime.v2.task/default/&lt;sandbox-id&gt;/stdout</code>（Cubelet 挂载命名空间内）</td></tr>
+                            <tr><td>沙箱 stderr</td><td><code>/data/cubelet/state/io.containerd.runtime.v2.task/default/&lt;sandbox-id&gt;/stderr</code>（Cubelet 挂载命名空间内）</td></tr>
+                            <tr><td>模板 stdout</td><td><code>/data/log/template/&lt;template-id&gt;_0/stdout</code>（宿主机文件系统）</td></tr>
+                            <tr><td>模板 stderr</td><td><code>/data/log/template/&lt;template-id&gt;_0/stderr</code>（宿主机文件系统）</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tip">
+                    <strong>为什么需要挂载命名空间？</strong>沙箱日志文件由 CubeShim 写入 bundle 目录，该目录<strong>仅在 Cubelet 的私有挂载命名空间内可见</strong>。<code>cubecli logs</code> 会在读取前自动重新进入该命名空间——你无需任何额外操作，只需在节点上直接运行该命令即可。
+                </div>
+
+                <h3>范围与限制</h3>
+                <ul>
+                    <li>这些日志<strong>仅记录 init 进程</strong>（容器内 PID 1）的输出。通过 <code>exec</code> 接口启动的进程输出需通过 E2B SDK 的 <code>on_stdout</code> / <code>on_stderr</code> 回调获取。</li>
+                    <li>日志转发需要 <strong>v0.4.0 及以上版本的 CubeShim</strong>。在更旧的部署上，日志文件将不存在。</li>
+                    <li>日志目前<strong>不支持实时流式读取，暂无 <code>--follow</code> 标志</strong>。如需查看最新输出，请重新执行命令。</li>
+                    <li>沙箱删除后，对应的日志文件会一并清除。</li>
+                </ul>
+            </section>
+
+            <section class="concept-section" id="tracing">
+                <h2><span class="section-num">7</span>分布式链路追踪</h2>
+                <p>日志和指标能告诉你某次沙箱操作<strong>慢或失败了</strong>，却很少告诉你<strong>卡在哪一步</strong>。分布式链路追踪为每次操作记录一条 trace，经过的每个组件、每个已插桩的阶段各有一个 span。创建沙箱、从镜像构建模板、暂停与恢复沙箱都要依次经过多个组件，追踪能展示时间花在这些阶段的哪些地方。</p>
+
+                <h3>被追踪的工作流</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>工作流</th><th>入口</th><th>trace 展示的内容</th></tr></thead>
+                        <tbody>
+                            <tr><td>创建沙箱（含从快照创建）</td><td><code>POST /sandboxes</code></td><td>入队与调度、节点选择、创建容器，恢复场景下还有快照准备与 VM 恢复</td></tr>
+                            <tr><td>镜像转模板</td><td><code>POST /templates</code></td><td>镜像构建、rootfs/ext4、产物发布、分发</td></tr>
+                            <tr><td>沙箱转模板（commit）</td><td><code>POST /cube/sandbox/commit</code></td><td>横跨 CubeMaster 与 Cubelet 的大致阶段：Master 上的提交、运行、快照与注册，Cubelet 上的抓取与发布</td></tr>
+                            <tr><td>创建快照</td><td><code>POST /sandboxes/:sandboxID/snapshots</code></td><td>准备、抓取、注册</td></tr>
+                            <tr><td>回滚</td><td><code>POST /sandboxes/:sandboxID/rollback</code></td><td>准备、恢复、注册</td></tr>
+                            <tr><td>暂停 / 恢复</td><td><code>POST /sandboxes/:sandboxID/pause</code>、<code>.../resume</code></td><td>准备、抓取或运行时、收尾</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>Span 来自<strong>五个上报服务</strong>，各以<strong>各自的服务名</strong>上报：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>服务</th><th>在 trace 中的角色</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>cube-api</code></td><td>经 CubeAPI 发起的请求的 HTTP 入口 span</td></tr>
+                            <tr><td><code>cubemaster</code></td><td>编排：调度、派发、异步任务生命周期</td></tr>
+                            <tr><td><code>cubetemplatecenter</code></td><td>模板镜像构建与产物处理</td></tr>
+                            <tr><td><code>cubelet</code></td><td>单节点运行时工作流与生命周期锁</td></tr>
+                            <tr><td><code>cube-shim</code></td><td>单沙箱 VMM 启动、引导或恢复、容器启动</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>containerd 插桩还会记录 Task、RPC 和传输等 span，并使用<strong>调用方服务的身份</strong>上报。</p>
+
+                <h3>一次沙箱创建的 span 树</h3>
+                <p>下面是<strong>一次创建沙箱</strong>的 span 层级示意（左侧时间线标签为上报服务，仅展示主干；官方试点中一次创建产生 52 个 span，实际层级与耗时以真实 trace 为准）。</p>
+                <div class="timeline">
+                    <div class="timeline-item done"><h4>POST /sandboxes（入口 span）</h4><p><span class="timeline-time">cube-api</span>HTTP 入口，携带 W3C <code>traceparent</code>，是整条 trace 的根。</p></div>
+                    <div class="timeline-item done"><h4>入队与调度</h4><p><span class="timeline-time">cubemaster</span>接收创建请求，进入调度队列。</p></div>
+                    <div class="timeline-item done"><h4>节点选择</h4><p><span class="timeline-time">cubemaster</span>按资源与策略挑选目标计算节点。</p></div>
+                    <div class="timeline-item done"><h4>派发创建</h4><p><span class="timeline-time">cubemaster</span>把创建任务下发到目标 Cubelet。</p></div>
+                    <div class="timeline-item done"><h4>创建容器 + 生命周期锁</h4><p><span class="timeline-time">cubelet</span>单节点运行时工作流，持有生命周期锁。</p></div>
+                    <div class="timeline-item done"><h4>VMM 启动 / 引导</h4><p><span class="timeline-time">cube-shim</span>单沙箱虚拟机的启动、引导或恢复。</p></div>
+                    <div class="timeline-item done"><h4>容器启动</h4><p><span class="timeline-time">cube-shim</span>容器进程启动，完成后向上返回。</p></div>
+                    <div class="timeline-item"><h4>（恢复场景）快照准备 + VM 恢复</h4><p><span class="timeline-time">master / cubelet</span>从快照创建时，在创建链路上额外出现快照准备与 VM 恢复 span。</p></div>
+                </div>
+
+                <h3>启用追踪</h3>
+                <p>追踪<strong>默认关闭</strong>。把各组件各自的 <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> 指向外部自备的 OTLP/<strong>gRPC</strong> 接收端——OpenTelemetry Collector 或 Tempo 的 OTLP/gRPC 接收端——取值为 <code>http://&lt;receiver-host&gt;:&lt;OTLP-gRPC-port&gt;</code>。</p>
+                <ul>
+                    <li>也可以设置 <code>OTEL_EXPORTER_OTLP_TRACES_ENDPOINT</code>；同时设置时 <strong>traces 专用地址优先</strong>。仅当两个值都为空时关闭追踪。</li>
+                    <li>启用后使用 SDK 默认的<strong>基于父级、始终采样</strong>策略：根请求和本地启动的生命周期 Trace 以 100% 采样，已采样的父级会跨服务继续采样。<strong>尚不支持配置采样率</strong>，请据此规划 Collector 和后端容量。</li>
+                    <li>试点中一次沙箱创建产生了 <strong>52 个 Span</strong>；按相似流程估算，1,000 次创建约产生 52,000 个 Span，尚未计入暂停、恢复、快照和模板流量。实际数量取决于流程与部署。</li>
+                    <li>接收端和查询后端需要单独部署。各组件以各自的服务名上报，因此<strong>不要设置共享的 <code>OTEL_SERVICE_NAME</code></strong>。</li>
+                </ul>
+
+                <h4>按安装方式配置</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>安装方式</th><th>配置位置</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>裸金属 / one-click</strong></td><td>在 <code>install.sh</code> 同级 <code>.env</code> 中设置 <code>OTEL_EXPORTER_OTLP_ENDPOINT=http://&lt;receiver-host&gt;:&lt;OTLP-gRPC-port&gt;</code></td><td>关闭时置空 <code>OTEL_EXPORTER_OTLP_ENDPOINT=</code> 并重跑安装脚本</td></tr>
+                            <tr><td><strong>Kubernetes</strong></td><td>加到各组件的 <code>env</code> 数组中</td><td>参见 Helm 安装中的「8.4 链路追踪配置」</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Cubelet 为每个沙箱启动一个<strong>全新的 CubeShim 进程</strong>；该进程在启动时继承 Cubelet 的环境变量，因此<strong>已在运行的 shim 会保留旧设置</strong>。Cubelet 在 <code>task.Start</code> 前注册 containerd 的 <code>task.Wait</code>：任务启动后等待会有意持续到任务退出，创建请求取消或超时不会丢失退出事件；等待上下文只保留 containerd 命名空间，不继承请求取消、日志字段或已结束的创建 Span；若任务启动失败，则取消等待。</p>
+
+                <h3>Rust envd REST 追踪</h3>
+                <p>要启用 Rust envd 追踪，请在 <strong>envd 启动时读取的沙箱环境</strong>中设置 <code>CUBE_ENVD_OTEL_ENDPOINT</code>。取值是沙箱内可访问的<strong>完整 OTLP/HTTP protobuf 追踪地址</strong>，例如 <code>http://&lt;receiver&gt;:4318/v1/traces</code>。<strong>控制面的 OTLP 地址变量不会启用 envd 追踪</strong>。</p>
+                <p>携带已采样 W3C <code>traceparent</code> 的 REST 请求会生成 <code>envd</code> Server Span，并接在对应的父 Span 下。父上下文可以由 CubeProxy 传入。后台上报失败会写入 envd 日志，REST 请求照常处理。</p>
+
+                <h3>查询与解读耗时</h3>
+                <p>可以按 trace ID 查询，也可以用接口返回的某个 ID。响应里的标识与 span 属性<strong>并不总是同一个字符串</strong>，而且它们都<strong>不是</strong> trace ID：</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>你手上的标识</th><th>span 属性</th></tr></thead>
+                        <tbody>
+                            <tr><td>创建沙箱响应中的 <code>clientID</code>（该次创建的业务请求 ID）</td><td><code>cube.request_id</code>（仅创建场景）</td></tr>
+                            <tr><td>沙箱 ID</td><td><code>cube.sandbox_id</code></td></tr>
+                            <tr><td>模板 ID</td><td><code>cube.template_id</code></td></tr>
+                            <tr><td>快照 ID</td><td><code>cube.snapshot_id</code></td></tr>
+                            <tr><td>异步任务 ID（<code>jobID</code> / <code>job_id</code>）</td><td><code>cube.job_id</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="note">
+                    只有<strong>创建响应</strong>是这样映射的：详情或列表响应里的 <code>clientID</code> 可能是宿主机 ID，不要一概而论。HTTP 请求头 <code>x-request-id</code> 是另一回事——它对应 CubeAPI 入口 span 上的 <code>cube.http_request_id</code>。
+                </div>
+                <p>属性只需存在于<strong>部分</strong> span 上就能找到整条 trace：只要任一个 span 匹配，整条 trace 就会被返回。下面示例使用 Tempo 的 TraceQL，其他后端有各自的查询语言。</p>
+                <pre><code>{ span.cube.request_id = "&lt;creation-client-id&gt;" }</code></pre>
+                <pre><code>{ span.cube.sandbox_id = "&lt;sandbox-id&gt;" }</code></pre>
+                <pre><code>{ span.cube.job_id = "&lt;job-id&gt;" }</code></pre>
+                <p>同一个沙箱 ID 可能对应保留期内的<strong>多次操作</strong>，可按操作发生时间缩小查询范围。查不到时，先确认<strong>查询时间范围覆盖了操作时间</strong>。失败请求可能尚未生成沙箱或快照 ID，这时可用已有的 <code>cube.request_id</code> 查询。</p>
+
+                <h4>如何解读耗时</h4>
+                <ul>
+                    <li>父 span 的耗时一般<strong>包含</strong>其嵌套工作，因此<strong>不要在它之上再累加嵌套耗时</strong>。脱离请求生命周期的异步子 span 可能超出父 span；父子重叠属于正常的嵌套——只有时间上重叠的<strong>兄弟</strong>任务才提示存在并行。</li>
+                    <li>子 span 的耗时之和<strong>不一定等于</strong>父 span 的耗时；阶段间的空隙可能包含等待或尚未单独埋点的工作。</li>
+                    <li>异步模板任务的存活时间超过提交它的 API span。提交 span 只度量提交动作，构建与运行的 span 记录后台执行，但整个「提交到就绪」的任务未必是单个 span——<strong>是否成功要以任务状态为准</strong>，不能只看 span。</li>
+                    <li>业务失败<strong>仍可能返回 HTTP 200</strong>。要一并检查 span 状态与业务属性（<code>cube.ret_code</code>）以及 HTTP 状态码，而不是只相信后者。</li>
+                </ul>
+                <div class="tip">
+                    <strong>追踪回答的是「卡在哪一步」，不是「为什么」。</strong>当某个偏慢或失败的 span 指向某个组件的某个阶段后，原因通常就在该组件的日志里——参见本页第 6 节的沙箱日志，以及第 12 章的服务管理与日志。
+                </div>
+            </section>
+
+            <section class="concept-section" id="benchmark">
+                <h2><span class="section-num">8</span>性能基准入口</h2>
+                <p>Rust 运行时、MicroVM 冷启动、快照 / 恢复等操作的性能，官方以独立<strong>基准测试报告</strong>的形式发布。官方「性能测试」页本身<strong>只是入口索引</strong>——它只列出 4 个报告链接，<strong>没有内联任何耗时或吞吐数值</strong>。因此本页<strong>不写死任何未确认数字</strong>，请以官方报告为准。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>官方报告</th><th>关注点</th></tr></thead>
+                        <tbody>
+                            <tr><td>CubeBench v0.7.3 裸金属测试结果</td><td>裸金属环境下的综合基准结果</td></tr>
+                            <tr><td>裸金属测试方法与复现步骤</td><td>如何复现基准测试（方法学）</td></tr>
+                            <tr><td>CubeSandbox PVM 云服务器核心操作性能基准测试报告</td><td>PVM 云服务器场景下的核心操作性能</td></tr>
+                            <tr><td>CubeSandbox JuiceFS 多节点性能基准测试报告</td><td>多节点 + JuiceFS 存储场景的性能</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info">
+                    <strong>如何获取权威数字：</strong>以上 4 份报告位于官方博客 / 性能基准页，具体指标（冷启动延迟、快照耗时、并发吞吐等）<strong>详见官方性能基准页</strong>。本页只负责指路，避免把未复现的数字当成结论。指标口径与看板字段的完整说明见第 14 章「指标与性能」。
+                </div>
+            </section>
+
+            <section class="concept-section" id="pitfalls">
+                <h2><span class="section-num">9</span>易错点与最佳实践</h2>
+                <p>下面这些点几乎覆盖了可观测性落地时最常见的「踩坑」，按主题分组记忆。</p>
+
+                <h3>端口与网络</h3>
+                <ul>
+                    <li><strong>Prometheus 用 9092 不是 9090</strong>：<code>9090</code> 已被 <code>cube-proxy</code> 占用，配置里出现 9090 多半是抄错了。</li>
+                    <li><strong>内置后端无服务端鉴权</strong>：Prometheus / Loki / ES 只对计算节点内网放通 <code>9092</code>、<code>3100</code>、<code>9200</code>，<strong>切勿暴露公网</strong>；跨网段请前置认证网关。</li>
+                    <li><strong>OTLP 填基础路径</strong>：外部地址<strong>不要附加 <code>/v1/metrics</code> 或 <code>/v1/logs</code></strong>，例如 <code>https://prometheus.example.com/api/v1/otlp</code>、<code>https://loki.example.com/otlp</code>。</li>
+                </ul>
+
+                <h3>互斥关系</h3>
+                <ul>
+                    <li>指标输出端 <strong>OTLP/HTTP 与 Remote Write 二选一</strong>；日志输出端 <strong>Loki OTLP 与 Elasticsearch 二选一</strong>；同一部署<strong>只启用一个日志后端，不会双写</strong>。</li>
+                    <li><code>*_AUTHORIZATION</code>（完整 Header）与 <code>*_TOKEN</code>（裸 Token）<strong>不可同时设置</strong>；ES 的 <code>CUBE_LOGS_ES_API_KEY</code> 与 Basic Auth 也二选一。</li>
+                </ul>
+
+                <h3>安装与升级</h3>
+                <ul>
+                    <li><strong>不要用 <code>env.example</code> 覆盖现有 <code>.env</code></strong>，也不要直接编辑 <code>/usr/local/services/cubetoolbox/.one-click.env</code>；升级用 <code>--mode=upgrade --yes</code>。</li>
+                    <li><strong>升级不会误关已启用的监控</strong>（默认 <code>ONE_CLICK_ENABLE_OBSERVABILITY=0</code> 不生效）；要关闭需显式传 <code>ONE_CLICK_ENABLE_OBSERVABILITY=0</code>。</li>
+                    <li><strong>Grafana 密码至少 16 个字符</strong>且首尾不含空白；生产环境用 <code>existingSecret</code> 管理，别把密码写进 <code>--set</code> 历史。</li>
+                    <li><strong>别手改运行态配置</strong>：<code>/etc/cube-sandbox/otelcol/otelcol.yaml</code> 与 ConfigMap 会被重装 / 升级覆盖，改配置请改生成器，并用 <code>install.sh render cvm</code> / <code>helm template ... -s templates/observability.yaml</code> 预览。</li>
+                    <li><strong>Helm 抓取周期不得小于 10s 超时</strong>；大规模建议保持默认 <code>15s</code>。Helm 形态需保持 <code>cubeNode.hostNetwork=true</code>，否则同节点 Collector 访问不到 <code>127.0.0.1:9998</code>。</li>
+                </ul>
+
+                <h3>日志与追踪</h3>
+                <ul>
+                    <li><strong>沙箱销毁即删日志目录</strong>：必须在沙箱存活期间持续上报，否则日志随沙箱一起丢失。</li>
+                    <li><code>cubecli logs</code> <strong>必须在计算节点执行</strong>；只覆盖 init 进程（PID 1）；<strong>没有 <code>--follow</code></strong>；日志转发需 <strong>CubeShim ≥ v0.4.0</strong>。</li>
+                    <li><strong>追踪不要设共享 <code>OTEL_SERVICE_NAME</code></strong>：五个服务各用自己的服务名上报；采样率当前不可配，容量按 100% 采样规划。</li>
+                    <li><strong>业务失败可能返回 HTTP 200</strong>：排障时同时看 span 状态、<code>cube.ret_code</code> 与 HTTP 状态码。</li>
+                    <li>组件容器日志<strong>从文件末尾开始采集、不回放历史</strong>；开启前确认组件日志不含明文密钥。one-click 暂不支持组件日志采集。</li>
+                </ul>
+
+                <div class="danger">
+                    <strong>最容易被忽略的一条：</strong>「指标看板数值加起来等于整机」是错的——内存限额是<strong>已导出有限限额之和</strong>，Host Sandbox 与 Guest Workload <strong>记账口径不同、不可直接相加</strong>；缺样本也不等于 <code>0</code>。解读看板前先确认口径。
+                </div>
+            </section>
+
+            <section class="concept-section" id="memory">
+                <h2><span class="section-num">10</span>记忆卡片与自测</h2>
+
+                <h3>记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>三层架构</b>节点侧轻量采集（OTel Collector）+ 中心侧集中存储（Prometheus / Loki / ES）+ 展示（Grafana）；不改动 Cubelet 逻辑。</div>
+                    <div class="memory-card"><b>端口口诀</b>9998 指标源 · 9092 Prometheus · 3100 Loki · 9200 ES · 3001 Grafana · 13133 Collector 健康检查。</div>
+                    <div class="memory-card"><b>两种来源</b>指标靠 <code>prometheus</code> 抓 <code>/v1/metrics/resource</code>；日志靠 <code>filelog</code> tail 沙箱目录。</div>
+                    <div class="memory-card"><b>二选一</b>OTLP/HTTP 或 Remote Write；Loki 或 Elasticsearch——同一部署只启用一个日志后端，不双写。</div>
+                    <div class="memory-card"><b>日志两级</b>沙箱日志用 <code>cubecli logs</code>（init/PID 1）；exec 子任务用 E2B SDK 的 <code>on_stdout</code>/<code>on_stderr</code>。</div>
+                    <div class="memory-card"><b>追踪五服务</b>cube-api · cubemaster · cubetemplatecenter · cubelet · cube-shim；OTLP/<b>gRPC</b> 上报，W3C Trace Context 传播。</div>
+                </div>
+
+                <div class="quiz">
+                    <h4>自测（3 题）</h4>
+                    <details>
+                        <summary>1. 你发现指标看板没有数据，但 <code>curl 127.0.0.1:9998/v1/metrics/resource</code> 有输出。先怀疑哪几件事？</summary>
+                        <p>先查三层链路：① Collector 是否在跑（<code>systemctl status cube-sandbox-otelcol</code> 或 <code>rollout status daemonset/cube-node-otelcol</code>）；② 是否连到了正确的 <code>:9092</code>（注意不是 <code>9090</code>）；③ 外部场景下 OTLP 基础路径是否被误加了 <code>/v1/metrics</code>；④ Helm 形态是否保持 <code>cubeNode.hostNetwork=true</code>。沙箱维度为空是正常的，需看节点级 <code>node_sandbox_count</code>。</p>
+                    </details>
+                    <details>
+                        <summary>2. 为什么 <code>cubecli logs &lt;sandbox-id&gt;</code> 在 CI 机器上执行失败，在计算节点上却正常？</summary>
+                        <p>因为沙箱日志文件位于 <strong>Cubelet 的私有挂载命名空间</strong>内（<code>/data/cubelet/state/io.containerd.runtime.v2.task/default/&lt;sandbox-id&gt;/{stdout,stderr}</code>），<code>cubecli logs</code> 必须在<strong>计算节点本机</strong>执行、由它自动重入该命名空间；无法通过 API 或非节点主机远程调用。此外还要求 CubeShim ≥ v0.4.0。</p>
+                    </details>
+                    <details>
+                        <summary>3. 一条创建沙箱的 trace 里，子 span 耗时加起来小于父 span，是不是丢了数据？业务失败但 HTTP 200，该怎么判断？</summary>
+                        <p>不是丢数据。父 span 的耗时<strong>包含</strong>嵌套工作，子 span 之和不一定等于父 span；阶段间的空隙可能包含等待或尚未单独埋点的工作，父子重叠也是正常嵌套。业务失败可能返回 HTTP 200，必须<strong>同时</strong>检查 span 状态、业务属性 <code>cube.ret_code</code> 与 HTTP 状态码；「为什么失败」往往要去对应组件的日志里找。</p>
+                    </details>
+                </div>
+            </section>
+
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>

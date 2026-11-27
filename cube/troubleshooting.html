@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>故障排查手册 | CubeSandbox 学习指南</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4L58 18L32 32L6 18Z' fill='%238BB8E8'/%3E%3Cpath d='M6 18L32 32V60L6 46Z' fill='%2339619B'/%3E%3Cpath d='M58 18L32 32V60L58 46Z' fill='%235D99D4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="navigation.js" defer></script>
+</head>
+<body>
+    <div id="reading-progress"></div>
+
+    <header>
+        <div class="container">
+            <h1>
+                <svg class="cube-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" fill="#8BB8E8"/>
+                    <path d="M6 18L32 32V60L6 46V18Z" fill="#39619B"/>
+                    <path d="M58 18L32 32V60L58 46V18Z" fill="#5D99D4"/>
+                    <path d="M32 4L58 18L32 32L6 18L32 4Z" stroke="#E9EEF6" stroke-opacity=".55" stroke-width="1.2"/>
+                    <path d="M32 32V60M6 18L32 32L58 18" stroke="#E9EEF6" stroke-opacity=".35" stroke-width="1.2"/>
+                </svg>
+                <span>故障排查手册</span>
+            </h1>
+            <p class="subtitle">从症状到根因：分层定位、日志落点与可复现的修复步骤</p>
+            <div class="header-badges">
+                <span class="badge badge-outline">CubeSandbox 学习指南</span>
+                <span class="badge badge-outline">第 15 章</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="navigation-container">
+        <nav class="main-nav" id="main-nav">
+            <div class="nav-container">
+                <div class="nav-mobile">
+                    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="打开导航菜单" aria-expanded="false">
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                        <span class="hamburger"></span>
+                    </button>
+                    <span class="nav-current-page" id="nav-current-page">故障排查</span>
+                </div>
+                <div class="nav-groups">
+                    <a class="nav-home" href="index.html">首页</a>
+                    <div class="nav-group" data-group="入门">
+                        <button class="nav-group-btn" aria-expanded="false">入门</button>
+                        <div class="nav-dropdown">
+                            <a href="intro.html"><span>入门与快速开始</span><span class="nav-num">01</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="部署">
+                        <button class="nav-group-btn" aria-expanded="false">部署</button>
+                        <div class="nav-dropdown">
+                            <a href="deploy-basic.html"><span>部署基础</span><span class="nav-num">02</span></a>
+                            <a href="k8s.html"><span>Kubernetes 部署</span><span class="nav-num">03</span></a>
+                            <a href="deploy-cloud.html"><span>云上与离线部署</span><span class="nav-num">04</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="核心概念">
+                        <button class="nav-group-btn" aria-expanded="false">核心概念</button>
+                        <div class="nav-dropdown">
+                            <a href="concepts.html"><span>生命周期与 QoS</span><span class="nav-num">05</span></a>
+                            <a href="snapshots.html"><span>快照与跨机迁移</span><span class="nav-num">06</span></a>
+                            <a href="templates.html"><span>模板与镜像</span><span class="nav-num">07</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="开发接入">
+                        <button class="nav-group-btn" aria-expanded="false">开发接入</button>
+                        <div class="nav-dropdown">
+                            <a href="tutorials.html"><span>教程与 SDK</span><span class="nav-num">08</span></a>
+                            <a href="network.html"><span>网络策略</span><span class="nav-num">09</span></a>
+                            <a href="security.html"><span>安全与鉴权</span><span class="nav-num">10</span></a>
+                            <a href="storage.html"><span>存储 Volume</span><span class="nav-num">11</span></a>
+                        </div>
+                    </div>
+                    <div class="nav-group" data-group="运维与观测">
+                        <button class="nav-group-btn" aria-expanded="false">运维与观测</button>
+                        <div class="nav-dropdown">
+                            <a href="operations.html"><span>管理与运维</span><span class="nav-num">12</span></a>
+                            <a href="observability.html"><span>可观测性</span><span class="nav-num">13</span></a>
+                            <a href="metrics.html"><span>指标与性能</span><span class="nav-num">14</span></a>
+                            <a href="troubleshooting.html"><span>故障排查</span><span class="nav-num">15</span></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav-mobile-panel" id="nav-mobile-panel"></div>
+            </div>
+        </nav>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="page-hero">
+                <span class="badge badge-primary">第 15 章</span>
+                <h1>故障排查手册</h1>
+                <p>把官方 troubleshooting 栏目里的真实案例收拢成一套可执行的排障流程：先用分层模型缩小范围，再用日志/指标/状态锁定组件，最后用可复现的命令验证。覆盖部署前置检查、模板构建、网络 CIDR 冲突、Host Mount 权限与组件日志定位五大高频场景。</p>
+                <div class="page-meta">
+                    <span>📖 预计 35 分钟</span>
+                    <span>🎯 难度：进阶</span>
+                    <span>🧩 覆盖 6 个官方页面</span>
+                </div>
+            </div>
+
+            <div class="toc">
+                <h3>本节导航</h3>
+                <ul>
+                    <li><a href="#methodology">1. 排障方法论：先分层，再定位信号</a></li>
+                    <li><a href="#overview">2. 排障总览表：症状 → 先查什么</a></li>
+                    <li><a href="#deploy">3. 部署问题：bpffs、XFS 与 cgroup</a></li>
+                    <li><a href="#templates">4. 模板问题：构建失败、超时与磁盘</a></li>
+                    <li><a href="#cidr">5. 网络 CIDR 冲突与残留 cube-dev</a></li>
+                    <li><a href="#host-mount">6. Host Mount 写入 Permission Denied</a></li>
+                    <li><a href="#logs">7. 组件日志位置与 cubecli logs</a></li>
+                    <li><a href="#diagnostics">8. 一键诊断信息收集与命令速查</a></li>
+                    <li><a href="#review">9. 易错点、记忆卡片与自测</a></li>
+                </ul>
+            </div>
+
+            <!-- ===================== 1 ===================== -->
+            <section class="concept-section" id="methodology">
+                <h2><span class="section-num">1</span>排障方法论：先分层，再定位信号</h2>
+                <p>一次沙箱创建会穿过 CubeAPI、CubeMaster、Cubelet、CubeShim、VMM、网络与存储等多个环节。遇到故障时不要一上来就翻日志，而是按「先分层 → 再定位信号 → 最后验证」的顺序，把「全链路都挂了」收敛成「某一层的某一个组件」。</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step"><b>先分层</b>：判断问题出在控制面、计算面、网络、存储、模板还是沙箱内部。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>再定位信号</b>：用日志、指标、状态三类信号，锁定最小可疑组件。</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step"><b>最后验证</b>：复现一次、修复一次、观察一次，确认根因而非掩盖症状。</div>
+                </div>
+
+                <h3>1.1 六个排查分层</h3>
+                <p>按请求经过的层次切分，每层都有独立的「第一现场」，先确定层再深入组件。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">控制面</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">CubeAPI<small>E2B 兼容入口</small></div>
+                        <div class="arch-box control">CubeMaster<small>调度与模板编排</small></div>
+                    </div>
+                    <div class="arch-connector">↓ gRPC 下发</div>
+                    <div class="arch-label">计算面</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">Cubelet<small>节点运行时</small></div>
+                        <div class="arch-box compute">CubeShim<small>沙箱进程</small></div>
+                        <div class="arch-box data">Hypervisor (VMM)<small>MicroVM</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 网络 / 存储 / 模板</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">网络<small>cube-dev / TAP / cube-proxy</small></div>
+                        <div class="arch-box storage">存储<small>/data/cubelet（XFS）</small></div>
+                        <div class="arch-box obs">模板<small>UNPACKING / DISTRIBUTING</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 进入沙箱</div>
+                    <div class="arch-layer">
+                        <div class="arch-box primary">沙箱内部<small>guest kernel / init (PID 1)</small></div>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>分层</th><th>典型组件</th><th>第一手信号</th><th>日志 / 指标入口</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>控制面</td><td>CubeAPI、CubeMaster</td><td>HTTP 5xx、调度失败、模板 job phase</td><td><code>/data/log/CubeAPI</code>、<code>/data/log/CubeMaster</code></td></tr>
+                            <tr><td>计算面</td><td>Cubelet、CubeShim、VMM</td><td>创建失败、端口探测失败、MicroVM panic</td><td><code>/data/log/Cubelet</code>、<code>/data/log/CubeShim</code>、<code>/data/log/CubeVmm</code></td></tr>
+                            <tr><td>网络</td><td>cube-dev、TAP、cube-proxy</td><td>路由抢占、<code>PortBindingFailed</code>、多网段重叠</td><td><code>ip route</code>、<code>ip tuntap show</code>、<code>/data/log/cube-proxy</code></td></tr>
+                            <tr><td>存储</td><td><code>/data/cubelet</code>、Volume</td><td>非 XFS、reflink 不可用、磁盘满</td><td><code>df -T /data/cubelet</code></td></tr>
+                            <tr><td>模板</td><td>模板构建容器</td><td>卡 <code>UNPACKING</code> / <code>BUILDING_EXT4</code>、RPC deadline</td><td><code>cubecli logs --tpl &lt;template-id&gt;</code></td></tr>
+                            <tr><td>沙箱内部</td><td>guest kernel、init (PID 1)</td><td>内核启动、挂载失败、命令权限</td><td><code>cube-shim-req.log</code>、<code>cubecli logs</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>1.2 症状 → 先查什么</h3>
+                <p>下面把高频故障的「第一跳」固化下来：看到这条症状，先执行这一条命令，再决定是否深入。</p>
+
+                <div class="decision">
+                    <div class="decision-card">
+                        <span class="badge badge-danger">创建 500 / 超时</span>
+                        <h4>先看路由与探测</h4>
+                        <p><code>context deadline exceeded</code> 或 <code>PortBindingFailed</code>：先 <code>ip route</code> 再 <code>rg PortBindingFailed /data/log/Cubelet/Cubelet-req.log</code>，多为 CIDR 冲突（§5）。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-warning">预检 not bpf</span>
+                        <h4>先确认 bpffs</h4>
+                        <p>报「不是 bpf 文件系统」时，先 <code>grep -w bpf /proc/filesystems</code>；有输出就挂载，无输出则内核不支持 eBPF（§3）。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-warning">预检 not XFS</span>
+                        <h4>先确认文件系统</h4>
+                        <p>one-click 报 <code>not XFS</code>：<code>df -T /data/cubelet</code> 查看是否 ext4 根盘，需要 XFS 的 reflink（§3）。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-violet">模板卡住</span>
+                        <h4>先看磁盘余量</h4>
+                        <p>卡在 <code>UNPACKING</code> / <code>BUILDING_EXT4</code>：<code>df -h /tmp /data/cubelet /usr/local/services/cubetoolbox</code>（§4）。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-violet">DISTRIBUTING 超时</span>
+                        <h4>先分 job phase</h4>
+                        <p><code>DISTRIBUTING</code> 看 <code>create_image_timeout_insec</code>，<code>CREATING_TEMPLATE</code> 看 <code>app_snapshot_timeout_insec</code>；先查节点健康再动超时（§4）。</p>
+                    </div>
+                    <div class="decision-card">
+                        <span class="badge badge-teal">Host Mount 拒绝写</span>
+                        <h4>先对齐 UID</h4>
+                        <p>写 <code>/mnt/rw</code> 报 Permission denied：先在容器内 <code>id</code>，再在宿主机 <code>stat -c 'owner=%u:%g mode=%a'</code> 对比（§6）。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===================== 2 ===================== -->
+            <section class="concept-section" id="overview">
+                <h2><span class="section-num">2</span>排障总览表：症状 → 先查什么</h2>
+                <p>下表是整页的索引：先按「症状」定位，再复制「首选命令」，最后跳到对应章节看完整根因与修复步骤。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>症状</th><th>可能根因</th><th>首选命令</th><th>章节</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>one-click 预检报「不是 bpf 文件系统」</td>
+                                <td>bpffs 未挂载，Cubelet 网络运行时无法 pin eBPF</td>
+                                <td><code>grep -w bpf /proc/filesystems</code></td>
+                                <td>§3</td>
+                            </tr>
+                            <tr>
+                                <td>one-click 预检报 <code>not XFS</code> 退出</td>
+                                <td><code>/data/cubelet</code> 落在 ext4 根盘，缺 reflink</td>
+                                <td><code>df -T /data/cubelet</code></td>
+                                <td>§3</td>
+                            </tr>
+                            <tr>
+                                <td>Ubuntu 上 cubelet CPU quota 不生效</td>
+                                <td>cgroup v2 未委托 <code>cpu</code> controller</td>
+                                <td>参考 issue #366 复现与修复</td>
+                                <td>§3</td>
+                            </tr>
+                            <tr>
+                                <td><code>context deadline exceeded</code> / <code>code 130595</code></td>
+                                <td>沙箱网段与宿主机局域网重叠，探测走错网卡</td>
+                                <td><code>ip route</code>、<code>rg PortBindingFailed /data/log/Cubelet/Cubelet-req.log</code></td>
+                                <td>§5</td>
+                            </tr>
+                            <tr>
+                                <td>调整 <code>CUBE_SANDBOX_NETWORK_CIDR</code> 被预检拦截</td>
+                                <td>新网段与残留 <code>cube-dev</code> 重叠</td>
+                                <td><code>ip link show cube-dev</code>、<code>ip tuntap show</code></td>
+                                <td>§5</td>
+                            </tr>
+                            <tr>
+                                <td>模板卡 <code>UNPACKING</code> / <code>BUILDING_EXT4</code></td>
+                                <td>解压与写盘临时空间不足</td>
+                                <td><code>df -h /tmp /data/cubelet /usr/local/services/cubetoolbox</code></td>
+                                <td>§4</td>
+                            </tr>
+                            <tr>
+                                <td><code>DISTRIBUTING</code> / <code>CREATING_TEMPLATE</code> 超时</td>
+                                <td>对应超时过小，或节点健康/网络/磁盘异常</td>
+                                <td>查 job phase + Cubelet 日志，再决定是否调超时</td>
+                                <td>§4</td>
+                            </tr>
+                            <tr>
+                                <td><code>tpl create-from-image</code> 总是超时</td>
+                                <td>probe HTTP 服务未启动；嵌套虚拟化缺 XSAVE</td>
+                                <td>本地验证 <code>49983/health</code>；嵌套虚拟化切 PVM</td>
+                                <td>§4</td>
+                            </tr>
+                            <tr>
+                                <td>写 host mount 报 <code>Permission denied</code></td>
+                                <td>宿主机 owner/UID 与沙箱用户不一致</td>
+                                <td><code>sudo stat -c 'owner=%u:%g mode=%a path=%n' /tmp/rw</code></td>
+                                <td>§6</td>
+                            </tr>
+                            <tr>
+                                <td>不知道报错该去哪个日志</td>
+                                <td>业务日志、启动日志、沙箱日志来源不同</td>
+                                <td>查日志速查表，再用 <code>cubecli logs</code></td>
+                                <td>§7</td>
+                            </tr>
+                            <tr>
+                                <td>Cubelet 日志细节太少</td>
+                                <td>默认日志级别为 <code>warn</code></td>
+                                <td><code>curl -X POST 'http://127.0.0.1:9966/debug/loglevel?level=debug'</code></td>
+                                <td>§7</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info">
+                    <strong>排障顺序建议：</strong>先确认「容器/服务是否在跑」→ 再确认「配置是否生效」→ 最后才怀疑业务逻辑。源文档中的案例大多本质上都是环境前置条件（bpffs、XFS、CIDR、UID）不满足，而不是代码缺陷。
+                </div>
+            </section>
+
+            <!-- ===================== 3 ===================== -->
+            <section class="concept-section" id="deploy">
+                <h2><span class="section-num">3</span>部署问题：bpffs、XFS 与 cgroup</h2>
+                <p>one-click 部署会在修改系统之前做前置检查，检查不通过时直接退出——这是「不把机器改坏」的保护。遇到预检失败，先按下面三项逐一对齐，再重新执行安装。</p>
+
+                <h3>3.1 bpffs 未挂载</h3>
+                <p>Cubelet 内嵌的网络运行时依赖 <code>/sys/fs/bpf</code> 挂载 <code>bpffs</code>（bpf 文件系统），用于固定（pin）eBPF 程序与 Map。若该目录不是 <code>bpf</code> 文件系统（WSL2 或部分极简 Linux 默认未挂载），安装器会在修改系统前退出。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>步骤</th><th>命令</th><th>期望结果</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1. 确认内核支持</td>
+                                <td><code>grep -w bpf /proc/filesystems</code></td>
+                                <td>有 <code>bpf</code> 输出则继续；无输出说明内核未启用 eBPF（缺 <code>CONFIG_BPF_SYSCALL</code>）</td>
+                            </tr>
+                            <tr>
+                                <td>2. 挂载 bpffs</td>
+                                <td><code>mkdir -p /sys/fs/bpf</code><br><code>mount -t bpf bpf /sys/fs/bpf</code></td>
+                                <td>无报错，<code>/sys/fs/bpf</code> 可写</td>
+                            </tr>
+                            <tr>
+                                <td>3. 持久化（可选）</td>
+                                <td>在 <code>/etc/fstab</code> 添加 <code>bpf /sys/fs/bpf bpf defaults 0 0</code></td>
+                                <td>重启后仍保持挂载</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <pre><code><span class="c"># 1) 确认内核是否支持 bpf 文件系统</span>
+grep -w bpf /proc/filesystems
+
+<span class="c"># 2) 若支持，创建目录并挂载（需要 root）</span>
+mkdir -p /sys/fs/bpf
+mount -t bpf bpf /sys/fs/bpf</code></pre>
+
+                <div class="note">
+                    <strong>持久化写法：</strong>把下面这一行加入 <code>/etc/fstab</code>，可让 bpffs 在重启后自动挂载。
+                </div>
+
+                <pre><code>bpf /sys/fs/bpf bpf defaults 0 0</code></pre>
+
+                <div class="danger">
+                    <strong>内核不支持时不要硬装：</strong>若 <code>grep -w bpf /proc/filesystems</code> 无任何输出，说明当前内核缺少 <code>CONFIG_BPF_SYSCALL</code>，需升级或更换支持 eBPF 的内核后再试，挂载命令本身不会成功。
+                </div>
+
+                <h3>3.2 /data/cubelet 必须是 XFS（reflink）</h3>
+                <p><code>cubelet</code> 把 <code>/data/cubelet</code> 作为容器可写层的存储目录，依赖 XFS 的 reflink 特性。在 Ubuntu / Debian / WSL 等 ext4 根盘的环境上部署，one-click 前置检查会以 <code>not XFS</code> 报错退出。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>项目</th><th>要求 / 做法</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>文件系统</td><td>挂载到 <code>/data/cubelet</code> 的分区必须是 XFS，并启用 reflink</td></tr>
+                            <tr><td>自查命令</td><td><code>df -T /data/cubelet</code></td></tr>
+                            <tr><td>临时 Workaround</td><td>用 loopback <code>.img</code> 格式化为 XFS 后挂到 <code>/data/cubelet</code></td></tr>
+                            <tr><td>生产建议</td><td>挂独立 XFS 数据盘（100–300 GiB）</td></tr>
+                            <tr><td>新装机推荐</td><td>OpenCloudOS 9 / RHEL 系</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <pre><code><span class="c"># 确认 /data/cubelet 当前的文件系统类型</span>
+df -T /data/cubelet</code></pre>
+
+                <h3>3.3 Ubuntu 上 cgroup v2 未启用 cpu controller</h3>
+                <p>现象是 cubelet 的 CPU quota 不生效。根因有两层：Ubuntu / Debian 云镜像默认不会把 cgroup v2 的 <code>cpu</code> controller 委托到子 cgroup；同时 <code>multipathd</code> 的 RT 线程会让 <code>+cpu</code> 写入返回 <code>Invalid argument</code>。完整复现与修复步骤见官方 issue #366。</p>
+
+                <div class="warning">
+                    <strong>只写源文档确认的结论：</strong>该问题在源文档中仅给出「根因 + 指向 issue #366」，未给出可复制的一键修复命令。动手前请先阅读 issue 再操作，避免照搬过期方案。
+                </div>
+            </section>
+
+            <!-- ===================== 4 ===================== -->
+            <section class="concept-section" id="templates">
+                <h2><span class="section-num">4</span>模板问题：构建失败、超时与磁盘</h2>
+                <p>模板制作本质上是「拉取 OCI 镜像 → 解压 → 写成 ext4 磁盘文件 → 分发 → 创建快照」的流水线。卡住的阶段不同，根因与超时配置也不同，先看 job phase 再动手。</p>
+
+                <h3>4.1 先认阶段，再找超时</h3>
+                <p>模板制作因 RPC deadline 失败时，<strong>修改 timeout 前先检查 job phase</strong>：不同阶段由不同的超时配置限制，盲目调大会掩盖故障节点。</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>job phase / 现象</th><th>在做什么</th><th>对应的超时配置</th><th>先查什么</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>UNPACKING</code></td><td>解压 OCI 镜像</td><td>受临时磁盘空间影响</td><td>分区余量、inode 是否耗尽</td></tr>
+                            <tr><td><code>BUILDING_EXT4</code></td><td>把解压结果写成 ext4 磁盘文件</td><td>受临时磁盘空间影响</td><td>磁盘余量、<code>mkfs.ext4</code> 校验和/inode 报错</td></tr>
+                            <tr><td><code>DISTRIBUTING</code></td><td>分发镜像数据</td><td><code>create_image_timeout_insec</code></td><td>节点健康、网络连通性、Cubelet 日志</td></tr>
+                            <tr><td><code>CREATING_TEMPLATE</code></td><td>创建模板快照</td><td><code>app_snapshot_timeout_insec</code></td><td>节点健康、磁盘、Cubelet 日志</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="note">
+                    <strong>正确顺序：</strong>先检查节点健康、剩余磁盘空间、网络连通性和 Cubelet 日志；确认只是正常操作较慢后，再修改 CubeMaster <code>cubelet_conf</code> 中对应的 <code>create_image_timeout_insec</code> / <code>app_snapshot_timeout_insec</code>，并重启 CubeMaster。
+                </div>
+
+                <h3>4.2 磁盘空间不足导致制作失败</h3>
+                <p>制作模板时需要把 OCI 镜像解压并写入磁盘文件，会占用大量临时空间。当 <code>/tmp</code>、<code>/data/cubelet</code> 或 <code>/usr/local/services/cubetoolbox/</code> 所在分区空间不足时，模板可能卡在 <code>UNPACKING</code> / <code>BUILDING_EXT4</code> 阶段，或表现为 <code>mkfs.ext4</code> 校验和不匹配、inode 类型冲突等错误。</p>
+
+                <pre><code><span class="c"># 三个关键分区都要看，任意一个满都可能卡住构建</span>
+df -h /tmp /data/cubelet /usr/local/services/cubetoolbox</code></pre>
+
+                <h3>4.3 tpl create-from-image 总是超时</h3>
+                <p><code>tpl create-from-image</code> 超时通常有两类主因：</p>
+                <ul>
+                    <li><strong>probe 服务未启动：</strong>自定义镜像没有启动 <code>--probe</code> / <code>--probe-path</code> 配置的 HTTP 服务（使用 <code>envd</code> 的镜像通常配置为 <code>49983/health</code>）。</li>
+                    <li><strong>嵌套虚拟化：</strong>在 AWS EC2 等嵌套虚拟化环境部署，受 XSAVE 等指令集缺失影响，导致 MicroVM panic、嵌套页错误慢启动，撞上 <code>VsockServerReady</code> / probe budget。</li>
+                </ul>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>主因</th><th>验证方法</th><th>解法</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>probe 未启动</td><td>先在本地验证配置的 HTTP probe 是否可访问</td><td>镜像需要 <code>envd</code> 时，按「bring-your-own-image」准备</td></tr>
+                            <tr><td>嵌套虚拟化</td><td>确认是否运行在 AWS EC2 等嵌套环境</td><td>切换到 PVM 模式</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <pre><code><span class="c"># 验证镜像内 HTTP probe 是否可访问（envd 镜像通常暴露 49983/health）</span>
+curl -sS http://&lt;host&gt;:49983/health</code></pre>
+
+                <h3>4.4 沙箱网段冲突导致创建模板超时</h3>
+                <p>若模板在 <code>CREATING_TEMPLATE</code> 阶段以 <code>context deadline exceeded</code> 失败，且宿主机局域网也使用 <code>192.168.1.x</code>，请直接跳到 <a href="#cidr">§5 网络 CIDR 冲突</a>：这不是模板本身的问题，而是沙箱 IP 与真实局域网重叠导致端口探测失败。</p>
+
+                <div class="warning">
+                    <strong>源文档边界：</strong>官方 troubleshooting 的 templates 页只覆盖 <code>UNPACKING</code>、<code>BUILDING_EXT4</code>、<code>DISTRIBUTING</code>、<code>CREATING_TEMPLATE</code> 等阶段，未给出更细的 <code>PULLING</code> / <code>BUILDING</code> 阶段名。排障时请以实际打印的 job phase 为准，不要套用不存在的阶段。
+                </div>
+            </section>
+
+            <!-- ===================== 5 ===================== -->
+            <section class="concept-section" id="cidr">
+                <h2><span class="section-num">5</span>网络 CIDR 冲突与残留 cube-dev</h2>
+                <p>这是裸金属 / 本地物理机部署最常见的「创建模板超时」根因：Cube 默认给沙箱分配 <code>192.168.0.0/18</code>，一旦宿主机局域网也使用 <code>192.168.1.x</code>，两者重叠就会让探测流量走错网卡。</p>
+
+                <h3>5.1 问题现象</h3>
+                <p>创建模板在 <code>CREATING_TEMPLATE</code> 阶段失败：</p>
+
+                <pre><code>cubemastercli run fail: template tpl-xx creation failed: context deadline exceeded</code></pre>
+
+                <p>用 <code>cube-bench</code> 压测时，会看到大量 create 返回 500：</p>
+
+                <pre><code>create HTTP 500: {"code":500,"message":"CubeMaster returned error code 130595: context deadline exceeded"}</code></pre>
+
+                <h3>5.2 环境信息</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>项目</th><th>取值</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Cube Sandbox 版本</td><td><code>e29453</code></td></tr>
+                            <tr><td>部署模式</td><td>裸金属或本地物理机部署</td></tr>
+                            <tr><td>宿主机 OS / 内核</td><td>Ubuntu 22.04 / Linux 6.6</td></tr>
+                            <tr><td>相关组件</td><td><code>Cubelet</code>、持久化 TAP 网卡</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>5.3 根因：更精确的路由抢走了流量</h3>
+                <p>在本地物理机或裸金属部署时，Cube 会创建大量持久化 TAP 网卡，名称类似 <code>z192.168.0.x</code> 或 <code>z192.168.1.x</code>。其默认配置位于 <code>Cubelet/config/config.toml</code>，默认在 <code>192.168.0.0/18</code> 网段下创建 500 个 TAP 网卡：</p>
+
+                <pre><code>[plugins]
+  [plugins."io.cubelet.internal.v1.network"]
+    object_dir = "/usr/local/services/cubetoolbox/cube-vs/network"
+    eth_name = "eth0"
+    tap_init_num = 500
+    cidr = "192.168.0.0/18"</code></pre>
+
+                <p>当宿主机同时存在两条相关路由时，<code>192.168.1.0/24</code> 比 <code>/18</code> 更精确，访问 <code>192.168.1.40</code> 会走真实物理网卡 <code>enp56s0f0</code>，而不是 Cube 的 <code>cube-dev</code> / TAP 路径，于是 Cubelet 探测沙箱端口时连不到真正的沙箱。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">宿主机路由视角</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">192.168.1.0/24<small>enp56s0f0 · src 192.168.1.123</small></div>
+                        <div class="arch-box dashed">更精确 → 抢占<small>/24 比 /18 更具体</small></div>
+                        <div class="arch-box control">192.168.0.0/18<small>cube-dev · src 192.168.0.1</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 沙箱 IP 192.168.1.40 同时落在两个网段内</div>
+                    <div class="arch-layer">
+                        <div class="arch-box security">探测流量走 enp56s0f0<small>没有进入 cube-dev / TAP</small></div>
+                    </div>
+                    <div class="arch-connector">↓</div>
+                    <div class="arch-layer">
+                        <div class="arch-box data">PortBindingFailed<small>detecting 192.168.1.40 port failed</small></div>
+                    </div>
+                </div>
+
+                <pre><code>$ ip route
+192.168.0.0/18 dev cube-dev proto kernel scope link src 192.168.0.1
+192.168.1.0/24 dev enp56s0f0 proto kernel scope link src 192.168.1.123 metric 100</code></pre>
+
+                <p>在 <code>/data/log/Cubelet/Cubelet-req.log</code> 里能看到对应证据：</p>
+
+                <pre><code>[cubebox] fail:PortBindingFailed The initialization timeout or detecting 192.168.1.40 port failed.
+sandboxIP: "192.168.1.40"
+port_mappings: {container_port:49983 host_port:20588}
+port_mappings: {container_port:49999 host_port:20589}</code></pre>
+
+                <h3>5.4 解决方案：换一个不冲突的网段</h3>
+                <p>把 Cubelet 的网络 CIDR 改成不和宿主机局域网冲突的网段（示例改为 <code>172.31.64.0/18</code>），并清理旧网卡后重启：</p>
+
+                <pre><code><span class="c"># 1) 先停止 Cube Sandbox 服务</span>
+sudo systemctl stop 'cube-sandbox-*.target'
+
+<span class="c"># 2) 修改 Cubelet 网络 CIDR（示例：192.168.0.0/18 → 172.31.64.0/18）</span>
+sudo sed -i 's#cidr = "192.168.0.0/18"#cidr = "172.31.64.0/18"#' \
+  /usr/local/services/cubetoolbox/Cubelet/config/config.toml
+
+<span class="c"># 3) 删除旧的 cube-dev 与持久化 z* TAP 网卡</span>
+sudo ip link delete cube-dev 2&gt;/dev/null || true
+ip tuntap show | awk -F: '/^z[0-9]+\./{print $1}' \
+  | xargs -r -n1 -I{} sudo ip tuntap del dev {} mode tap
+
+<span class="c"># 4) 重启服务</span>
+sudo systemctl start 'cube-sandbox-*.target'</code></pre>
+
+                <p>网段不再和宿主机局域网重叠后，重新创建模板即可成功。</p>
+
+                <h3>5.5 残留 cube-dev：为什么 reboot 不够</h3>
+                <p>停止 Cube Sandbox 服务<strong>不会</strong>删除 <code>cube-dev</code> dummy 网卡和持久化的 <code>z&lt;ip&gt;</code> TAP 设备，它们会一直残留，直到 reboot 或手动清理。用相同网段重装会自动复用现有 <code>cube-dev</code>，无需处理；但<strong>调整网段</strong>时，若新 CIDR 与残留的 <code>cube-dev</code> 网络重叠，预检会拦截：</p>
+
+                <pre><code>[one-click] ERROR: CUBE_SANDBOX_NETWORK_CIDR '192.168.0.0/17' overlaps an existing cube-dev network (192.168.0.0/18).
+
+  Changing the sandbox CIDR on a host that already has a cube network is
+  disruptive: the old cube-dev and the persistent z* TAP devices are left
+  stale. A reboot alone is NOT enough -- the systemd target is enabled and
+  Cubelet 内置 network runtime 会在启动时按 config.toml 重建旧网络.
+
+  To change the CIDR, fully reset the cube network first:
+    sudo systemctl stop 'cube-sandbox-*.target'
+    sudo ip link delete cube-dev 2&gt;/dev/null || true
+    ip tuntap show | awk -F: '/^z[0-9]+\./{print $1}' \
+      | xargs -r -n1 -I{} sudo ip tuntap del dev {} mode tap
+  then re-run install with the new CIDR.
+
+  Or keep the existing CIDR (192.168.0.0/18) to reuse the current network.
+
+  To bypass this check (not recommended), set:
+    CUBE_SANDBOX_NETWORK_CIDR_SKIP_CONFLICT_CHECK=1</code></pre>
+
+                <div class="warning">
+                    <strong>仅 reboot 并不够：</strong>systemd target 是 enabled 的，开机后 Cubelet 内置 network runtime 会按 <code>config.toml</code> 重建 <code>cube-dev</code> 和 TAP 设备。必须按报错中给出的步骤做确定性清理，再用新的 <code>CUBE_SANDBOX_NETWORK_CIDR</code> 重新安装。若新网段不与残留 <code>cube-dev</code> 重叠，预检放行，Cubelet 内置 network runtime 会把 <code>cube-dev</code> 协调到新网段。
+                </div>
+
+                <div class="danger">
+                    <strong>不要用 bypass 硬闯：</strong><code>CUBE_SANDBOX_NETWORK_CIDR_SKIP_CONFLICT_CHECK=1</code> 只是跳过检查，旧的 <code>cube-dev</code> 与 TAP 仍在，问题不会消失。
+                </div>
+            </section>
+
+            <!-- ===================== 6 ===================== -->
+            <section class="concept-section" id="host-mount">
+                <h2><span class="section-num">6</span>Host Mount 写入 Permission Denied</h2>
+                <p>Host mount 是「把 Cubelet 宿主机上的已有路径映射进沙箱」，它不会复制文件、不会创建工作区快照，也不会自动改写文件 owner。因此 Linux 权限照常生效，最常见的坑就是「能看见目录，却写不进去」。</p>
+
+                <h3>6.1 问题现象</h3>
+                <p>沙箱里可以看到 host mount 目录，但写入时报 <code>Permission denied</code>：</p>
+
+                <pre><code>/bin/bash: line 1: /mnt/rw/1.txt: Permission denied</code></pre>
+
+                <p>常见复现方式是创建一个可写 host mount：</p>
+
+                <pre><code>import json
+from cubesandbox import Sandbox
+
+mounts = json.dumps([
+    {
+        "hostPath": "/tmp/rw",
+        "mountPath": "/mnt/rw",
+        "readOnly": False,
+    },
+])
+
+with Sandbox.create(metadata={"host-mount": mounts}) as sandbox:
+    sandbox.commands.run("echo hello &gt; /mnt/rw/1.txt")</code></pre>
+
+                <h3>6.2 根因</h3>
+                <ul>
+                    <li><code>hostPath</code> 必须已经存在于运行该沙箱的 Cubelet 节点上。</li>
+                    <li>挂载目录会保留宿主机侧的 owner、group 和 mode bits。</li>
+                    <li>沙箱里的命令默认以沙箱用户身份运行。</li>
+                    <li>如果宿主机目录属于另一个 UID/GID，沙箱用户可能能读到目录，但不能写入。</li>
+                </ul>
+
+                <div class="note">
+                    <strong>关键结论：</strong>例如 <code>/tmp/rw</code> 在宿主机上属于 <code>uid=1002</code>，而沙箱命令以 <code>uid=1000</code> 运行，即使 <code>readOnly</code> 是 <code>False</code>，写 <code>/mnt/rw</code> 也可能失败。这是预期的 Linux 挂载行为——<code>readOnly</code> 只控制「只读还是读写挂载」，并不绕过宿主机文件系统权限。
+                </div>
+
+                <h3>6.3 先确认 host path 与 owner</h3>
+                <pre><code>sudo test -d /tmp/rw
+sudo stat -c 'owner=%u:%g mode=%a path=%n' /tmp/rw</code></pre>
+
+                <h3>6.4 四种处理方案对比</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>方案</th><th>适用场景</th><th>关键命令 / 配置</th><th>风险与注意</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1. 只读挂载</td>
+                                <td>agent 只需要读取和分析代码</td>
+                                <td><code>"readOnly": True</code></td>
+                                <td>最安全默认；无法写回宿主机</td>
+                            </tr>
+                            <tr>
+                                <td>2. 对齐目录 owner</td>
+                                <td>需要把结果写回宿主机目录</td>
+                                <td><code>chown 1000:1000 /tmp/rw</code> + <code>chmod 0755</code></td>
+                                <td>需先确认沙箱实际 UID/GID</td>
+                            </tr>
+                            <tr>
+                                <td>3. 使用 ACL</td>
+                                <td>宿主机 owner 不能改</td>
+                                <td><code>setfacl -m u:1000:rwx /tmp/rw</code></td>
+                                <td>保留原 owner，但增加 ACL 维护成本</td>
+                            </tr>
+                            <tr>
+                                <td>4. 以 root 写入</td>
+                                <td>管理类操作、可信 workload</td>
+                                <td><code>user="root"</code></td>
+                                <td>可能生成 root-owned 文件，后续宿主机工具处理有权限差异</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>6.5 方案 1：代码工作区优先只读</h3>
+                <pre><code>import json
+from cubesandbox import Sandbox
+
+mounts = json.dumps([
+    {
+        "hostPath": "/srv/workspaces/my-repo",
+        "mountPath": "/workspace",
+        "readOnly": True,
+    },
+])
+
+with Sandbox.create(metadata={"host-mount": mounts}) as sandbox:
+    result = sandbox.commands.run("ls /workspace")
+    print(result.stdout)</code></pre>
+
+                <h3>6.6 方案 2：读写挂载时对齐 owner</h3>
+                <pre><code>sudo mkdir -p /tmp/rw
+sudo chown 1000:1000 /tmp/rw
+sudo chmod 0755 /tmp/rw</code></pre>
+
+                <p>如果沙箱镜像使用了不同用户，先在沙箱内确认实际 UID/GID，再用它去准备宿主机目录：</p>
+
+                <pre><code>with Sandbox.create(metadata={"host-mount": mounts}) as sandbox:
+    result = sandbox.commands.run("id &amp;&amp; stat -c '%u:%g %a %n' /mnt/rw")
+    print(result.stdout)</code></pre>
+
+                <h3>6.7 方案 3：宿主机 owner 不能改时用 ACL</h3>
+                <pre><code>sudo setfacl -m u:1000:rwx /tmp/rw
+sudo setfacl -d -m u:1000:rwx /tmp/rw</code></pre>
+
+                <p>这样可以保留原有宿主机 owner，同时允许沙箱用户写入新文件。</p>
+
+                <h3>6.8 方案 4：仅在合适场景用 root 写入</h3>
+                <pre><code>with Sandbox.create(metadata={"host-mount": mounts}) as sandbox:
+    sandbox.commands.run("echo hello &gt; /mnt/rw/1.txt", user="root")</code></pre>
+
+                <div class="warning">
+                    <strong>只建议在可信 workload 中使用 root：</strong>它可能在 host mount 中创建 root-owned 文件，后续宿主机工具处理这些文件时可能会遇到权限差异。
+                </div>
+
+                <h3>6.9 工作区映射注意事项</h3>
+                <p>Host mount 是<strong>节点本地能力</strong>。在多机集群中，<code>hostPath</code> 必须存在于实际调度运行该沙箱的 Cubelet 节点上。如果希望沙箱使用和本地开发机一致的仓库，可以选择：</p>
+
+                <div class="card-grid">
+                    <div class="card"><span class="icon">📦</span><h3>同步到固定目录</h3><p>先把仓库同步到每个 Cubelet 节点上的固定目录，再挂载该目录。</p></div>
+                    <div class="card"><span class="icon">🗄️</span><h3>共享存储</h3><p>使用共享存储，并确保所有 Cubelet 节点上路径一致。</p></div>
+                    <div class="card"><span class="icon">🧱</span><h3>构建进镜像</h3><p>如果沙箱只需要固定版本的代码快照，可以把仓库构建进 template image。</p></div>
+                    <div class="card"><span class="icon">📥</span><h3>运行时复制</h3><p>如果工作区较小且不需要写回宿主机，可以在运行时把文件复制进沙箱。</p></div>
+                </div>
+
+                <div class="danger">
+                    <strong>不要这样用：</strong>不要只依赖 <code>host-mount</code> 把本地笔记本上的文件传到远端 Cubelet 节点——host mount 只映射「本节点已存在的路径」，不会替你同步。
+                </div>
+            </section>
+
+            <!-- ===================== 7 ===================== -->
+            <section class="concept-section" id="logs">
+                <h2><span class="section-num">7</span>组件日志位置与 cubecli logs</h2>
+                <p>CubeSandbox 由多个组件组成，排障时最常问的是「这条报错该去哪个日志文件里找」。关键认知是：日志分为三类，来源和查看方式完全不同。</p>
+
+                <div class="arch-diagram">
+                    <div class="arch-label">请求路径</div>
+                    <div class="arch-layer">
+                        <div class="arch-box control">CubeAPI<small>cube-api-YYYY-MM-DD.log</small></div>
+                        <div class="arch-box control">CubeMaster<small>cubemaster-req.log</small></div>
+                        <div class="arch-box compute">Cubelet<small>Cubelet-req.log</small></div>
+                    </div>
+                    <div class="arch-connector">↓ Cubelet 拉起 MicroVM / 容器</div>
+                    <div class="arch-layer">
+                        <div class="arch-box compute">CubeShim<small>cube-shim-req.log（含 guest kernel）</small></div>
+                        <div class="arch-box data">VMM<small>vmm.log</small></div>
+                        <div class="arch-box primary">沙箱 init<small>cubecli logs</small></div>
+                    </div>
+                    <div class="arch-connector">↓ 外部访问 / 启动期</div>
+                    <div class="arch-layer">
+                        <div class="arch-box network">cube-proxy<small>/data/log/cube-proxy/{access,error}.log</small></div>
+                        <div class="arch-box obs">journalctl<small>仅启动期 stdout/stderr</small></div>
+                    </div>
+                </div>
+
+                <h3>7.1 三类日志</h3>
+                <ul>
+                    <li><strong>业务行为日志：</strong>请求、调度、审计、VMM 创建过程等，各组件直接写文件到 <code>/data/log/&lt;Module&gt;/</code>，<strong>不会</strong>进 <code>journalctl</code>。</li>
+                    <li><strong>启动期日志：</strong>进程被 systemd 拉起到稳定运行（或失败退出）期间的 stdout/stderr，只能用 <code>journalctl -u &lt;unit&gt;</code> 查看。</li>
+                    <li><strong>容器沙箱 / 模板日志：</strong>沙箱内 init 进程（容器 PID 1）的 stdout/stderr，由 CubeShim 写入 Cubelet 的私有挂载命名空间内，必须用 <code>cubecli logs</code> 读取；模板构建日志则落在宿主机文件系统，无需进命名空间。</li>
+                </ul>
+
+                <h3>7.2 各组件日志速查表</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>组件</th><th>日志类型</th><th>路径</th><th>查看方式</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>CubeAPI</td><td>业务请求日志（按天滚动）</td><td><code>/data/log/CubeAPI/cube-api-YYYY-MM-DD.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>CubeMaster</td><td>业务请求日志</td><td><code>/data/log/CubeMaster/cubemaster-req.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>CubeMaster</td><td>启动期日志</td><td><code>/data/log/CubeMaster/cubemaster.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>Cubelet</td><td>业务请求日志</td><td><code>/data/log/Cubelet/Cubelet-req.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>Cubelet</td><td>统计/指标日志</td><td><code>/data/log/Cubelet/Cubelet-stat.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>Cubelet</td><td>启动期日志</td><td>—</td><td><code>journalctl -u cube-sandbox-cubelet.service</code></td></tr>
+                            <tr><td>CubeShim</td><td>业务请求日志（含 guest kernel 输出）</td><td><code>/data/log/CubeShim/cube-shim-req.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>CubeShim</td><td>统计日志</td><td><code>/data/log/CubeShim/cube-shim-stat.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>Hypervisor (VMM)</td><td>VMM 创建过程日志</td><td><code>/data/log/CubeVmm/vmm.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>cube-proxy</td><td>访问/错误日志</td><td><code>/data/log/cube-proxy/{access,error}.log</code></td><td><code>tail -F</code></td></tr>
+                            <tr><td>沙箱容器</td><td>init 进程 stdout/stderr</td><td><code>/data/cubelet/state/io.containerd.runtime.v2.task/default/&lt;sandbox-id&gt;/{stdout,stderr}</code>（Cubelet 挂载命名空间内）</td><td><code>cubecli logs &lt;sandbox-id&gt;</code></td></tr>
+                            <tr><td>模板构建</td><td>构建容器 stdout/stderr</td><td><code>/data/log/template/&lt;template-id&gt;_0/{stdout,stderr}</code>（宿主机文件系统）</td><td><code>cubecli logs --tpl &lt;template-id&gt;</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="note">
+                    <strong>业务日志不在 journalctl：</strong>以上业务 / 请求类日志全部直接写到 <code>/data/log/&lt;Module&gt;/</code>，<code>journalctl</code> 里只能看到进程启动 / 退出期间很少量的 stdout/stderr。源文档未给出 CoreDNS、MySQL、Redis、MinIO 等组件的日志路径，如需排查请以官方文档为准。
+                </div>
+
+                <h3>7.3 用 cubecli logs 查看沙箱 / 模板日志</h3>
+                <p><code>cubecli</code> 随 Cubelet 一同构建，一键部署时自动安装。沙箱日志文件位于 Cubelet 的私有挂载命名空间内，因此 <code>cubecli logs</code> <strong>必须直接在计算节点上执行</strong>，无法远程调用。</p>
+
+                <pre><code><span class="c"># 沙箱 stdout，最后 100 行（默认）</span>
+cubecli logs &lt;sandbox-id&gt;
+
+<span class="c"># 沙箱 stderr，最后 100 行</span>
+cubecli logs --stderr &lt;sandbox-id&gt;
+
+<span class="c"># 沙箱完整日志</span>
+cubecli logs --all &lt;sandbox-id&gt;
+
+<span class="c"># 沙箱最后 N 行 / 前 N 行</span>
+cubecli logs --tail 50 &lt;sandbox-id&gt;
+cubecli logs --head 20 &lt;sandbox-id&gt;
+
+<span class="c"># 模板构建日志：直接读宿主机文件系统，跳过命名空间切换</span>
+cubecli logs --tpl &lt;template-id&gt;
+cubecli logs --tpl --all --stderr &lt;template-id&gt;</code></pre>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>参数</th><th>简写</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>--tpl</code></td><td>—</td><td>把 id 当作模板 ID，从 <code>/data/log/template/&lt;id&gt;_0/</code> 读取，无需进命名空间</td></tr>
+                            <tr><td><code>--stderr</code></td><td><code>-e</code></td><td>读取 stderr，默认读取 stdout</td></tr>
+                            <tr><td><code>--all</code></td><td><code>-a</code></td><td>输出全部行；不可与 <code>--tail</code>/<code>--head</code> 同时使用</td></tr>
+                            <tr><td><code>--tail N</code></td><td><code>-t N</code></td><td>输出最后 N 行（默认 100）</td></tr>
+                            <tr><td><code>--head N</code></td><td><code>-H N</code></td><td>输出前 N 行</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info">
+                    <strong>作用范围：</strong><code>cubecli logs</code> 只覆盖<strong>容器 init 进程（PID 1）</strong>的输出。通过 E2B <code>exec</code> 接口在沙箱内启动的子任务，其 stdout/stderr 需要用 E2B SDK 的 <code>on_stdout</code> / <code>on_stderr</code> 回调获取。沙箱删除后，对应日志文件会一并清除；日志转发需要 v0.4.0 及以上版本的 CubeShim。
+                </div>
+
+                <h3>7.4 Guest kernel 日志：直接在 CubeShim log 里看</h3>
+                <p>CubeShim 在启动虚拟机时，通过内核参数 <code>console=hvc0</code> 把 guest 内核的控制台输出接管过来，和沙箱容器 init 进程日志一样，统一写进 CubeShim 的请求日志文件。所以 guest kernel log 直接 grep <code>cube-shim-req.log</code> 即可，不需要额外工具。</p>
+
+                <pre><code>LC_ALL=C sudo grep -a -E "(&lt;sandbox-id 或 InstanceId&gt;|Linux version)" /data/log/CubeShim/cube-shim-req.log</code></pre>
+
+                <p><code>cube-shim-req.log</code> 是逐行 JSON，日志本体在 <code>LogContent</code> 字段里。典型的 guest 内核启动记录形如：</p>
+
+                <pre><code>{"Module":"Shim","InstanceId":"&lt;sandbox-id&gt;","ContainerId":"&lt;sandbox-id&gt;","Timestamp":"...","LogContent":"[    0.000000] Linux version 6.12.33-cube.sandbox.pvm.guest-... #2 SMP PREEMPT_DYNAMIC ...","FunctionType":""}</code></pre>
+
+                <p>按 <code>InstanceId</code>（即 sandbox ID）过滤，即可拿到对应沙箱完整的内核启动输出，包括设备探测、<code>EXT4-fs</code>、<code>rootfs</code> mount 等信息。</p>
+
+                <div class="tip">
+                    <strong>为什么在这里：</strong><code>console=hvc0</code> 是虚拟机的串口控制台，内核所有 <code>printk</code> 输出都会走这条通路。CubeShim 把这条控制台流量直接转发进它自己的日志管道（和普通请求日志共用同一个 writer），所以查 guest kernel 日志不需要额外挂载或调试工具。
+                </div>
+
+                <h3>7.5 cube-proxy 宿主机日志</h3>
+                <p><code>cube-proxy</code> 是基于 OpenResty 的 nginx 容器。一键部署会将宿主机目录 <code>/data/log/cube-proxy/</code> bind mount 到容器内同一路径，可以直接从宿主机读取：</p>
+
+                <pre><code>tail -F /data/log/cube-proxy/error.log
+tail -F /data/log/cube-proxy/access.log</code></pre>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>文件</th><th>内容</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>access.log</code></td><td>nginx 访问日志</td></tr>
+                            <tr><td><code>error.log</code></td><td>nginx 错误日志</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>7.6 开启 Cubelet debug 级别日志</h3>
+                <p>Cubelet 默认日志级别是 <code>warn</code>，排障时往往需要临时调高到 <code>debug</code>。有两种方式，二者都<strong>不需要重启 Cubelet 进程</strong>。</p>
+
+                <p><strong>方式一：改动态配置文件（持久生效，热加载）。</strong>Cubelet 以 10 秒为周期轮询动态配置文件，检测到变化后自动热加载。在 <code>common:</code> 段落下加一行 <code>log_level</code>：</p>
+
+                <pre><code>common:
+  enable_pf_mode: false
+  log_level: debug   <span class="c"># 新增这一行</span>
+  sandbox_exec_cmd_time_out: 5s
+  ...</code></pre>
+
+                <p>一键部署环境下该文件的默认路径是：</p>
+
+                <pre><code>/usr/local/services/cubetoolbox/Cubelet/dynamicconf/conf.yaml</code></pre>
+
+                <p><strong>方式二：调试端口临时切换（不改文件，进程重启后失效）。</strong>Cubelet 内置 debug HTTP 端口（默认监听 <code>:9966</code>，对应 <code>config.toml</code> 里的 <code>[debug] address</code>），暴露 <code>/debug/loglevel</code> 接口：</p>
+
+                <pre><code><span class="c"># 切到 debug</span>
+curl -X POST 'http://127.0.0.1:9966/debug/loglevel?level=debug'
+
+<span class="c"># 排障结束后切回 info</span>
+curl -X POST 'http://127.0.0.1:9966/debug/loglevel?level=info'</code></pre>
+
+                <div class="warning">
+                    <strong>只对新启动的沙箱生效：</strong>无论用哪种方式切到 debug，<strong>已经处于运行中的沙箱不会补出更详细的日志</strong>。因此排障时建议的顺序是：先切到 debug，再复现问题（新建沙箱触发问题场景）。
+                </div>
+
+                <div class="danger">
+                    <strong>安全提示：</strong>debug 端口下还挂载了 <code>/debug/pprof/*</code>（goroutine 栈、堆内存 profile、源码片段）。请确保 <code>:9966</code> 仅监听 localhost，不要通过反向代理暴露，也不要绑定到 <code>0.0.0.0</code>。开启 debug 会使单次请求日志量放大一个数量级，排障结束后记得改回 <code>info</code>/<code>warn</code>。
+                </div>
+            </section>
+
+            <!-- ===================== 8 ===================== -->
+            <section class="concept-section" id="diagnostics">
+                <h2><span class="section-num">8</span>一键诊断信息收集与命令速查</h2>
+                <p>下面这段脚本只做只读采集，把 §3–§7 中确认过的路径与命令一次性落到一个目录里，方便随工单/issue 一起提交。</p>
+
+                <pre><code>#!/usr/bin/env bash
+<span class="c"># CubeSandbox 一键诊断信息收集（只读命令，路径来自本文档）</span>
+set -u
+OUT="/tmp/cube-diag-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$OUT"
+
+uname -a &gt; "$OUT/uname.txt" 2&gt;&amp;1
+grep -w bpf /proc/filesystems &gt; "$OUT/bpffs.txt" 2&gt;&amp;1
+df -T /data/cubelet &gt; "$OUT/df-cubelet.txt" 2&gt;&amp;1
+df -h /tmp /data/cubelet /usr/local/services/cubetoolbox &gt; "$OUT/df-tmp.txt" 2&gt;&amp;1
+ip route &gt; "$OUT/ip-route.txt" 2&gt;&amp;1
+ip tuntap show &gt; "$OUT/ip-tuntap.txt" 2&gt;&amp;1
+systemctl status 'cube-sandbox-*.target' --no-pager &gt; "$OUT/systemd.txt" 2&gt;&amp;1
+journalctl -u cube-sandbox-cubelet.service --no-pager -n 200 &gt; "$OUT/cubelet-journal.txt" 2&gt;&amp;1
+
+for f in CubeAPI/cube-api-$(date +%F).log \
+         CubeMaster/cubemaster-req.log \
+         Cubelet/Cubelet-req.log \
+         CubeShim/cube-shim-req.log \
+         CubeVmm/vmm.log; do
+  tail -n 200 "/data/log/$f" &gt; "$OUT/$(echo "$f" | tr '/' '_')" 2&gt;&amp;1
+done
+
+echo "诊断信息已收集到 $OUT"</code></pre>
+
+                <h3>8.1 常用命令速查</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>目的</th><th>命令</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>确认 bpffs</td><td><code>grep -w bpf /proc/filesystems</code></td></tr>
+                            <tr><td>确认 /data/cubelet 文件系统</td><td><code>df -T /data/cubelet</code></td></tr>
+                            <tr><td>确认磁盘余量</td><td><code>df -h /tmp /data/cubelet /usr/local/services/cubetoolbox</code></td></tr>
+                            <tr><td>查看路由</td><td><code>ip route</code></td></tr>
+                            <tr><td>查看 TAP 设备</td><td><code>ip tuntap show</code></td></tr>
+                            <tr><td>删除 cube-dev</td><td><code>sudo ip link delete cube-dev 2&gt;/dev/null || true</code></td></tr>
+                            <tr><td>清理 z* TAP</td><td><code>ip tuntap show | awk -F: '/^z[0-9]+\./{print $1}' | xargs -r -n1 -I{} sudo ip tuntap del dev {} mode tap</code></td></tr>
+                            <tr><td>停服 / 启服</td><td><code>sudo systemctl stop 'cube-sandbox-*.target'</code><br><code>sudo systemctl start 'cube-sandbox-*.target'</code></td></tr>
+                            <tr><td>Cubelet 启动日志</td><td><code>journalctl -u cube-sandbox-cubelet.service</code></td></tr>
+                            <tr><td>沙箱日志</td><td><code>cubecli logs --tail 100 &lt;sandbox-id&gt;</code></td></tr>
+                            <tr><td>模板构建日志</td><td><code>cubecli logs --tpl &lt;template-id&gt;</code></td></tr>
+                            <tr><td>guest kernel 日志</td><td><code>LC_ALL=C sudo grep -a -E "(&lt;sandbox-id&gt;|Linux version)" /data/log/CubeShim/cube-shim-req.log</code></td></tr>
+                            <tr><td>开启 debug</td><td><code>curl -X POST 'http://127.0.0.1:9966/debug/loglevel?level=debug'</code></td></tr>
+                            <tr><td>host mount owner</td><td><code>sudo stat -c 'owner=%u:%g mode=%a path=%n' /tmp/rw</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="tip">
+                    <strong>提交 issue 时带上：</strong>版本号、部署模式、OS / 内核、<code>ip route</code> 输出、对应 job phase、以及脱敏后的 Cubelet / CubeShim 日志片段。官方 issue 中的每一个案例都附带了这些信息，能显著缩短定位时间。
+                </div>
+            </section>
+
+            <!-- ===================== 9 ===================== -->
+            <section class="concept-section" id="review">
+                <h2><span class="section-num">9</span>易错点、记忆卡片与自测</h2>
+
+                <h3>9.1 易错点</h3>
+                <div class="danger">
+                    <strong>易错点 1：以为 reboot 能清掉 cube-dev。</strong>仅 reboot 不够——systemd target 是 enabled 的，开机后 Cubelet 内置 network runtime 会按 <code>config.toml</code> 重建旧网络。必须手动 <code>ip link delete cube-dev</code> 并清理 <code>z*</code> TAP。
+                </div>
+                <div class="danger">
+                    <strong>易错点 2：把 readOnly 当成权限开关。</strong><code>readOnly: False</code> 只表示「以读写方式挂载」，不会绕过宿主机 UID/GID 权限；写不进去先对齐 owner 或用 ACL。
+                </div>
+                <div class="warning">
+                    <strong>易错点 3：对着运行中的沙箱开 debug 等日志变详细。</strong>已经运行中的沙箱不会补出更详细的日志，必须「先切 debug，再新建沙箱复现」。
+                </div>
+                <div class="warning">
+                    <strong>易错点 4：模板超时就调大 timeout。</strong><code>DISTRIBUTING</code> 与 <code>CREATING_TEMPLATE</code> 由不同配置限制；先查节点健康、磁盘、网络和 Cubelet 日志，确认只是慢再改 <code>cubelet_conf</code> 并重启 CubeMaster。
+                </div>
+                <div class="info">
+                    <strong>易错点 5：在别的机器上远程执行 cubecli logs。</strong>沙箱日志位于 Cubelet 私有挂载命名空间，<code>cubecli logs</code> 必须在计算节点本机执行。
+                </div>
+
+                <h3>9.2 记忆卡片</h3>
+                <div class="memory-grid">
+                    <div class="memory-card"><b>方法论</b>先分层 → 再定位信号 → 最后验证，不要一上来就翻日志。</div>
+                    <div class="memory-card"><b>bpffs</b><code>grep -w bpf /proc/filesystems</code> 有输出才挂载；持久化写进 <code>/etc/fstab</code>。</div>
+                    <div class="memory-card"><b>XFS</b><code>/data/cubelet</code> 必须 XFS + reflink，ext4 根盘会报 <code>not XFS</code>。</div>
+                    <div class="memory-card"><b>CIDR</b>默认 <code>192.168.0.0/18</code>；<code>/24</code> 比 <code>/18</code> 精确，会抢走沙箱流量。</div>
+                    <div class="memory-card"><b>日志三类</b>业务日志进 <code>/data/log</code>；启动日志进 <code>journalctl</code>；沙箱日志用 <code>cubecli logs</code>。</div>
+                    <div class="memory-card"><b>guest kernel</b>通过 <code>console=hvc0</code> 转发进 <code>cube-shim-req.log</code>。</div>
+                </div>
+
+                <h3>9.3 自测</h3>
+                <div class="quiz">
+                    <h4>自测</h4>
+                    <details>
+                        <summary>1. one-click 预检报「不是 bpf 文件系统」，正确的排查顺序是什么？</summary>
+                        <p>先 <code>grep -w bpf /proc/filesystems</code> 确认内核是否支持。有输出则 <code>mkdir -p /sys/fs/bpf &amp;&amp; mount -t bpf bpf /sys/fs/bpf</code>，可选地在 <code>/etc/fstab</code> 加 <code>bpf /sys/fs/bpf bpf defaults 0 0</code> 持久化；无输出说明缺 <code>CONFIG_BPF_SYSCALL</code>，需升级或更换内核。</p>
+                    </details>
+                    <details>
+                        <summary>2. 为什么把默认网段改掉后，仅重启机器还不够？</summary>
+                        <p>因为 <code>cube-dev</code> 和 <code>z*</code> TAP 是持久化残留，systemd target 又是 enabled 的，开机会由 Cubelet 内置 network runtime 按 <code>config.toml</code> 重建。必须停服后手动 <code>ip link delete cube-dev</code>、清理 <code>z*</code> TAP，再用新 CIDR 重装。</p>
+                    </details>
+                    <details>
+                        <summary>3. 想看到沙箱 guest kernel 的启动日志，应该去哪看？</summary>
+                        <p>直接在 CubeShim 的请求日志里看：<code>LC_ALL=C sudo grep -a -E "(&lt;sandbox-id&gt;|Linux version)" /data/log/CubeShim/cube-shim-req.log</code>。guest kernel 通过 <code>console=hvc0</code> 的输出被 CubeShim 转发进 <code>cube-shim-req.log</code> 的 <code>LogContent</code> 字段，无需额外工具。</p>
+                    </details>
+                </div>
+            </section>
+
+            <div id="page-pager" class="page-pager"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>CubeSandbox 学习指南 · 基于官方中文文档整理</span>
+            <span>·</span>
+            <a href="index.html">返回知识地图</a>
+            <span>·</span>
+            <a href="https://cubesandbox.com/zh/guide/introduction" target="_blank" rel="noopener">官方文档</a>
+        </div>
+    </footer>
+
+    <button id="back-to-top" aria-label="回到顶部">↑</button>
+</body>
+</html>
